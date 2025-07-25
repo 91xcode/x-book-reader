@@ -25,6 +25,7 @@ import Dropdown from '@/components/ui/Dropdown'
 import Dialog from '@/components/ui/Dialog'
 import MenuItem from '@/components/ui/MenuItem'
 import NumberInput from '@/components/ui/NumberInput'
+import { TbLayoutSidebar, TbLayoutSidebarFilled } from 'react-icons/tb'
 
 // Types for settings
 export type SettingsPanelType = 'Font' | 'Layout' | 'Color' | 'Control' | 'Language' | 'Custom'
@@ -322,9 +323,19 @@ export default function ReaderPage() {
 
   // View Menu Component - 100% matching readest ViewMenu
   const ViewMenuContent = () => (
-    <>
+    <div
+      tabIndex={0}
+      className={clsx(
+        'view-menu dropdown-content dropdown-right no-triangle z-20 mt-1 border',
+        'bgcolor-base-200 border-base-200 shadow-2xl',
+      )}
+      style={{
+        maxWidth: `${typeof window !== 'undefined' ? window.innerWidth - 40 : 600}px`,
+        marginRight: typeof window !== 'undefined' && window.innerWidth < 640 ? '-36px' : '0px',
+      }}
+    >
       {/* Zoom Controls */}
-      <div className="flex items-center justify-between rounded-md mb-3">
+      <div className={clsx('flex items-center justify-between rounded-md')}>
         <button
           onClick={zoomOut}
           className={clsx(
@@ -335,7 +346,9 @@ export default function ReaderPage() {
           <MdZoomOut />
         </button>
         <button
-          className="hover:bg-base-300 text-base-content h-8 min-h-8 w-[50%] rounded-md p-1 text-center"
+          className={clsx(
+            'hover:bg-base-300 text-base-content h-8 min-h-8 w-[50%] rounded-md p-1 text-center',
+          )}
           onClick={resetZoom}
         >
           {zoomLevel}%
@@ -351,7 +364,7 @@ export default function ReaderPage() {
         </button>
       </div>
 
-      <hr className="border-base-300 my-1" />
+      <hr className='border-base-300 my-1' />
 
       <MenuItem label="字体与布局" shortcut="Shift+F" onClick={() => setIsSettingsOpen(true)} />
 
@@ -362,7 +375,7 @@ export default function ReaderPage() {
         onClick={toggleScrolledMode}
       />
 
-      <hr className="border-base-300 my-1" />
+      <hr className='border-base-300 my-1' />
 
       <MenuItem
         label="从未同步"
@@ -370,7 +383,7 @@ export default function ReaderPage() {
         onClick={() => console.log('同步')}
       />
 
-      <hr className="border-base-300 my-1" />
+      <hr className='border-base-300 my-1' />
 
       <MenuItem label="全屏" onClick={() => console.log('全屏')} />
       
@@ -392,7 +405,7 @@ export default function ReaderPage() {
         Icon={invertImgColorInDark ? MdCheck : undefined}
         onClick={() => setInvertImgColorInDark(!invertImgColorInDark)}
       />
-    </>
+    </div>
   )
 
   // Dialog Menu Component (matching readest DialogMenu)
@@ -1177,85 +1190,100 @@ export default function ReaderPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col relative min-w-0">
-        {/* Header Bar - 100% match readest HeaderBar */}
-        <div className="bg-base-100 absolute top-0 w-full">
+      <div className="flex-1 flex flex-col relative min-w-0 h-full">
+        {/* Header Bar - 完全匹配 readest HeaderBar 结构 */}
+        <div
+          className={clsx('bg-base-100 absolute top-0 w-full')}
+          style={{
+            paddingTop: '0px',
+          }}
+        >
           <div
-            className="absolute top-0 z-10 h-11 w-full"
+            className={clsx('absolute top-0 z-10 h-11 w-full')}
             onMouseEnter={() => setHoveredBookKey(book.hash)}
             onTouchStart={() => setHoveredBookKey(book.hash)}
           />
           <div
             className={clsx(
-              'header-bar bg-base-100 absolute top-0 z-10 flex h-11 w-full items-center pr-4 pl-4',
-              'shadow-xs transition-[opacity,margin-top] duration-300',
+              'bg-base-100 absolute left-0 right-0 top-0 z-10',
+              isHeaderVisible ? 'visible' : 'hidden',
+            )}
+            style={{
+              height: '0px',
+            }}
+          />
+          <div
+            className={clsx(
+              `header-bar bg-base-100 absolute top-0 z-10 flex h-11 w-full items-center pr-4`,
+              `shadow-xs transition-[opacity,margin-top] duration-300`,
+              'pl-4',
               isHeaderVisible ? 'pointer-events-auto visible' : 'pointer-events-none opacity-0',
             )}
+            style={{
+              marginTop: '0px',
+            }}
             onMouseLeave={() => setHoveredBookKey(null)}
           >
             {/* Left side controls */}
-            <div className="bg-base-100 sidebar-bookmark-toggler z-20 flex h-full items-center gap-x-4 pe-2">
-              <div className="hidden sm:flex">
+            <div className='bg-base-100 sidebar-bookmark-toggler z-20 flex h-full items-center gap-x-4 pe-2'>
+              <div className='hidden sm:flex'>
                 {/* Sidebar Toggler */}
                 <button
                   className="btn btn-ghost h-8 min-h-8 w-8 p-0"
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 >
-                  <IoIosList className="w-[18px] h-[18px]" />
+                  {isSidebarOpen ? (
+                    <TbLayoutSidebarFilled className="w-[16px] h-[16px]" />
+                  ) : (
+                    <TbLayoutSidebar className="w-[16px] h-[16px]" />
+                  )}
                 </button>
               </div>
               {/* Bookmark Toggler */}
               <button className="btn btn-ghost h-8 min-h-8 w-8 p-0">
-                <svg className="w-[18px] h-[18px] fill-base-content" viewBox="0 0 24 24">
+                <svg className="w-[16px] h-[16px] fill-base-content" viewBox="0 0 24 24">
                   <path d="M17,3H7A2,2 0 0,0 5,5V21L12,18L19,21V5C19,3.89 18.1,3 17,3Z" />
                 </svg>
               </button>
               {/* Translation Toggler */}
               <button className="btn btn-ghost h-8 min-h-8 w-8 p-0">
-                <svg className="w-[18px] h-[18px] fill-base-content" viewBox="0 0 24 24">
+                <svg className="w-[16px] h-[16px] fill-base-content" viewBox="0 0 24 24">
                   <path d="M12.87,15.07L10.33,12.56L10.36,12.53C12.1,10.59 13.34,8.36 14.07,6H17V4H10V2H8V4H1V6H12.17C11.5,7.92 10.44,9.75 9,11.35C8.07,10.32 7.3,9.19 6.69,8H4.69C5.42,9.63 6.42,11.17 7.67,12.56L2.58,17.58L4,19L9,14L12.11,17.11L12.87,15.07Z" />
                 </svg>
               </button>
             </div>
 
             {/* Center title */}
-            <div className="header-title z-15 bg-base-100 pointer-events-none absolute inset-0 hidden items-center justify-center sm:flex">
-              <h2 className="line-clamp-1 max-w-[50%] text-center text-xs font-semibold">
+            <div className='header-title z-15 bg-base-100 pointer-events-none absolute inset-0 hidden items-center justify-center sm:flex'>
+              <h2 className='line-clamp-1 max-w-[50%] text-center text-xs font-semibold'>
                 {book.title}
               </h2>
             </div>
 
             {/* Right side controls */}
-            <div className="bg-base-100 z-20 ml-auto flex h-full items-center space-x-4 ps-2">
+            <div className='bg-base-100 z-20 ml-auto flex h-full items-center space-x-4 ps-2'>
               {/* Settings Toggler */}
               <button 
                 className="btn btn-ghost h-8 min-h-8 w-8 p-0"
                 onClick={() => setIsSettingsOpen(true)}
               >
-                <svg className="w-[18px] h-[18px] fill-base-content" viewBox="0 0 24 24">
+                <svg className="w-[16px] h-[16px] fill-base-content" viewBox="0 0 24 24">
                   <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
                 </svg>
               </button>
               {/* Notebook Toggler */}
               <button className="btn btn-ghost h-8 min-h-8 w-8 p-0">
-                <svg className="w-[18px] h-[18px] fill-base-content" viewBox="0 0 24 24">
+                <svg className="w-[16px] h-[16px] fill-base-content" viewBox="0 0 24 24">
                   <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
                 </svg>
               </button>
               {/* View Menu */}
               <Dropdown
-                className="exclude-title-bar-mousedown dropdown-bottom dropdown-end"
-                buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
+                buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
                 toggleButton={<PiDotsThreeVerticalBold className="w-[16px] h-[16px]" />}
               >
-                <div
-                  className="view-menu z-20 mt-1 border bgcolor-base-200 border-base-200 shadow-2xl p-3 rounded-md min-w-[240px]"
-                  style={{
-                    maxWidth: `${typeof window !== 'undefined' ? window.innerWidth - 40 : 600}px`,
-                  }}
-                >
-                  <ViewMenuContent />
-                </div>
+                <ViewMenuContent />
               </Dropdown>
             </div>
           </div>
@@ -1265,6 +1293,7 @@ export default function ReaderPage() {
         <div 
           ref={contentRef}
           className="flex-1 overflow-auto relative"
+          style={{ paddingTop: '44px' }}
         >
           <div 
             className="max-w-4xl mx-auto py-8 transition-all duration-200"
