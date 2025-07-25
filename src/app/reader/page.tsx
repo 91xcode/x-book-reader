@@ -39,28 +39,28 @@ type TabConfig = {
 const mockBookData = {
   '1': {
     hash: '1',
-    title: 'The Great Gatsby',
+    title: '了不起的盖茨比',
     author: 'F. Scott Fitzgerald',
     format: 'epub' as const,
     progress: 45,
     toc: [
-      { label: 'Chapter 1', href: '#chapter1' },
-      { label: 'Chapter 2', href: '#chapter2' },
-      { label: 'Chapter 3', href: '#chapter3' },
-      { label: 'Chapter 4', href: '#chapter4' },
-      { label: 'Chapter 5', href: '#chapter5' },
+      { label: '第一章', href: '#chapter1' },
+      { label: '第二章', href: '#chapter2' },
+      { label: '第三章', href: '#chapter3' },
+      { label: '第四章', href: '#chapter4' },
+      { label: '第五章', href: '#chapter5' },
     ],
     content: `
       <div class="prose prose-lg max-w-none">
-        <h1>The Great Gatsby</h1>
-        <h2>Chapter 1</h2>
-        <p>In my younger and more vulnerable years my father gave me some advice that I've carried with me ever since.</p>
-        <p>"Whenever you feel like criticizing any one," he told me, "just remember that all the people in this world haven't had the advantages that you've had."</p>
-        <p>He didn't say any more, but we've always been unusually communicative in a reserved way, and I understood that he meant a great deal more than that. In consequence, I'm inclined to reserve all judgments, a habit that has opened up many curious natures to me and also made me the victim of not a few veteran bores.</p>
-        <h2>Chapter 2</h2>
-        <p>About half way between West Egg and New York the motor road hastily joins the railroad and runs beside it for a quarter of a mile, so as to shrink away from a certain desolate area of land.</p>
-        <p>This is a valley of ashes—a fantastic farm where ashes grow like wheat into ridges and hills and grotesque gardens; where ashes take the forms of houses and chimneys and rising smoke and, finally, with a transcendent effort, of ash-gray men, who move dimly and already crumbling through the powdery air.</p>
-        <p>Occasionally a line of gray cars crawls along an invisible track, gives out a ghastly creak, and comes to rest, and immediately the ash-gray men swarm up with leaden spades and stir up an impenetrable cloud, which screens their obscure operations from your sight.</p>
+        <h1>了不起的盖茨比</h1>
+        <h2>第一章</h2>
+        <p>在我年纪还轻、阅历不深的时候，我父亲教导过我一句话，我至今还念念不忘。</p>
+        <p>"每逢你想要批评任何人的时候，"他对我说，"你就记住，这个世界上所有的人，并不是个个都有过你拥有的那些优越条件。"</p>
+        <p>他没有再说别的话，但是我们俩在交往上一向不多说话，我明白他的意思很深。因此，我至今还是避免批评别人，这个习惯使得我结识了许多性格奇特的人，同时也成了不少讨厌鬼的受害者。</p>
+        <h2>第二章</h2>
+        <p>在西卵和纽约之间，汽车路匆匆忙忙地和铁路会合，沿着铁路跑一刻钟光景，为了避开一片荒凉的地区而临时离开铁路。</p>
+        <p>这是一个灰烬的峡谷——一个离奇古怪的农场，在那里灰烬像麦子一样生长成小山和小丘，长成奇形怪状的花园，在那里灰烬构成房屋、烟囱、炊烟的形状，最后，在一阵超人的努力之下，构成灰蒙蒙的人形，他们在粉尘弥漫的空气中若隐若现地蠕动着，瞬即消失。</p>
+        <p>时不时地一列灰蒙蒙的汽车沿着看不见的轨道爬行，发出可怕的轧轧声，停了下来，于是那些灰蒙蒙的人立刻蜂拥上来，挥舞着铅色的铁锹，搅起一阵不透明的尘土，把他们隐蔽的操作遮起来，不让你的眼睛看见。</p>
       </div>
     `
   }
@@ -129,12 +129,12 @@ export default function ReaderPage() {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Book not found</h2>
+          <h2 className="text-xl font-semibold mb-2">未找到书籍</h2>
           <button 
             className="btn btn-primary"
             onClick={() => router.push('/library')}
           >
-            Back to Library
+            返回图书馆
           </button>
         </div>
       </div>
@@ -174,32 +174,32 @@ export default function ReaderPage() {
     {
       tab: 'Font',
       icon: RiFontSize,
-      label: 'Font',
+      label: '字体',
     },
     {
       tab: 'Layout',
       icon: RiDashboardLine,
-      label: 'Layout',
+      label: '布局',
     },
     {
       tab: 'Color',
       icon: VscSymbolColor,
-      label: 'Color',
+      label: '颜色',
     },
     {
       tab: 'Control',
       icon: LiaHandPointerSolid,
-      label: 'Behavior',
+      label: '行为',
     },
     {
       tab: 'Language',
       icon: RiTranslate,
-      label: 'Language',
+      label: '语言',
     },
     {
       tab: 'Custom',
       icon: IoAccessibilityOutline,
-      label: 'Custom',
+      label: '自定义',
     },
   ]
 
@@ -211,7 +211,7 @@ export default function ReaderPage() {
   }
 
   const handleResetCurrentPanel = () => {
-    console.log('Reset panel:', activePanel)
+    console.log('重置面板:', activePanel)
   }
 
   const handleCloseSettings = () => {
@@ -278,33 +278,26 @@ export default function ReaderPage() {
     <>
       <li>
         <button className="text-sm">
-          Book Details
+          书籍详情
         </button>
       </li>
       <li>
         <button className="text-sm">
-          Export Highlights
+          导出标注
         </button>
       </li>
       <li><div className="divider"></div></li>
       <li>
         <button className="text-sm">
-          Remove Book
+          移除书籍
         </button>
       </li>
     </>
   )
 
   // View Menu Component - 100% matching readest ViewMenu
-  const ViewMenu = () => (
-    <div
-      tabIndex={0}
-      className="view-menu dropdown-content dropdown-right no-triangle z-20 mt-1 border bgcolor-base-200 border-base-200 shadow-2xl p-3 rounded-md"
-      style={{
-        maxWidth: `${typeof window !== 'undefined' ? window.innerWidth - 40 : 600}px`,
-        marginRight: typeof window !== 'undefined' && window.innerWidth < 640 ? '-36px' : '0px',
-      }}
-    >
+  const ViewMenuContent = () => (
+    <>
       {/* Zoom Controls */}
       <div className="flex items-center justify-between rounded-md mb-3">
         <button
@@ -335,10 +328,10 @@ export default function ReaderPage() {
 
       <hr className="border-base-300 my-1" />
 
-      <MenuItem label="Font & Layout" shortcut="Shift+F" onClick={() => setIsSettingsOpen(true)} />
+      <MenuItem label="字体与布局" shortcut="Shift+F" onClick={() => setIsSettingsOpen(true)} />
 
       <MenuItem
-        label="Scrolled Mode"
+        label="滚动模式"
         shortcut="Shift+J"
         Icon={isScrolledMode ? MdCheck : undefined}
         onClick={toggleScrolledMode}
@@ -347,34 +340,34 @@ export default function ReaderPage() {
       <hr className="border-base-300 my-1" />
 
       <MenuItem
-        label="Never synced"
+        label="从未同步"
         Icon={MdSyncProblem}
-        onClick={() => console.log('Sync')}
+        onClick={() => console.log('同步')}
       />
 
       <hr className="border-base-300 my-1" />
 
-      <MenuItem label="Fullscreen" onClick={() => console.log('Fullscreen')} />
+      <MenuItem label="全屏" onClick={() => console.log('全屏')} />
       
       <MenuItem
         label={
           themeMode === 'dark'
-            ? 'Dark Mode'
+            ? '深色模式'
             : themeMode === 'light'
-              ? 'Light Mode'
-              : 'Auto Mode'
+              ? '浅色模式'
+              : '自动模式'
         }
         Icon={themeMode === 'dark' ? BiMoon : themeMode === 'light' ? BiSun : TbSunMoon}
         onClick={cycleThemeMode}
       />
       
       <MenuItem
-        label="Invert Image In Dark Mode"
+        label="深色模式下反转图片"
         disabled={themeMode !== 'dark'}
         Icon={invertImgColorInDark ? MdCheck : undefined}
         onClick={() => setInvertImgColorInDark(!invertImgColorInDark)}
       />
-    </div>
+    </>
   )
 
   // Dialog Menu Component (matching readest DialogMenu)
@@ -385,7 +378,7 @@ export default function ReaderPage() {
           className="text-sm"
           onClick={handleResetCurrentPanel}
         >
-          Reset {currentPanel?.label}
+          重置 {currentPanel?.label}
         </button>
       </li>
     </>
@@ -397,7 +390,7 @@ export default function ReaderPage() {
   const FontPanel = () => (
     <div className="my-4 w-full space-y-6">
       <div className="flex items-center justify-between">
-        <h2>Override Book Font</h2>
+        <h2>覆盖书籍字体</h2>
         <input
           type="checkbox"
           className="toggle"
@@ -406,11 +399,11 @@ export default function ReaderPage() {
       </div>
 
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Font Size</h2>
+        <h2 className="mb-2 font-medium">字体大小</h2>
         <div className="card border-base-200 border shadow">
           <div className="divide-base-200 divide-y">
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Default Font Size</span>
+              <span>默认字体大小</span>
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-base-content/70 w-8">12</span>
                 <input 
@@ -426,7 +419,7 @@ export default function ReaderPage() {
               </div>
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Minimum Font Size</span>
+              <span>最小字体大小</span>
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-base-content/70 w-8">1</span>
                 <input 
@@ -445,10 +438,10 @@ export default function ReaderPage() {
       </div>
 
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Font Weight</h2>
+        <h2 className="mb-2 font-medium">字体粗细</h2>
         <div className="card border-base-200 border shadow">
           <div className="config-item p-4 flex items-center justify-between">
-            <span>Font Weight</span>
+            <span>字体粗细</span>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-base-content/70 w-8">100</span>
               <input 
@@ -467,40 +460,40 @@ export default function ReaderPage() {
       </div>
 
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Font Family</h2>
+        <h2 className="mb-2 font-medium">字体族</h2>
         <div className="card border-base-200 border shadow">
           <div className="config-item p-4 flex items-center justify-between">
-            <span>Default Font</span>
+            <span>默认字体</span>
             <select className="select select-bordered select-sm w-40">
-              <option>Serif Font</option>
-              <option>Sans-Serif Font</option>
+              <option>衬线字体</option>
+              <option>无衬线字体</option>
             </select>
           </div>
         </div>
       </div>
 
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Font Face</h2>
+        <h2 className="mb-2 font-medium">字体样式</h2>
         <div className="card border-base-200 border shadow">
           <div className="divide-base-200 divide-y">
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Serif Font</span>
+              <span>衬线字体</span>
               <select className="select select-bordered select-sm w-40">
-                <option>Georgia</option>
+                <option>宋体</option>
                 <option>Times New Roman</option>
-                <option>Times</option>
+                <option>Georgia</option>
               </select>
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Sans-Serif Font</span>
+              <span>无衬线字体</span>
               <select className="select select-bordered select-sm w-40">
+                <option>黑体</option>
                 <option>Arial</option>
                 <option>Helvetica</option>
-                <option>Verdana</option>
               </select>
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Monospace Font</span>
+              <span>等宽字体</span>
               <select className="select select-bordered select-sm w-40">
                 <option>Monaco</option>
                 <option>Consolas</option>
@@ -521,7 +514,7 @@ export default function ReaderPage() {
     return (
       <div className="my-4 w-full space-y-6">
         <div className="flex items-center justify-between">
-          <h2>Override Book Layout</h2>
+          <h2>覆盖书籍布局</h2>
           <input
             type="checkbox"
             className="toggle"
@@ -532,9 +525,9 @@ export default function ReaderPage() {
 
         {mightBeRTLBook && (
           <div className="flex items-center justify-between">
-            <h2 className="font-medium">Writing Mode</h2>
+            <h2 className="font-medium">书写方向</h2>
             <div className="flex gap-4">
-              <div className="lg:tooltip lg:tooltip-bottom" data-tip="Default">
+              <div className="lg:tooltip lg:tooltip-bottom" data-tip="默认">
                 <button
                   className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'auto' ? 'btn-active bg-base-300' : ''}`}
                   onClick={() => setWritingMode('auto')}
@@ -543,7 +536,7 @@ export default function ReaderPage() {
                 </button>
               </div>
 
-              <div className="lg:tooltip lg:tooltip-bottom" data-tip="Horizontal Direction">
+              <div className="lg:tooltip lg:tooltip-bottom" data-tip="水平方向">
                 <button
                   className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'horizontal-tb' ? 'btn-active bg-base-300' : ''}`}
                   onClick={() => setWritingMode('horizontal-tb')}
@@ -552,7 +545,7 @@ export default function ReaderPage() {
                 </button>
               </div>
 
-              <div className="lg:tooltip lg:tooltip-bottom" data-tip="Vertical Direction">
+              <div className="lg:tooltip lg:tooltip-bottom" data-tip="垂直方向">
                 <button
                   className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'vertical-rl' ? 'btn-active bg-base-300' : ''}`}
                   onClick={() => setWritingMode('vertical-rl')}
@@ -561,7 +554,7 @@ export default function ReaderPage() {
                 </button>
               </div>
 
-              <div className="lg:tooltip lg:tooltip-bottom" data-tip="RTL Direction">
+              <div className="lg:tooltip lg:tooltip-bottom" data-tip="RTL 方向">
                 <button
                   className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'horizontal-rl' ? 'btn-active bg-base-300' : ''}`}
                   onClick={() => setWritingMode('horizontal-rl')}
@@ -575,11 +568,11 @@ export default function ReaderPage() {
 
         {isVertical && (
           <div className="w-full">
-            <h2 className="mb-2 font-medium">Border Frame</h2>
+            <h2 className="mb-2 font-medium">边框样式</h2>
             <div className="card bg-base-100 border-base-200 border shadow">
               <div className="divide-base-200 divide-y">
                 <div className="config-item p-4 flex items-center justify-between">
-                  <span>Double Border</span>
+                  <span>双重边框</span>
                   <input
                     type="checkbox"
                     className="toggle"
@@ -589,7 +582,7 @@ export default function ReaderPage() {
                 </div>
 
                 <div className="config-item p-4 flex items-center justify-between">
-                  <span>Border Color</span>
+                  <span>边框颜色</span>
                   <div className="flex gap-4">
                     <button
                       className={`btn btn-circle btn-sm bg-red-300 hover:bg-red-500 ${borderColor === 'red' ? 'btn-active !bg-red-500' : ''}`}
@@ -608,11 +601,11 @@ export default function ReaderPage() {
         )}
 
         <div className="w-full">
-          <h2 className="mb-2 font-medium">Paragraph</h2>
+          <h2 className="mb-2 font-medium">段落</h2>
           <div className="card bg-base-100 border-base-200 border shadow">
             <div className="divide-base-200 divide-y">
               <NumberInput
-                label="Paragraph Margin"
+                label="段落间距"
                 value={paragraphMargin}
                 onChange={setParagraphMargin}
                 min={0}
@@ -620,7 +613,7 @@ export default function ReaderPage() {
                 step={0.2}
               />
               <NumberInput
-                label="Line Spacing"
+                label="行间距"
                 value={lineHeight}
                 onChange={setLineHeight}
                 min={1.0}
@@ -628,7 +621,7 @@ export default function ReaderPage() {
                 step={0.1}
               />
               <NumberInput
-                label="Word Spacing"
+                label="词间距"
                 value={wordSpacing}
                 onChange={setWordSpacing}
                 min={-4}
@@ -636,7 +629,7 @@ export default function ReaderPage() {
                 step={0.5}
               />
               <NumberInput
-                label="Letter Spacing"
+                label="字间距"
                 value={letterSpacing}
                 onChange={setLetterSpacing}
                 min={-2}
@@ -644,7 +637,7 @@ export default function ReaderPage() {
                 step={0.5}
               />
               <NumberInput
-                label="Text Indent"
+                label="文本缩进"
                 value={textIndent}
                 onChange={setTextIndent}
                 min={-2}
@@ -652,7 +645,7 @@ export default function ReaderPage() {
                 step={1}
               />
               <div className="config-item p-4 flex items-center justify-between">
-                <span>Full Justification</span>
+                <span>两端对齐</span>
                 <input
                   type="checkbox"
                   className="toggle"
@@ -661,7 +654,7 @@ export default function ReaderPage() {
                 />
               </div>
               <div className="config-item p-4 flex items-center justify-between">
-                <span>Hyphenation</span>
+                <span>连字符</span>
                 <input
                   type="checkbox"
                   className="toggle"
@@ -674,11 +667,11 @@ export default function ReaderPage() {
         </div>
 
         <div className="w-full">
-          <h2 className="mb-2 font-medium">Page</h2>
+          <h2 className="mb-2 font-medium">页面</h2>
           <div className="card bg-base-100 border-base-200 border shadow">
             <div className="divide-base-200 divide-y">
               <NumberInput
-                label="Top Margin (px)"
+                label="上边距 (px)"
                 value={marginTopPx}
                 onChange={setMarginTopPx}
                 min={0}
@@ -686,7 +679,7 @@ export default function ReaderPage() {
                 step={4}
               />
               <NumberInput
-                label="Bottom Margin (px)"
+                label="下边距 (px)"
                 value={marginBottomPx}
                 onChange={setMarginBottomPx}
                 min={0}
@@ -694,7 +687,7 @@ export default function ReaderPage() {
                 step={4}
               />
               <NumberInput
-                label="Left Margin (px)"
+                label="左边距 (px)"
                 value={marginLeftPx}
                 onChange={setMarginLeftPx}
                 min={0}
@@ -702,7 +695,7 @@ export default function ReaderPage() {
                 step={4}
               />
               <NumberInput
-                label="Right Margin (px)"
+                label="右边距 (px)"
                 value={marginRightPx}
                 onChange={setMarginRightPx}
                 min={0}
@@ -710,21 +703,21 @@ export default function ReaderPage() {
                 step={4}
               />
               <NumberInput
-                label="Column Gap (%)"
+                label="列间距 (%)"
                 value={gapPercent}
                 onChange={setGapPercent}
                 min={0}
                 max={30}
               />
               <NumberInput
-                label="Maximum Number of Columns"
+                label="最大列数"
                 value={maxColumnCount}
                 onChange={setMaxColumnCount}
                 min={1}
                 max={4}
               />
               <NumberInput
-                label={isVertical ? "Maximum Column Height" : "Maximum Column Width"}
+                label={isVertical ? "最大列高" : "最大列宽"}
                 value={maxInlineSize}
                 onChange={setMaxInlineSize}
                 disabled={maxColumnCount === 1 || isScrolledMode}
@@ -733,7 +726,7 @@ export default function ReaderPage() {
                 step={100}
               />
               <NumberInput
-                label={isVertical ? "Maximum Column Width" : "Maximum Column Height"}
+                label={isVertical ? "最大列宽" : "最大列高"}
                 value={maxBlockSize}
                 onChange={setMaxBlockSize}
                 disabled={maxColumnCount === 1 || isScrolledMode}
@@ -751,53 +744,53 @@ export default function ReaderPage() {
   const ColorPanel = () => (
     <div className="my-4 w-full space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-medium">Theme Mode</h2>
+        <h2 className="font-medium">主题模式</h2>
         <div className="flex gap-2">
           <button className="btn btn-outline btn-sm btn-active">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12,18C11.11,18 10.26,17.8 9.5,17.45C8.74,17.1 8.1,16.63 7.59,16.04C7.08,15.45 6.69,14.76 6.44,14C6.19,13.22 6.06,12.39 6.06,11.5C6.06,10.61 6.19,9.78 6.44,9C6.69,8.24 7.08,7.55 7.59,6.96C8.1,6.37 8.74,5.9 9.5,5.55C10.26,5.2 11.11,5 12,5A7,7 0 0,1 19,12A7,7 0 0,1 12,19M12,2L13.09,8.26L22,9L13.09,9.74L12,16L10.91,9.74L2,9L10.91,8.26L12,2Z"/>
             </svg>
-            Auto
+            自动
           </button>
           <button className="btn btn-outline btn-sm">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31L23.31,12L20,8.69Z"/>
             </svg>
-            Light
+            浅色
           </button>
           <button className="btn btn-outline btn-sm">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.4 6.35,17.41C9.37,20.43 14,20.54 17.33,17.97Z"/>
             </svg>
-            Dark
+            深色
           </button>
         </div>
       </div>
 
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Color Themes</h2>
+        <h2 className="mb-2 font-medium">颜色主题</h2>
         <div className="grid grid-cols-4 gap-3">
-          {['Default', 'Sepia', 'High Contrast', 'Blue'].map((themeOption) => (
+          {[['默认', 'default'], ['棕褐色', 'sepia'], ['高对比度', 'contrast'], ['蓝色', 'blue']].map(([label, value]) => (
             <button
-              key={themeOption}
+              key={value}
               className={clsx('btn btn-outline btn-sm h-12 flex-col gap-1', {
-                'btn-active': theme === themeOption.toLowerCase()
+                'btn-active': theme === value
               })}
-              onClick={() => setTheme(themeOption.toLowerCase())}
+              onClick={() => setTheme(value)}
             >
               <div className="w-6 h-3 bg-gradient-to-r from-primary to-secondary rounded-sm"></div>
-              <span className="text-xs">{themeOption}</span>
+              <span className="text-xs">{label}</span>
             </button>
           ))}
         </div>
       </div>
 
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Advanced</h2>
+        <h2 className="mb-2 font-medium">高级设置</h2>
         <div className="card border-base-200 border shadow">
           <div className="divide-base-200 divide-y">
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Override Book Colors</span>
+              <span>覆盖书籍颜色</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -805,7 +798,7 @@ export default function ReaderPage() {
               />
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Invert Images in Dark Mode</span>
+              <span>深色模式下反转图片</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -821,11 +814,11 @@ export default function ReaderPage() {
   const ControlPanel = () => (
     <div className="my-4 w-full space-y-6">
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Navigation</h2>
+        <h2 className="mb-2 font-medium">导航</h2>
         <div className="card border-base-200 border shadow">
           <div className="divide-base-200 divide-y">
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Touch to Turn Pages</span>
+              <span>触摸翻页</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -833,7 +826,7 @@ export default function ReaderPage() {
               />
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Scroll to Turn Pages</span>
+              <span>滚动翻页</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -841,7 +834,7 @@ export default function ReaderPage() {
               />
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Arrow Keys Navigation</span>
+              <span>方向键导航</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -853,11 +846,11 @@ export default function ReaderPage() {
       </div>
 
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Interface</h2>
+        <h2 className="mb-2 font-medium">界面</h2>
         <div className="card border-base-200 border shadow">
           <div className="divide-base-200 divide-y">
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Show Header Bar</span>
+              <span>显示顶部栏</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -865,7 +858,7 @@ export default function ReaderPage() {
               />
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Show Footer Bar</span>
+              <span>显示底部栏</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -873,7 +866,7 @@ export default function ReaderPage() {
               />
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Show Bars on Scroll</span>
+              <span>滚动时显示栏</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -889,14 +882,14 @@ export default function ReaderPage() {
   const LanguagePanel = () => (
     <div className="my-4 w-full space-y-6">
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Interface Language</h2>
+        <h2 className="mb-2 font-medium">界面语言</h2>
         <div className="card border-base-200 border shadow">
           <div className="config-item p-4 flex items-center justify-between">
-            <span>Language</span>
+            <span>语言</span>
             <select className="select select-bordered select-sm w-40">
-              <option>English</option>
               <option>中文 (简体)</option>
               <option>中文 (繁體)</option>
+              <option>English</option>
               <option>日本語</option>
               <option>한국어</option>
               <option>Français</option>
@@ -908,10 +901,10 @@ export default function ReaderPage() {
       </div>
 
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Reading Direction</h2>
+        <h2 className="mb-2 font-medium">阅读方向</h2>
         <div className="card border-base-200 border shadow">
           <div className="config-item p-4 flex items-center justify-between">
-            <span>Force RTL Layout</span>
+            <span>强制 RTL 布局</span>
             <input
               type="checkbox"
               className="toggle"
@@ -926,11 +919,11 @@ export default function ReaderPage() {
   const CustomPanel = () => (
     <div className="my-4 w-full space-y-6">
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Accessibility</h2>
+        <h2 className="mb-2 font-medium">辅助功能</h2>
         <div className="card border-base-200 border shadow">
           <div className="divide-base-200 divide-y">
             <div className="config-item p-4 flex items-center justify-between">
-              <span>High Contrast Mode</span>
+              <span>高对比度模式</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -938,7 +931,7 @@ export default function ReaderPage() {
               />
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Large Cursor</span>
+              <span>大光标</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -946,7 +939,7 @@ export default function ReaderPage() {
               />
             </div>
             <div className="config-item p-4 flex items-center justify-between">
-              <span>Screen Reader Support</span>
+              <span>屏幕阅读器支持</span>
               <input
                 type="checkbox"
                 className="toggle"
@@ -958,13 +951,13 @@ export default function ReaderPage() {
       </div>
 
       <div className="w-full">
-        <h2 className="mb-2 font-medium">Custom CSS</h2>
+        <h2 className="mb-2 font-medium">自定义 CSS</h2>
         <div className="card border-base-200 border shadow">
           <div className="config-item p-4">
-            <span className="block mb-2">Custom Styles</span>
+            <span className="block mb-2">自定义样式</span>
             <textarea 
               className="textarea textarea-bordered w-full h-32" 
-              placeholder="Enter custom CSS here..."
+              placeholder="在此输入自定义 CSS..."
             ></textarea>
           </div>
         </div>
@@ -1056,7 +1049,7 @@ export default function ReaderPage() {
             <div className="px-4 py-2 border-b border-base-300">
               <input
                 type="text"
-                placeholder="Search in book..."
+                placeholder="在书中搜索..."
                 className="input input-sm w-full bg-base-100"
               />
             </div>
@@ -1071,7 +1064,7 @@ export default function ReaderPage() {
                 })}
                 onClick={() => setSidebarTab('toc')}
               >
-                Contents
+                目录
               </button>
               <button 
                 className={clsx('tab tab-sm flex-1 text-xs', {
@@ -1079,7 +1072,7 @@ export default function ReaderPage() {
                 })}
                 onClick={() => setSidebarTab('bookmarks')}
               >
-                Bookmarks
+                书签
               </button>
               <button 
                 className={clsx('tab tab-sm flex-1 text-xs', {
@@ -1087,7 +1080,7 @@ export default function ReaderPage() {
                 })}
                 onClick={() => setSidebarTab('annotations')}
               >
-                Notes
+                笔记
               </button>
             </div>
           </div>
@@ -1124,8 +1117,8 @@ export default function ReaderPage() {
                     <div className="w-12 h-12 mx-auto mb-3 bg-base-300 rounded-lg flex items-center justify-center">
                       <IoIosList className="w-6 h-6 text-base-content/50" />
                     </div>
-                    <p className="text-sm text-base-content/60">No bookmarks yet</p>
-                    <p className="text-xs text-base-content/50 mt-1">Tap to bookmark important pages</p>
+                    <p className="text-sm text-base-content/60">暂无书签</p>
+                    <p className="text-xs text-base-content/50 mt-1">点击添加书签到重要页面</p>
                   </div>
                 )}
                 
@@ -1134,8 +1127,8 @@ export default function ReaderPage() {
                     <div className="w-12 h-12 mx-auto mb-3 bg-base-300 rounded-lg flex items-center justify-center">
                       <FiSearch className="w-6 h-6 text-base-content/50" />
                     </div>
-                    <p className="text-sm text-base-content/60">No annotations yet</p>
-                    <p className="text-xs text-base-content/50 mt-1">Highlight text to create notes</p>
+                    <p className="text-sm text-base-content/60">暂无笔记</p>
+                    <p className="text-xs text-base-content/50 mt-1">高亮文本来创建笔记</p>
                   </div>
                 )}
               </div>
@@ -1211,15 +1204,20 @@ export default function ReaderPage() {
                 </svg>
               </button>
               {/* View Menu */}
-              <div className="relative">
-                <Dropdown
-                  className="exclude-title-bar-mousedown dropdown-bottom dropdown-end"
-                  buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0"
-                  toggleButton={<PiDotsThreeVerticalBold className="w-[16px] h-[16px]" />}
+              <Dropdown
+                className="exclude-title-bar-mousedown dropdown-bottom dropdown-end"
+                buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                toggleButton={<PiDotsThreeVerticalBold className="w-[16px] h-[16px]" />}
+              >
+                <div
+                  className="view-menu z-20 mt-1 border bgcolor-base-200 border-base-200 shadow-2xl p-3 rounded-md min-w-[240px]"
+                  style={{
+                    maxWidth: `${typeof window !== 'undefined' ? window.innerWidth - 40 : 600}px`,
+                  }}
                 >
-                  <ViewMenu />
-                </Dropdown>
-              </div>
+                  <ViewMenuContent />
+                </div>
+              </Dropdown>
             </div>
           </div>
         </div>
@@ -1242,10 +1240,10 @@ export default function ReaderPage() {
             
             {/* Add more content for scrolling demo */}
             <div className="mt-8 prose prose-lg max-w-none">
-              <h2>Chapter 3</h2>
-              <p>There was music from my neighbor's house through the summer nights. In his blue gardens men and girls came and went like moths among the whisperings and the champagne and the stars.</p>
-              <p>At high tide in the afternoon I watched his guests diving from the tower of his raft, or taking the sun on the hot sand of his beach while his two motor-boats slit the waters of the Sound, drawing aquaplanes over cataracts of foam.</p>
-              <p>On week-ends his Rolls-Royce became an omnibus, bearing parties to and from the city between nine in the morning and long past midnight, while his station wagon scampered like a brisk yellow bug to meet all trains.</p>
+              <h2>第三章</h2>
+              <p>整个夏天，我邻居家里一直有音乐声。在他蓝色的花园里，男男女女像飞蛾一样在交头接耳的声音、香槟酒和繁星之间来回穿梭。</p>
+              <p>下午涨潮的时候，我看着他的客人从他筏子上的高塔跳水，或者在他海滩的热沙上晒太阳，而他的两艘汽艇在海湾的水面上破浪前进，拖着滑水板越过层层泡沫。</p>
+              <p>周末他的劳斯莱斯成了公共汽车，在早上九点到深夜之间往返于城里，运送一批批的客人，而他的旅行车像一只轻快的黄色甲虫一样忙碌地跑来跑去，接送各班火车。</p>
             </div>
           </div>
         </div>
@@ -1258,17 +1256,17 @@ export default function ReaderPage() {
           <div className="border-t border-base-300/50 px-6 py-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-4 text-sm text-base-content/70">
-                <span>Chapter 1 of {book.toc.length}</span>
+                <span>第 1 章，共 {book.toc.length} 章</span>
                 <span>•</span>
-                <span>Page 12 of 180</span>
+                <span>第 12 页，共 180 页</span>
               </div>
               
               <div className="flex items-center space-x-3">
                 <button className="btn btn-ghost btn-sm">
-                  ← Prev
+                  ← 上一页
                 </button>
                 <button className="btn btn-ghost btn-sm">
-                  Next →
+                  下一页 →
                 </button>
               </div>
             </div>
@@ -1295,19 +1293,19 @@ export default function ReaderPage() {
 
             {/* Quick Controls */}
             <div className="flex items-center justify-center space-x-6 mt-3 pt-3 border-t border-base-300/30">
-              <button className="btn btn-ghost btn-sm btn-circle" title="Table of Contents">
+              <button className="btn btn-ghost btn-sm btn-circle" title="目录">
                 <IoIosList className="w-4 h-4" />
               </button>
-              <button className="btn btn-ghost btn-sm btn-circle" title="Font Size">
+              <button className="btn btn-ghost btn-sm btn-circle" title="字体大小">
                 <RiFontSize className="w-4 h-4" />
               </button>
-              <button className="btn btn-ghost btn-sm btn-circle" title="Margins">
+              <button className="btn btn-ghost btn-sm btn-circle" title="边距">
                 <TbBoxMargin className="w-4 h-4" />
               </button>
-              <button className="btn btn-ghost btn-sm btn-circle" title="Line Height">
+              <button className="btn btn-ghost btn-sm btn-circle" title="行高">
                 <RxLineHeight className="w-4 h-4" />
               </button>
-              <button className="btn btn-ghost btn-sm btn-circle" title="Text to Speech">
+              <button className="btn btn-ghost btn-sm btn-circle" title="语音朗读">
                 <TTSIcon className="w-4 h-4" />
               </button>
             </div>
@@ -1337,7 +1335,7 @@ export default function ReaderPage() {
                 </button>
                 <div
                   ref={tabsRef}
-                  className={clsx('dialog-tabs ms-1 flex h-10 w-full items-center gap-1 sm:ms-0')}
+                  className={clsx('dialog-tabs ms-1 flex h-10 w-full items-center gap-1 sm:ms-0 justify-center')}
                 >
                   {tabConfig.map(({ tab, icon: Icon, label }) => (
                     <button

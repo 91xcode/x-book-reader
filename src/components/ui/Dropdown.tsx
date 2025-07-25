@@ -37,8 +37,16 @@ const Dropdown: React.FC<DropdownProps> = ({
     }
   }, [isOpen])
 
+  const handleToggle = () => {
+    setIsOpen(!isOpen)
+  }
+
+  const handleItemClick = () => {
+    setIsOpen(false)
+  }
+
   return (
-    <div 
+    <div
       ref={dropdownRef}
       className={clsx('dropdown', className, {
         'dropdown-open': isOpen,
@@ -47,21 +55,22 @@ const Dropdown: React.FC<DropdownProps> = ({
         'dropdown-bottom': position === 'bottom'
       })}
     >
-      <div 
-        tabIndex={0} 
-        role="button" 
+      <div
+        tabIndex={0}
+        role="button"
         className={clsx('btn', buttonClassName)}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
       >
         {toggleButton}
       </div>
       {isOpen && (
-        <ul 
-          tabIndex={0} 
+        <ul
+          tabIndex={0}
           className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52"
-          onClick={() => setIsOpen(false)}
         >
-          {children}
+          <div onClick={handleItemClick}>
+            {children}
+          </div>
         </ul>
       )}
     </div>
