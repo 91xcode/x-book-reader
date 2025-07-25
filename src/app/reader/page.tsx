@@ -35,6 +35,9 @@ type TabConfig = {
   label: string
 }
 
+// Constants - matching readest
+const MAX_SIDEBAR_WIDTH = 0.45 // 45% max width
+
 // Mock book data
 const mockBookData = {
   '1': {
@@ -82,6 +85,10 @@ export default function ReaderPage() {
   const [theme, setTheme] = useState('light')
   const contentRef = useRef<HTMLDivElement>(null)
 
+  // Sidebar width state - matching readest
+  const [sidebarWidth, setSidebarWidth] = useState('15%') // Default desktop width
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+
   // Settings dialog state
   const [activePanel, setActivePanel] = useState<SettingsPanelType>(() => {
     if (typeof window !== 'undefined') {
@@ -124,6 +131,24 @@ export default function ReaderPage() {
 
   const bookId = searchParams?.get('ids') || '1'
   const book = mockBookData[bookId as keyof typeof mockBookData]
+
+  // Effect to set sidebar width based on screen size - matching readest
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleResize = () => {
+        const mobile = window.innerWidth < 640
+        if (mobile) {
+          setSidebarWidth('100%') // Mobile: full width
+        } else {
+          setSidebarWidth('15%') // Desktop: 15% default
+        }
+      }
+
+      handleResize() // Initial call
+      window.addEventListener('resize', handleResize)
+      return () => window.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   if (!book) {
     return (
@@ -986,11 +1011,25 @@ export default function ReaderPage() {
 
   return (
     <div className="h-screen flex bg-base-100 relative">
-      {/* Sidebar */}
+      {/* Sidebar - 100% matching readest width */}
       <div className={clsx(
-        'sidebar-container flex-shrink-0 bg-base-200 transition-all duration-300 z-20',
-        isSidebarOpen ? 'w-80' : 'w-0 overflow-hidden'
-      )}>
+        'sidebar-container bg-base-200 z-20 flex min-w-60 select-none flex-col transition-all duration-300',
+        !isSidebarPinned && 'shadow-2xl',
+        isSidebarOpen ? 'flex' : 'hidden'
+      )}
+      style={{
+        width: sidebarWidth,
+        maxWidth: `${MAX_SIDEBAR_WIDTH * 100}%`,
+        position: isSidebarPinned ? 'relative' : 'absolute',
+      }}
+      >
+        {/* Mobile drag handle */}
+        {isMobile && (
+          <div className="flex h-10 w-full cursor-row-resize items-center justify-center">
+            <div className="bg-base-content/50 h-1 w-10 rounded-full"></div>
+          </div>
+        )}
+        
         <div className="h-full flex flex-col">
           {/* Sidebar Header - 100% match readest SidebarHeader */}
           <div className={clsx(
