@@ -347,7 +347,9 @@ const BookReader: React.FC<{
   bookDoc: any
   onCloseBook: () => void
   onOpenSettings: () => void
-}> = ({ book, bookDoc, onCloseBook, onOpenSettings }) => {
+  isSidebarVisible: boolean
+  onToggleSidebar: () => void
+}> = ({ book, bookDoc, onCloseBook, onOpenSettings, isSidebarVisible, onToggleSidebar }) => {
   const viewerRef = useRef<HTMLDivElement>(null)
   const [hoveredBookKey, setHoveredBookKey] = useState<string | null>(null)
   const [viewSettings, setViewSettings] = useState<ViewSettings>({
@@ -374,7 +376,6 @@ const BookReader: React.FC<{
   const isMobile = typeof window !== 'undefined' && (window.innerWidth < 640 || window.innerHeight < 640)
   
   // Toggle states for header controls
-  const [isSidebarToggled, setIsSidebarToggled] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [translationEnabled, setTranslationEnabled] = useState(false)
   const [notebookVisible, setNotebookVisible] = useState(false)
@@ -485,10 +486,10 @@ const BookReader: React.FC<{
             <div className="hidden sm:flex">
               <button
                 className="btn btn-ghost h-8 min-h-8 w-8 p-0"
-                onClick={() => setIsSidebarToggled(!isSidebarToggled)}
+                onClick={onToggleSidebar}
                 title="侧边栏"
               >
-                {isSidebarToggled ? (
+                {isSidebarVisible ? (
                   <TbLayoutSidebarFilled className="w-4 h-4 text-base-content" />
                 ) : (
                   <TbLayoutSidebar className="w-4 h-4 text-base-content" />
@@ -751,6 +752,8 @@ export default function ReaderPage() {
           bookDoc={bookDoc}
           onCloseBook={handleCloseBook}
           onOpenSettings={handleOpenSettings}
+          isSidebarVisible={isSidebarVisible}
+          onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
         />
       </div>
 
