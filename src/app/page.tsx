@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import '@/utils/electronCheck' // 导入Electron环境检查
 
 export default function Home() {
   const router = useRouter()

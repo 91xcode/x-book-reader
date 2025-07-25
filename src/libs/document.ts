@@ -16,6 +16,8 @@ export const EXTS: Record<BookFormat, string> = {
   AZW3: 'azw3'
 }
 
+export { type BookDoc } from '@/types/book';
+
 export class DocumentLoader {
   private file: File
 
@@ -166,6 +168,7 @@ export class DocumentLoader {
         size: text.length,
         linear: 'yes'
       }],
+      transformTarget: new EventTarget(),
       splitTOCHref: (href: string) => [href, 0],
       getCover: async () => null
     }
@@ -193,6 +196,7 @@ export class DocumentLoader {
         size: this.file.size,
         linear: 'yes'
       }],
+      transformTarget: new EventTarget(),
       splitTOCHref: (href: string) => [href, 0],
       getCover: async () => null
     }
@@ -221,6 +225,7 @@ export class DocumentLoader {
         size: this.file.size,
         linear: 'yes'
       }],
+      transformTarget: new EventTarget(),
       splitTOCHref: (href: string) => [href, 0],
       getCover: async () => null
     }
@@ -248,6 +253,7 @@ export class DocumentLoader {
         size: this.file.size,
         linear: 'yes'
       }],
+      transformTarget: new EventTarget(),
       splitTOCHref: (href: string) => [href, 0],
       getCover: async () => null
     }
@@ -275,6 +281,7 @@ export class DocumentLoader {
         size: this.file.size,
         linear: 'yes'
       }],
+      transformTarget: new EventTarget(),
       splitTOCHref: (href: string) => [href, 0],
       getCover: async () => null
     }
@@ -302,6 +309,7 @@ export class DocumentLoader {
         size: this.file.size,
         linear: 'yes'
       }],
+      transformTarget: new EventTarget(),
       splitTOCHref: (href: string) => [href, 0],
       getCover: async () => null
     }

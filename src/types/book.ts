@@ -50,31 +50,27 @@ export interface BookConfig {
 }
 
 export interface ViewSettings {
-  theme: string;
+  theme: 'light' | 'dark' | 'sepia' | 'auto';
   defaultFontSize: number;
   lineHeight: number;
+  fontFamily?: string;
   marginTopPx: number;
   marginBottomPx: number;
   marginLeftPx: number;
   marginRightPx: number;
-  gapPercent: number;
-  maxColumnCount: number;
-  maxInlineSize: number;
-  maxBlockSize: number;
-  animated: boolean;
-  scrolled: boolean;
-  vertical: boolean;
-  rtl: boolean;
-  writingMode: string;
-  doubleBorder: boolean;
-  showHeader: boolean;
-  showFooter: boolean;
-  screenOrientation: string;
+  gapPercent?: number;
+  maxColumnCount?: number;
+  maxInlineSize?: number;
+  maxBlockSize?: number;
   overrideColor?: boolean;
   invertImgColorInDark?: boolean;
+  scrolled?: boolean;
+  animated?: boolean;
+  writingMode?: 'auto' | 'horizontal-tb' | 'vertical-rl' | 'horizontal-rl';
   allowScript?: boolean;
-  codeHighlighting?: boolean;
-  sideBarTab?: string;
+  showHeader?: boolean;
+  showFooter?: boolean;
+  doubleBorder?: boolean;
 }
 
 export interface BookDoc {
@@ -84,6 +80,7 @@ export interface BookDoc {
   sections?: SectionItem[];
   rendition?: any;
   dir: string;
+  transformTarget?: EventTarget;
   splitTOCHref(href: string): Array<string | number>;
   getCover(): Promise<Blob | null>;
 }
@@ -119,4 +116,47 @@ export interface PageInfo {
 }
 
 export type HighlightStyle = 'underline' | 'highlight' | 'strikethrough';
-export type HighlightColor = string; 
+export type HighlightColor = string;
+
+// 书籍注释/书签
+export interface BookNote {
+  id: string;
+  cfi: string;
+  text?: string;
+  note?: string;
+  type: BookNoteType;
+  color?: string;
+  style?: HighlightStyle;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number;
+}
+
+export type BookNoteType = 'annotation' | 'bookmark' | 'highlight';
+
+// 书籍搜索配置
+export interface BookSearchConfig {
+  query: string;
+  caseSensitive?: boolean;
+  wholeWords?: boolean;
+  useRegex?: boolean;
+}
+
+// 搜索结果
+export interface BookSearchResult {
+  cfi: string;
+  excerpt: string;
+  section: string;
+  subitems?: BookSearchResult[];
+}
+
+// 书籍注释组
+export interface BooknoteGroup {
+  id: number;
+  href: string;
+  label: string;
+  booknotes: BookNote[];
+}
+
+// 设置面板类型
+export type SettingsPanelType = 'Font' | 'Layout' | 'Color' | 'Control' | 'Language' | 'Custom'; 

@@ -159,6 +159,21 @@ export class BookService {
   }
 
   /**
+   * 获取书籍文件
+   */
+  async getBookFile(hash: string): Promise<File | null> {
+    if (!this.isClient) return null
+    
+    try {
+      const { fileSystem } = await import('@/utils/fileSystem')
+      return await fileSystem.getBookFile(hash)
+    } catch (error) {
+      console.error('获取书籍文件失败:', error)
+      return null
+    }
+  }
+
+  /**
    * 根据hash获取书籍
    */
   getBookByHash(hash: string): Book | undefined {
@@ -249,22 +264,17 @@ export class BookService {
     if (!this.isClient) return
 
     try {
-      // 在实际应用中，这里应该保存到文件系统或数据库
-      // 目前使用IndexedDB或localStorage作为简化实现
-      const key = `book_file_${book.hash}`
-
-      if (!overwrite && localStorage.getItem(key)) {
+      const { fileSystem } = await import('@/utils/fileSystem')
+      
+      if (!overwrite && await fileSystem.fileExists(book.hash)) {
         return // 文件已存在且不覆盖
       }
 
-      // 将文件转换为base64保存（简化实现）
-      const arrayBuffer = await file.arrayBuffer()
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-      localStorage.setItem(key, base64)
-
+      await fileSystem.saveBookFile(book.hash, file)
       console.log('书籍文件已保存:', book.title)
     } catch (error) {
       console.error('保存书籍文件失败:', error)
+      throw error // 重新抛出错误，让调用者知道失败了
     }
   }
 
@@ -306,7 +316,11 @@ export class BookService {
     if (!this.isClient) return
 
     try {
-      localStorage.removeItem(`book_file_${hash}`)
+      const { fileSystem } = await import('@/utils/fileSystem')
+      
+      // 删除书籍文件
+      await fileSystem.deleteBookFile(hash)
+      // 删除书籍封面和配置（仍然使用localStorage）
       localStorage.removeItem(`book_cover_${hash}`)
       localStorage.removeItem(`book_config_${hash}`)
       console.log('书籍文件已删除:', hash)

@@ -13,7 +13,8 @@ import Dropdown from '@/components/ui/Dropdown'
 import Dialog from '@/components/ui/Dialog'
 import MenuItem from '@/components/ui/MenuItem'
 import FileUpload from '@/components/FileUpload'
-import { bookService } from '@/services/bookService'
+import { getAppService } from '@/services/environment'
+import { BookServiceV2 } from '@/services/BookServiceV2'
 import { Book } from '@/types/book'
 import { LibraryViewModeType, LibrarySortByType, LibraryCoverFitType, BookFilter } from '@/types/settings'
 
@@ -43,6 +44,7 @@ export default function LibraryPage() {
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState(0)
   const [importError, setImportError] = useState<string | null>(null)
+  const [environmentInfo, setEnvironmentInfo] = useState<string>('')
 
   // 加载书籍列表
   useEffect(() => {
@@ -52,9 +54,17 @@ export default function LibraryPage() {
   const loadBooks = async () => {
     try {
       setLoading(true)
-      // 确保服务已初始化（用于客户端hydration）
-      await bookService.initialize()
-      const loadedBooks = bookService.getBooks()
+      // 获取环境感知的应用服务
+      const appService = await getAppService()
+      const platformInfo = appService.getPlatformInfo()
+      console.log('🔧 Library: 应用服务已初始化:', platformInfo)
+      
+      // 设置环境信息显示
+      setEnvironmentInfo(`${platformInfo.platform === 'electron' ? '🖥️ 桌面版' : '🌐 网页版'} - ${platformInfo.platform}`)
+      
+      // 使用新的BookServiceV2
+      const bookServiceV2 = BookServiceV2.getInstance()
+      const loadedBooks = bookServiceV2.getBooks()
       setBooks(loadedBooks)
     } catch (error) {
       console.error('加载书籍失败:', error)
@@ -164,9 +174,12 @@ export default function LibraryPage() {
 
         try {
           console.log(`正在导入: ${file.name}`)
-          const book = await bookService.importBook(file)
-          if (book) {
-            importedBooks.push(book)
+          const bookServiceV2 = BookServiceV2.getInstance()
+          const result = await bookServiceV2.importBook(file)
+          if (result.success && result.book) {
+            importedBooks.push(result.book)
+          } else {
+            console.error(`导入 ${file.name} 失败:`, result.error)
           }
         } catch (error) {
           console.error(`导入 ${file.name} 失败:`, error)
@@ -201,8 +214,12 @@ export default function LibraryPage() {
 
     try {
       setLoading(true)
+      const bookServiceV2 = BookServiceV2.getInstance()
       for (const bookHash of selectedBooks) {
-        await bookService.deleteBook(bookHash)
+        const result = await bookServiceV2.deleteBook(bookHash)
+        if (!result.success) {
+          console.error(`删除书籍 ${bookHash} 失败:`, result.error)
+        }
       }
       await loadBooks()
       setSelectedBooks([])
@@ -501,6 +518,11 @@ export default function LibraryPage() {
           <div className="flex items-center justify-between text-sm text-base-content/70">
             <span>
               显示 {displayedBooks} / {totalBooks} 本书籍
+              {environmentInfo && (
+                <span className="ml-3 px-2 py-1 bg-primary/10 rounded-md text-primary text-xs">
+                  {environmentInfo}
+                </span>
+              )}
               {searchQuery && ` - 搜索: "${searchQuery}"`}
             </span>
             <span>
