@@ -1,124 +1,352 @@
 'use client'
-
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { GiBookshelf } from 'react-icons/gi'
-import { FiSearch } from 'react-icons/fi'
-import { MdOutlineMenu, MdOutlinePushPin, MdPushPin, MdArrowBackIosNew, MdArrowForwardIos } from 'react-icons/md'
-import { MdZoomOut, MdZoomIn, MdCheck, MdSync, MdSyncProblem } from 'react-icons/md'
-import { MdOutlineAutoMode, MdOutlineTextRotationNone, MdTextRotateVertical } from 'react-icons/md'
-import { BiMoon, BiSun } from 'react-icons/bi'
-import { TbSunMoon, TbTextDirectionRtl } from 'react-icons/tb'
-import { PiDotsThreeVerticalBold, PiPlus } from 'react-icons/pi'
-import { IoIosList } from 'react-icons/io'
-import { RiFontSize, RiDashboardLine, RiTranslate } from 'react-icons/ri'
-import { VscSymbolColor } from 'react-icons/vsc'
-import { LiaHandPointerSolid } from 'react-icons/lia'
-import { IoAccessibilityOutline } from 'react-icons/io5'
-import { MdOutlineHeadphones as TTSIcon } from 'react-icons/md'
-import { TbBoxMargin } from 'react-icons/tb'
-import { RxLineHeight } from 'react-icons/rx'
-import { OverlayScrollbarsComponent } from 'overlayscrollbars-react'
-import 'overlayscrollbars/overlayscrollbars.css'
 import clsx from 'clsx'
-import Dropdown from '@/components/ui/Dropdown'
-import Dialog from '@/components/ui/Dialog'
-import MenuItem from '@/components/ui/MenuItem'
-import NumberInput from '@/components/ui/NumberInput'
-import { TbLayoutSidebar, TbLayoutSidebarFilled } from 'react-icons/tb'
-import { RiArrowLeftDoubleLine, RiArrowLeftSLine, RiArrowGoBackLine, RiArrowGoForwardLine, RiArrowRightSLine, RiArrowRightDoubleLine, RiFontFamily } from 'react-icons/ri'
-import { PiNotePencil } from 'react-icons/pi'
-import { RxSlider } from 'react-icons/rx'
-import { FaHeadphones } from 'react-icons/fa'
-import { MdOutlineHeadphones } from 'react-icons/md'
+import { GiBookshelf } from 'react-icons/gi'
+import { MdOutlineMenu, MdOutlinePushPin, MdPushPin, MdArrowBackIosNew, MdArrowForwardIos } from 'react-icons/md'
+import { FiSearch } from 'react-icons/fi'
+import { PiDotsThreeVerticalBold, PiNotePencil } from 'react-icons/pi'
+import { TbLayoutSidebar, TbLayoutSidebarFilled, TbSunMoon } from 'react-icons/tb'
+import { IoLibrary } from 'react-icons/io5'
+import { BiSun, BiMoon } from 'react-icons/bi'
+import { BsFillCircleFill } from 'react-icons/bs'
 
-// Import our reader components
-import FoliateViewer from '@/components/reader/FoliateViewer'
-import TOCView from '@/components/reader/sidebar/TOCView'
 import { BookServiceV2 } from '@/services/BookServiceV2'
 import { DocumentLoader } from '@/libs/document'
-import { useReaderStore } from '@/store/readerStore'
-import { Book, BookDoc, BookConfig, ViewSettings, SettingsPanelType } from '@/types/book'
-import { DEFAULT_VIEW_SETTINGS } from '@/utils/constants'
+import { Book } from '@/types/book'
+import Spinner from '@/components/ui/Spinner'
+import Dropdown from '@/components/ui/Dropdown'
 
-type TabConfig = {
-  tab: SettingsPanelType
-  icon: React.ElementType
+// Import foliate-js types
+declare global {
+  interface Window {
+    createReader: any
+  }
+}
+
+interface ViewSettings {
+  fontSize: number
+  fontFamily: string
+  lineHeight: number
+  theme: 'light' | 'dark' | 'sepia'
+  layout: 'paginated' | 'scrolled'
+  gap: number
+  maxColumnWidth: number
+  maxInlineSize: number
+  maxBlockSize: number
+  overrideColor: boolean
+  invertImgColorInDark: boolean
+}
+
+interface SidebarTab {
+  id: 'toc' | 'bookmarks' | 'annotations'
   label: string
 }
 
-// Constants - matching readest
-const MAX_SIDEBAR_WIDTH = 0.45 // 45% max width
+const sidebarTabs: SidebarTab[] = [
+  { id: 'toc', label: '目录' },
+  { id: 'bookmarks', label: '书签' },
+  { id: 'annotations', label: '注释' }
+]
+
+// TOC Component
+const TOCView: React.FC<{ bookKey: string; toc: any[] }> = ({ bookKey, toc }) => {
+  if (!toc || toc.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <div className="text-base-content/60 mb-4">
+          <IoLibrary className="w-16 h-16 mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">暂无目录</h3>
+          <p className="text-sm">这本书没有可用的目录信息</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="toc-view p-4">
+      {toc.map((item, index) => (
+        <div key={index} className="toc-item mb-2">
+          <button 
+            className="text-left w-full p-2 text-sm hover:bg-base-200 rounded transition-colors"
+            style={{ paddingLeft: `${(item.level || 0) * 16 + 8}px` }}
+          >
+            {item.label || `第${index + 1}章`}
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Sidebar Component (独立组件，参考readest)
+const SideBar: React.FC<{ 
+  isVisible: boolean
+  onGoToLibrary: () => void
+  onClose: () => void
+  book: Book
+  bookDoc: any
+}> = ({ isVisible, onGoToLibrary, onClose, book, bookDoc }) => {
+  const [activeTab, setActiveTab] = useState<'toc' | 'bookmarks' | 'annotations'>('toc')
+  const [isSearchBarVisible, setIsSearchBarVisible] = useState(false)
+  const [isPinned, setIsPinned] = useState(false)
+
+  if (!isVisible) return null
+
+  const toggleSearchBar = () => setIsSearchBarVisible(!isSearchBarVisible)
+  const togglePin = () => setIsPinned(!isPinned)
+
+  return (
+    <div className="sidebar-container bg-base-100 border-r border-base-300 flex flex-col w-80 h-full">
+      {/* Sidebar Header - 完全参考readest的sidebar header */}
+      <div className="sidebar-header flex h-11 items-center justify-between pe-2 ps-1.5">
+        <div className="flex items-center gap-x-8">
+          {/* 移动端关闭按钮 */}
+          <button
+            onClick={onClose}
+            className="btn btn-ghost btn-circle flex h-6 min-h-6 w-6 hover:bg-transparent sm:hidden"
+          >
+            <MdArrowBackIosNew className="w-5 h-5" />
+          </button>
+          
+          {/* 桌面端返回图书馆按钮 */}
+          <button
+            className="btn btn-ghost hidden h-8 min-h-8 w-8 p-0 sm:flex"
+            onClick={onGoToLibrary}
+          >
+            <GiBookshelf className="fill-base-content" />
+          </button>
+        </div>
+        
+        <div className="flex min-w-24 max-w-32 items-center justify-between sm:w-[70%]">
+          <button
+            onClick={toggleSearchBar}
+            className={clsx(
+              'btn btn-ghost h-8 min-h-8 w-8 p-0',
+              isSearchBarVisible ? 'bg-base-300' : ''
+            )}
+          >
+            <FiSearch className="w-4 h-4 text-base-content" />
+          </button>
+          
+          <Dropdown
+            className="dropdown-bottom flex justify-center"
+            buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0"
+            toggleButton={<MdOutlineMenu className="w-4 h-4 fill-base-content" />}
+          >
+            <div className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+              <li><a>书籍信息</a></li>
+              <li><a>导出注释</a></li>
+              <li><a>重新加载</a></li>
+            </div>
+          </Dropdown>
+          
+          <div className="right-0 hidden h-8 w-8 items-center justify-center sm:flex">
+            <button
+              onClick={togglePin}
+              className="btn btn-ghost h-8 min-h-8 w-8 p-0 sidebar-pin-btn"
+              aria-label={isPinned ? '取消固定' : '固定侧边栏'}
+            >
+              {isPinned ? (
+                <MdPushPin className="w-4 h-4" />
+              ) : (
+                <MdOutlinePushPin className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex border-b border-base-300 bg-base-100">
+        {sidebarTabs.map(tab => (
+          <button
+            key={tab.id}
+            className={clsx(
+              'flex-1 py-2 px-4 text-sm font-medium text-center',
+              activeTab === tab.id 
+                ? 'text-primary border-b-2 border-primary bg-primary/5' 
+                : 'text-base-content/70 hover:text-base-content hover:bg-base-100'
+            )}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Sidebar Content */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'toc' && bookDoc?.toc && (
+          <TOCView bookKey={book.hash} toc={bookDoc.toc} />
+        )}
+        {activeTab === 'bookmarks' && (
+          <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <div className="text-base-content/60 mb-4">
+              <PiNotePencil className="w-16 h-16 mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">暂无书签</h3>
+              <p className="text-sm">点击添加书签来标记重要内容</p>
+            </div>
+          </div>
+        )}
+        {activeTab === 'annotations' && (
+          <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <div className="text-base-content/60 mb-4">
+              <PiNotePencil className="w-16 h-16 mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">暂无注释</h3>
+              <p className="text-sm">选择文字添加注释和高亮</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Book Reader Component (包含HeaderBar和内容)
+const BookReader: React.FC<{ 
+  book: Book
+  bookDoc: any
+  onCloseBook: () => void
+  onOpenSettings: () => void
+}> = ({ book, bookDoc, onCloseBook, onOpenSettings }) => {
+  const viewerRef = useRef<HTMLDivElement>(null)
+  const [viewSettings, setViewSettings] = useState<ViewSettings>({
+    fontSize: 16,
+    fontFamily: 'serif',
+    lineHeight: 1.6,
+    theme: 'light',
+    layout: 'paginated',
+    gap: 48,
+    maxColumnWidth: 720,
+    maxInlineSize: 800,
+    maxBlockSize: 600,
+    overrideColor: false,
+    invertImgColorInDark: false
+  })
+
+  // ViewMenu Content
+  const ViewMenuContent = () => (
+    <div className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
+      <li><a onClick={onOpenSettings}>字体和布局</a></li>
+      <li><a>分享</a></li>
+      <li><a>复制链接</a></li>
+      <li><a>关于</a></li>
+    </div>
+  )
+
+  return (
+    <div className="book-reader relative h-full w-full overflow-hidden bg-base-100">
+      {/* HeaderBar - 完全参考readest的HeaderBar */}
+      <div className="bg-base-100 relative">
+        {/* 悬停检测层 */}
+        <div className="absolute top-0 z-10 h-11 w-full" />
+        
+        {/* 实际的Header内容 */}
+        <div className="header-bar bg-base-100 relative z-10 flex h-11 w-full items-center pr-4 pl-4 border-b border-base-300">
+          {/* 左侧区域 - 参考readest的sidebar-bookmark-toggler */}
+          <div className="bg-base-100 sidebar-bookmark-toggler z-20 flex h-full items-center gap-x-4 pe-2">
+            <button
+              className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+              aria-label="书签"
+            >
+              <PiNotePencil className="w-4 h-4" />
+            </button>
+            
+            <button
+              className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+              aria-label="搜索"
+            >
+              <FiSearch className="w-4 h-4 text-base-content" />
+            </button>
+          </div>
+
+          {/* 中间标题 - 绝对定位居中，参考readest的header-title */}
+          <div className="header-title z-15 bg-base-100 pointer-events-none absolute inset-0 hidden items-center justify-center sm:flex">
+            <h2 className="line-clamp-1 max-w-[50%] text-center text-xs font-semibold">
+              {book.title}
+            </h2>
+          </div>
+
+          {/* 右侧区域 - 参考readest的ml-auto结构 */}
+          <div className="bg-base-100 z-20 ml-auto flex h-full items-center space-x-4 ps-2">
+            <button
+              onClick={onOpenSettings}
+              className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+              aria-label="设置"
+            >
+              <MdOutlineMenu className="w-4 h-4" />
+            </button>
+
+            <Dropdown
+              className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
+              buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
+              toggleButton={<PiDotsThreeVerticalBold className="w-4 h-4" />}
+            >
+              <ViewMenuContent />
+            </Dropdown>
+
+            <button
+              onClick={onCloseBook}
+              className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+              aria-label="关闭"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Book Content */}
+      <div className="flex-1 h-[calc(100%-44px)] relative bg-base-200">
+        <div 
+          ref={viewerRef}
+          className="foliate-viewer w-full h-full"
+          style={{
+            fontSize: `${viewSettings.fontSize}px`,
+            fontFamily: viewSettings.fontFamily,
+            lineHeight: viewSettings.lineHeight.toString()
+          }}
+        >
+          {/* Foliate viewer will be rendered here */}
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <h3 className="text-lg font-medium mb-2">正在加载书籍内容...</h3>
+              <p className="text-sm text-base-content/60">请稍候</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function ReaderPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [loading, setLoading] = useState(true)
+  const bookId = searchParams.get('ids')
+
   const [book, setBook] = useState<Book | null>(null)
-  const [bookDoc, setBookDoc] = useState<BookDoc | null>(null)
+  const [bookDoc, setBookDoc] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [isSidebarPinned, setIsSidebarPinned] = useState(true)
+  // UI State
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [isSearchBarVisible, setIsSearchBarVisible] = useState(false)
-  const [sidebarTab, setSidebarTab] = useState<'toc' | 'bookmarks' | 'annotations'>('toc')
-  const [hoveredBookKey, setHoveredBookKey] = useState<string | null>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
 
-  // Get reader store functions
-  const { getViewSettings, setViewSettings, addBookKey } = useReaderStore()
+  const handleBackToLibrary = () => {
+    router.push('/library')
+  }
 
-  // Sidebar width state - matching readest
-  const [sidebarWidth, setSidebarWidth] = useState('15%') // Default desktop width
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+  const handleCloseBook = () => {
+    router.push('/library')
+  }
 
-  // Get book ID from URL
-  const bookId = searchParams?.get('ids')
-  const bookKey = bookId ? `${bookId}` : null
+  const handleOpenSettings = () => {
+    setIsSettingsOpen(true)
+  }
 
-  // Get view settings for this book
-  const viewSettings = bookKey ? getViewSettings(bookKey) || { ...DEFAULT_VIEW_SETTINGS } : { ...DEFAULT_VIEW_SETTINGS }
-
-  // Settings dialog state
-  const [activePanel, setActivePanel] = useState<SettingsPanelType>(() => {
-    if (typeof window !== 'undefined') {
-      const lastPanel = localStorage.getItem('lastConfigPanel')
-      if (lastPanel && ['Font', 'Layout', 'Color', 'Control', 'Language', 'Custom'].includes(lastPanel)) {
-        return lastPanel as SettingsPanelType
-      }
-    }
-    return 'Font'
-  })
-  const [showAllTabLabels, setShowAllTabLabels] = useState(false)
-  const tabsRef = useRef<HTMLDivElement | null>(null)
-  const [isRtl] = useState(false)
-
-  // ViewMenu state
-  const [zoomLevel, setZoomLevel] = useState(100)
-  const [isScrolledMode, setIsScrolledMode] = useState(false)
-  const [themeMode, setThemeMode] = useState<'auto' | 'light' | 'dark'>('auto')
-  const [invertImgColorInDark, setInvertImgColorInDark] = useState(false)
-
-  // Effect to set sidebar width based on screen size - matching readest
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const handleResize = () => {
-        const mobile = window.innerWidth < 640
-        if (mobile) {
-          setSidebarWidth('100%') // Mobile: full width
-        } else {
-          setSidebarWidth('15%') // Desktop: 15% default
-        }
-      }
-
-      handleResize() // Initial call
-      window.addEventListener('resize', handleResize)
-      return () => window.removeEventListener('resize', handleResize)
-    }
-  }, [])
-
-  // Load book data
   useEffect(() => {
     const loadBook = async () => {
       if (!bookId) {
@@ -131,20 +359,16 @@ export default function ReaderPage() {
         setLoading(true)
         setError(null)
 
-        // Get book service instance
         const bookServiceV2 = BookServiceV2.getInstance()
 
-        // Get book from service
         const foundBook = bookServiceV2.getBookByHash(bookId)
         if (!foundBook) {
           setError('未找到书籍')
           setLoading(false)
           return
         }
-
         setBook(foundBook)
 
-        // Get book file and load document
         const bookFile = await bookServiceV2.getBookFile(foundBook.hash)
         if (!bookFile) {
           setError('无法加载书籍文件')
@@ -154,59 +378,41 @@ export default function ReaderPage() {
 
         // Use DocumentLoader to parse the book
         const loader = new DocumentLoader(bookFile)
-        const { book: loadedBookDoc } = await loader.open()
-        setBookDoc(loadedBookDoc)
-
-        // Add book key to reader store
-        if (bookKey) {
-          addBookKey(bookKey)
+        const parsedDocument = await loader.open()
+        
+        if (parsedDocument && parsedDocument.book) {
+          setBookDoc(parsedDocument.book)
+        } else {
+          setError('无法解析书籍内容')
         }
-
-        // Initialize view settings if not exist
-        if (bookKey && !getViewSettings(bookKey)) {
-          setViewSettings(bookKey, { ...DEFAULT_VIEW_SETTINGS })
-        }
-
-        setLoading(false)
-      } catch (err) {
-        console.error('加载书籍失败:', err)
-        setError(err instanceof Error ? err.message : '加载书籍失败')
+      } catch (error) {
+        console.error('加载书籍失败:', error)
+        setError('加载书籍失败')
+      } finally {
         setLoading(false)
       }
     }
 
     loadBook()
-  }, [bookId, bookKey, addBookKey, getViewSettings, setViewSettings])
+  }, [bookId])
 
-  // Update view settings function
-  const updateViewSettings = (updates: Partial<ViewSettings>) => {
-    if (bookKey) {
-      const currentSettings = getViewSettings(bookKey) || { ...DEFAULT_VIEW_SETTINGS }
-      setViewSettings(bookKey, { ...currentSettings, ...updates })
-    }
-  }
-
-  // Loading state
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="loading loading-spinner loading-lg mb-4"></div>
-          <p className="text-base-content/70">正在加载书籍...</p>
-        </div>
+      <div className="h-screen flex items-center justify-center bg-base-100">
+        <Spinner />
       </div>
     )
   }
 
-  // Error state
-  if (error || !book || !bookDoc || !bookKey) {
+  if (error) {
     return (
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center bg-base-100">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">{error || '未找到书籍'}</h2>
-          <button 
+          <h1 className="text-2xl font-bold mb-4">加载错误</h1>
+          <p className="text-base-content/60 mb-4">{error}</p>
+          <button
+            onClick={handleBackToLibrary}
             className="btn btn-primary"
-            onClick={() => router.push('/library')}
           >
             返回图书馆
           </button>
@@ -215,574 +421,55 @@ export default function ReaderPage() {
     )
   }
 
-  const handleBackToLibrary = () => {
-    router.push('/library')
+  if (!book || !bookDoc) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-base-100">
+        <Spinner />
+      </div>
+    )
   }
 
-  const toggleSidebarPin = () => {
-    setIsSidebarPinned(!isSidebarPinned)
-  }
-
-  const toggleSearchBar = () => {
-    setIsSearchBarVisible(!isSearchBarVisible)
-  }
-
-  // Settings configuration - matching readest exactly
-  const tabConfig: TabConfig[] = [
-    {
-      tab: 'Font',
-      icon: RiFontSize,
-      label: '字体',
-    },
-    {
-      tab: 'Layout',
-      icon: RiDashboardLine,
-      label: '布局',
-    },
-    {
-      tab: 'Color',
-      icon: VscSymbolColor,
-      label: '颜色',
-    },
-    {
-      tab: 'Control',
-      icon: LiaHandPointerSolid,
-      label: '行为',
-    },
-    {
-      tab: 'Language',
-      icon: RiTranslate,
-      label: '语言',
-    },
-    {
-      tab: 'Custom',
-      icon: IoAccessibilityOutline,
-      label: '自定义',
-    },
-  ]
-
-  const handleSetActivePanel = (tab: SettingsPanelType) => {
-    setActivePanel(tab)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('lastConfigPanel', tab)
-    }
-  }
-
-  // Create book config for FoliateViewer
-  const bookConfig: BookConfig = {
-    location: book.currentPage ? `#page-${book.currentPage}` : undefined,
-  }
-
-  // Calculate content insets for FoliateViewer
-  const contentInsets = {
-    top: 44, // Header height
-    right: 0,
-    bottom: 48, // Footer height  
-    left: isSidebarOpen ? (isMobile ? 0 : parseInt(sidebarWidth)) : 0,
-  }
-
-  // View Menu Content Component
-  const ViewMenuContent = () => (
-    <>
-      {/* View Mode Controls */}
-      <MenuItem
-        label={isScrolledMode ? '分页模式' : '滚动模式'}
-        Icon={isScrolledMode ? RiDashboardLine : RxSlider}
-        onClick={() => {
-          setIsScrolledMode(!isScrolledMode)
-          updateViewSettings({ scrolled: !isScrolledMode })
-        }}
-      />
-      <hr className="border-base-200 my-1" />
-      
-      {/* Zoom Controls */}
-      <MenuItem label="缩放" disabled={true} labelClass="text-sm opacity-50" />
-      <MenuItem 
-        label="放大" 
-        Icon={MdZoomIn} 
-        onClick={() => setZoomLevel(Math.min(200, zoomLevel + 10))}
-      />
-      <MenuItem 
-        label="缩小" 
-        Icon={MdZoomOut} 
-        onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))}
-      />
-      <MenuItem 
-        label="重置缩放" 
-        onClick={() => setZoomLevel(100)}
-      />
-      <hr className="border-base-200 my-1" />
-      
-      {/* Theme Controls */}
-      <MenuItem label="主题" disabled={true} labelClass="text-sm opacity-50" />
-      <MenuItem 
-        label="浅色主题" 
-        Icon={themeMode === 'light' ? MdCheck : BiSun}
-        onClick={() => {
-          setThemeMode('light')
-          updateViewSettings({ theme: 'light' })
-        }}
-      />
-      <MenuItem 
-        label="深色主题" 
-        Icon={themeMode === 'dark' ? MdCheck : BiMoon}
-        onClick={() => {
-          setThemeMode('dark')
-          updateViewSettings({ theme: 'dark' })
-        }}
-      />
-      <MenuItem 
-        label="自动主题" 
-        Icon={themeMode === 'auto' ? MdCheck : TbSunMoon}
-        onClick={() => {
-          setThemeMode('auto')
-          updateViewSettings({ theme: 'auto' })
-        }}
-      />
-    </>
-  )
-
-  // Font Panel Component  
-  const FontPanel = () => (
-    <div className="space-y-6">
-      {/* Font Size */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-base-content">字体大小</label>
-        <div className="flex items-center space-x-4">
-          <span className="text-xs text-base-content/70 w-8">小</span>
-          <input
-            type="range"
-            min="12"
-            max="32"
-            value={viewSettings.defaultFontSize || 16}
-            onChange={(e) => updateViewSettings({ defaultFontSize: Number(e.target.value) })}
-            className="range range-primary flex-1"
-          />
-          <span className="text-xs text-base-content/70 w-8">大</span>
-          <span className="text-sm text-base-content w-12 text-right">
-            {viewSettings.defaultFontSize || 16}px
-          </span>
-        </div>
-      </div>
-
-      {/* Line Height */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-base-content">行间距</label>
-        <div className="flex items-center space-x-4">
-          <span className="text-xs text-base-content/70 w-8">紧密</span>
-          <input
-            type="range"
-            min="1.0"
-            max="3.0"
-            step="0.1"
-            value={viewSettings.lineHeight || 1.6}
-            onChange={(e) => updateViewSettings({ lineHeight: Number(e.target.value) })}
-            className="range range-primary flex-1"
-          />
-          <span className="text-xs text-base-content/70 w-8">宽松</span>
-          <span className="text-sm text-base-content w-12 text-right">
-            {(viewSettings.lineHeight || 1.6).toFixed(1)}
-          </span>
-        </div>
-      </div>
-
-      {/* Font Family */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-base-content">字体</label>
-        <select 
-          className="select select-bordered w-full"
-          value={viewSettings.fontFamily || 'default'}
-          onChange={(e) => updateViewSettings({ fontFamily: e.target.value })}
-        >
-          <option value="default">默认字体</option>
-          <option value="serif">衬线字体</option>
-          <option value="sans-serif">无衬线字体</option>
-          <option value="monospace">等宽字体</option>
-        </select>
-      </div>
-    </div>
-  )
-
-  // Layout Panel Component
-  const LayoutPanel = () => (
-    <div className="space-y-6">
-      {/* Margins */}
-      <div className="space-y-4">
-        <label className="text-sm font-medium text-base-content">页面边距</label>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs text-base-content/70">上边距</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={viewSettings.marginTopPx || 48}
-              onChange={(e) => updateViewSettings({ marginTopPx: Number(e.target.value) })}
-              className="input input-bordered input-sm w-full"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-base-content/70">下边距</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={viewSettings.marginBottomPx || 48}
-              onChange={(e) => updateViewSettings({ marginBottomPx: Number(e.target.value) })}
-              className="input input-bordered input-sm w-full"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-base-content/70">左边距</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={viewSettings.marginLeftPx || 48}
-              onChange={(e) => updateViewSettings({ marginLeftPx: Number(e.target.value) })}
-              className="input input-bordered input-sm w-full"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-base-content/70">右边距</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={viewSettings.marginRightPx || 48}
-              onChange={(e) => updateViewSettings({ marginRightPx: Number(e.target.value) })}
-              className="input input-bordered input-sm w-full"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Page Layout */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-base-content">页面布局</label>
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={viewSettings.scrolled || false}
-            onChange={(e) => updateViewSettings({ scrolled: e.target.checked })}
-            className="checkbox checkbox-primary checkbox-sm"
-          />
-          <span className="text-sm">滚动模式</span>
-        </div>
-      </div>
-
-      {/* Max Column Count */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-base-content">最大列数</label>
-        <input
-          type="number"
-          min="1"
-          max="3"
-          value={viewSettings.maxColumnCount || 2}
-          onChange={(e) => updateViewSettings({ maxColumnCount: Number(e.target.value) })}
-          className="input input-bordered input-sm w-full"
-        />
-      </div>
-    </div>
-  )
-
-  // Color Panel Component
-  const ColorPanel = () => (
-    <div className="space-y-6">
-      {/* Theme Selection */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-base-content">主题</label>
-        <div className="grid grid-cols-1 gap-2">
-          <button
-            className={clsx(
-              'btn btn-sm justify-start',
-              viewSettings.theme === 'light' ? 'btn-primary' : 'btn-ghost'
-            )}
-            onClick={() => updateViewSettings({ theme: 'light' })}
-          >
-            <BiSun className="w-4 h-4 mr-2" />
-            浅色主题
-          </button>
-          <button
-            className={clsx(
-              'btn btn-sm justify-start',
-              viewSettings.theme === 'dark' ? 'btn-primary' : 'btn-ghost'
-            )}
-            onClick={() => updateViewSettings({ theme: 'dark' })}
-          >
-            <BiMoon className="w-4 h-4 mr-2" />
-            深色主题
-          </button>
-          <button
-            className={clsx(
-              'btn btn-sm justify-start',
-              viewSettings.theme === 'sepia' ? 'btn-primary' : 'btn-ghost'
-            )}
-            onClick={() => updateViewSettings({ theme: 'sepia' })}
-          >
-            <TbSunMoon className="w-4 h-4 mr-2" />
-            护眼主题
-          </button>
-        </div>
-      </div>
-
-      {/* Color Override */}
-      <div className="space-y-2">
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={viewSettings.overrideColor || false}
-            onChange={(e) => updateViewSettings({ overrideColor: e.target.checked })}
-            className="checkbox checkbox-primary checkbox-sm"
-          />
-          <span className="text-sm">覆盖书籍颜色</span>
-        </div>
-      </div>
-
-      {/* Dark Mode Image Invert */}
-      <div className="space-y-2">
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            checked={viewSettings.invertImgColorInDark || false}
-            onChange={(e) => updateViewSettings({ invertImgColorInDark: e.target.checked })}
-            className="checkbox checkbox-primary checkbox-sm"
-          />
-          <span className="text-sm">深色模式下反转图片颜色</span>
-        </div>
-      </div>
-    </div>
-  )
-
-  // Settings Panel Renderer
-  const renderSettingsPanel = () => {
-    switch (activePanel) {
-      case 'Font':
-        return <FontPanel />
-      case 'Layout':
-        return <LayoutPanel />
-      case 'Color':
-        return <ColorPanel />
-      case 'Control':
-        return <div className="p-4 text-center text-base-content/60">行为设置面板</div>
-      case 'Language':
-        return <div className="p-4 text-center text-base-content/60">语言设置面板</div>
-      case 'Custom':
-        return <div className="p-4 text-center text-base-content/60">自定义设置面板</div>
-      default:
-        return <FontPanel />
-    }
-  }
-
+  // ReaderContent - 参考readest的架构
   return (
-    <div className="h-screen flex flex-col bg-base-100">
-      {/* Header Bar - 100% 匹配 readest HeaderBar */}
-      <div className="titlebar bg-base-200 z-20 flex h-[44px] w-full items-center py-2 px-4 border-b border-base-300">
-        {/* Left side - 三层结构 */}
-        <div className="flex items-center space-x-3">
-          {/* Layer 1: Back button */}
-          <button
-            onClick={handleBackToLibrary}
-            className="btn btn-ghost h-7 min-h-7 w-7 p-0 rounded"
-            aria-label="返回图书馆"
-          >
-            <MdArrowBackIosNew className="w-[16px] h-[16px]" />
-          </button>
-
-          {/* Layer 2: Sidebar toggle */}
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="btn btn-ghost h-7 min-h-7 w-7 p-0 rounded"
-            aria-label="切换侧边栏"
-          >
-            {isSidebarOpen ? (
-              <TbLayoutSidebarFilled className="w-[16px] h-[16px]" />
-            ) : (
-              <TbLayoutSidebar className="w-[16px] h-[16px]" />
-            )}
-          </button>
-
-          {/* Layer 3: Search */}
-          <button
-            onClick={toggleSearchBar}
-            className="btn btn-ghost h-7 min-h-7 w-7 p-0 rounded"
-            aria-label="搜索"
-          >
-            <FiSearch className="w-[16px] h-[16px]" />
-          </button>
-        </div>
-
-        {/* Center - Book title */}
-        <div className="flex-1 text-center">
-          <h1 className="text-sm font-medium text-base-content truncate max-w-md mx-auto">
-            {book.title}
-          </h1>
-        </div>
-
-        {/* Right side */}
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="btn btn-ghost h-7 min-h-7 w-7 p-0 rounded"
-            aria-label="设置"
-          >
-            <MdOutlineMenu className="w-[16px] h-[16px]" />
-          </button>
-
-          <Dropdown
-            className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
-            buttonClassName='btn btn-ghost h-7 min-h-7 w-7 p-0 rounded'
-            toggleButton={<PiDotsThreeVerticalBold className="w-[16px] h-[16px]" />}
-          >
-            <ViewMenuContent />
-          </Dropdown>
-        </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        {isSidebarOpen && (
-          <div 
-            className={clsx(
-              'bg-base-100 border-r border-base-300 flex flex-col',
-              isMobile ? 'absolute inset-y-0 left-0 z-10 w-full' : 'relative',
-            )}
-            style={{ 
-              width: isMobile ? '100%' : sidebarWidth,
-              top: isMobile ? '44px' : 'auto', // Offset by header height on mobile
-            }}
-          >
-            {/* Sidebar Header */}
-            <div className="h-10 flex items-center justify-between px-4 border-b border-base-300 bg-base-50">
-              <div className="flex items-center space-x-1">
-                <button
-                  className={clsx(
-                    'tab tab-sm',
-                    sidebarTab === 'toc' && 'tab-active'
-                  )}
-                  onClick={() => setSidebarTab('toc')}
-                >
-                  目录
-                </button>
-                <button
-                  className={clsx(
-                    'tab tab-sm',
-                    sidebarTab === 'bookmarks' && 'tab-active'
-                  )}
-                  onClick={() => setSidebarTab('bookmarks')}
-                >
-                  书签
-                </button>
-                <button
-                  className={clsx(
-                    'tab tab-sm',
-                    sidebarTab === 'annotations' && 'tab-active'
-                  )}
-                  onClick={() => setSidebarTab('annotations')}
-                >
-                  注释
-                </button>
-              </div>
-              
-              <div className="flex items-center space-x-1">
-                <button
-                  onClick={toggleSidebarPin}
-                  className="btn btn-ghost btn-xs"
-                  aria-label={isSidebarPinned ? '取消固定' : '固定侧边栏'}
-                >
-                  {isSidebarPinned ? (
-                    <MdPushPin className="w-3 h-3" />
-                  ) : (
-                    <MdOutlinePushPin className="w-3 h-3" />
-                  )}
-                </button>
-                {isMobile && (
-                  <button
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="btn btn-ghost btn-xs"
-                    aria-label="关闭侧边栏"
-                  >
-                    <MdArrowBackIosNew className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Sidebar Content */}
-            <div className="flex-1 overflow-hidden">
-              {sidebarTab === 'toc' && bookDoc?.toc && (
-                <TOCView bookKey={bookKey} toc={bookDoc.toc} />
-              )}
-              {sidebarTab === 'bookmarks' && (
-                <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                  <div className="text-base-content/60 mb-4">
-                    <PiNotePencil className="w-16 h-16 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">暂无书签</h3>
-                    <p className="text-sm">点击添加书签来标记重要内容</p>
-                  </div>
-                </div>
-              )}
-              {sidebarTab === 'annotations' && (
-                <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                  <div className="text-base-content/60 mb-4">
-                    <PiNotePencil className="w-16 h-16 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">暂无注释</h3>
-                    <p className="text-sm">选择文字添加注释和高亮</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Book Content */}
-        <div className="flex-1 relative overflow-hidden">
-          <FoliateViewer
-            bookKey={bookKey}
-            bookDoc={bookDoc}
-            config={bookConfig}
-            contentInsets={contentInsets}
-          />
-        </div>
+    <div className="reader-content flex h-screen bg-base-100">
+      {/* SideBar - 独立组件 */}
+      <SideBar 
+        isVisible={isSidebarVisible}
+        onGoToLibrary={handleBackToLibrary}
+        onClose={() => setIsSidebarVisible(false)}
+        book={book}
+        bookDoc={bookDoc}
+      />
+      
+      {/* BookReader - 独立组件 */}
+      <div className="flex-1">
+        <BookReader 
+          book={book}
+          bookDoc={bookDoc}
+          onCloseBook={handleCloseBook}
+          onOpenSettings={handleOpenSettings}
+        />
       </div>
 
       {/* Settings Dialog */}
-      <Dialog
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        title="阅读器设置"
-        className="settings-dialog"
-      >
-        <div className="flex h-[500px]">
-          {/* Settings Tabs */}
-          <div className="w-24 border-r border-base-300 bg-base-50">
-            <div className="flex flex-col p-2 space-y-1">
-              {tabConfig.map(({ tab, icon: Icon, label }) => (
-                <button
-                  key={tab}
-                  onClick={() => handleSetActivePanel(tab)}
-                  className={clsx(
-                    'flex flex-col items-center justify-center p-3 rounded-lg text-xs transition-colors',
-                    activePanel === tab 
-                      ? 'bg-primary text-primary-content' 
-                      : 'text-base-content/70 hover:bg-base-200'
-                  )}
-                >
-                  <Icon className="w-5 h-5 mb-1" />
-                  <span>{label}</span>
-                </button>
-              ))}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">阅读设置</h3>
+              <button 
+                onClick={() => setIsSettingsOpen(false)}
+                className="btn btn-ghost btn-sm"
+              >
+                ×
+              </button>
+            </div>
+            <div className="text-center text-base-content/60">
+              <p>设置功能开发中...</p>
             </div>
           </div>
-
-          {/* Settings Content */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            {renderSettingsPanel()}
-          </div>
         </div>
-      </Dialog>
+      )}
     </div>
   )
 } 
