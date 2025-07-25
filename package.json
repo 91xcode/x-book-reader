@@ -1,0 +1,83 @@
+{
+  "name": "new-x-project",
+  "version": "0.1.0",
+  "description": "An ebook reader application built with Electron and Next.js, based on readest project architecture",
+  "main": "main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:next\" \"wait-on http://127.0.0.1:3000 && npm run dev:electron\"",
+    "dev:next": "next dev",
+    "dev:electron": "electron .",
+    "build": "next build && next export",
+    "build:electron": "npm run build && electron-builder",
+    "start": "next start",
+    "lint": "next lint",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": ["ebook", "reader", "electron", "nextjs"],
+  "author": "",
+  "license": "ISC",
+  "homepage": "./",
+  "dependencies": {
+    "next": "15.3.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "clsx": "^2.1.1",
+    "zustand": "5.0.6",
+    "react-icons": "^5.4.0",
+    "dayjs": "^1.11.13",
+    "js-md5": "^0.8.3",
+    "marked": "^15.0.12",
+    "@zip.js/zip.js": "^2.7.53",
+    "overlayscrollbars": "^2.11.4",
+    "overlayscrollbars-react": "^0.5.6",
+    "react-color": "^2.19.3",
+    "react-window": "^1.8.11",
+    "tinycolor2": "^1.6.0",
+    "highlight.js": "^11.11.1",
+    "react-responsive": "^10.0.0",
+    "i18next": "^24.2.0",
+    "react-i18next": "^15.2.0",
+    "i18next-browser-languagedetector": "^8.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@types/react-color": "^3.0.13",
+    "@types/react-window": "^1.8.8",
+    "@types/tinycolor2": "^1.4.6",
+    "typescript": "^5.7.2",
+    "eslint": "^9.16.0",
+    "eslint-config-next": "15.0.3",
+    "tailwindcss": "^3.4.17",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "daisyui": "^4.12.24",
+    "@tailwindcss/typography": "^0.5.16",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "concurrently": "^9.1.0",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.newxproject.reader",
+    "productName": "NewXProject Reader",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "main.js",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
