@@ -10,6 +10,15 @@ import { TbLayoutSidebar, TbLayoutSidebarFilled, TbSunMoon } from 'react-icons/t
 import { IoLibrary } from 'react-icons/io5'
 import { BiSun, BiMoon } from 'react-icons/bi'
 import { BsFillCircleFill } from 'react-icons/bs'
+import { RiArrowLeftSLine, RiArrowRightSLine, RiArrowGoBackLine, RiArrowGoForwardLine } from 'react-icons/ri'
+import { RiArrowLeftDoubleLine, RiArrowRightDoubleLine, RiFontSize, RiTranslateAi } from 'react-icons/ri'
+import { FaHeadphones } from 'react-icons/fa6'
+import { IoIosList as TOCIcon } from 'react-icons/io'
+import { RxSlider as SliderIcon } from 'react-icons/rx'
+import { RiFontFamily as FontIcon } from 'react-icons/ri'
+import { MdOutlineHeadphones as TTSIcon, MdOutlineBookmarkAdd, MdOutlineBookmark } from 'react-icons/md'
+import { MdZoomOut, MdZoomIn, MdCheck, MdSync, MdSyncProblem } from 'react-icons/md'
+import { LuNotebookPen } from 'react-icons/lu'
 
 import { BookServiceV2 } from '@/services/BookServiceV2'
 import { DocumentLoader } from '@/libs/document'
@@ -97,7 +106,7 @@ const SideBar: React.FC<{
   const togglePin = () => setIsPinned(!isPinned)
 
   return (
-    <div className="sidebar-container bg-base-100 border-r border-base-300 flex flex-col w-80 h-full">
+    <div className="sidebar-container bg-base-200 flex min-w-60 select-none flex-col h-full border-r border-base-300" style={{ width: '15%', maxWidth: '45%' }}>
       {/* Sidebar Header - 完全参考readest的sidebar header */}
       <div className="sidebar-header flex h-11 items-center justify-between pe-2 ps-1.5">
         <div className="flex items-center gap-x-8">
@@ -203,6 +212,135 @@ const SideBar: React.FC<{
   )
 }
 
+// FooterBar Component - 完全参考readest
+const FooterBar: React.FC<{ 
+  book: Book
+  onOpenSettings: () => void
+  isVisible: boolean
+  onSetHoveredBookKey: (key: string) => void
+}> = ({ book, onOpenSettings, isVisible, onSetHoveredBookKey }) => {
+  const [actionTab, setActionTab] = useState('')
+  const [progress, setProgress] = useState(0)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+
+  const handleSetActionTab = (tab: string) => {
+    setActionTab(actionTab === tab ? '' : tab)
+  }
+
+  const handleProgressChange = (value: number) => {
+    setProgress(value)
+    // TODO: 实际的页面跳转逻辑
+  }
+
+  return (
+    <>
+      {/* 悬停检测层 - 参考readest的实现 */}
+      <div 
+        className="absolute bottom-0 left-0 z-10 hidden w-full sm:flex sm:h-[52px]"
+        onMouseEnter={() => !isMobile && onSetHoveredBookKey(book.hash)}
+        onTouchStart={() => !isMobile && onSetHoveredBookKey(book.hash)}
+      />
+      
+      {/* FooterBar主体 */}
+      <div 
+        className={clsx(
+          'footer-bar shadow-xs absolute bottom-0 z-50 flex w-full flex-col',
+          'sm:h-[52px] sm:justify-center',
+          'sm:bg-base-100 border-base-300/50 border-t sm:border-none',
+          'transition-[opacity,transform] duration-300',
+          isVisible
+            ? 'pointer-events-auto translate-y-0 opacity-100'
+            : 'pointer-events-none translate-y-full opacity-0 sm:translate-y-0'
+        )}
+        onMouseLeave={() => window.innerWidth >= 640 && onSetHoveredBookKey('')}
+        aria-hidden={!isVisible}
+      >
+        {/* 移动端底部栏 */}
+        <div className="bg-base-100 z-50 mt-auto flex w-full justify-between px-8 py-4 sm:hidden">
+          <button
+            className="btn btn-ghost h-10 w-10 p-0"
+            onClick={() => handleSetActionTab('toc')}
+          >
+            <TOCIcon className="w-6 h-6" />
+          </button>
+          <button
+            className="btn btn-ghost h-10 w-10 p-0"
+            onClick={() => handleSetActionTab('note')}
+          >
+            <PiNotePencil className="w-6 h-6" />
+          </button>
+          <button
+            className="btn btn-ghost h-10 w-10 p-0"
+            onClick={() => handleSetActionTab('progress')}
+          >
+            <SliderIcon className={clsx('w-6 h-6', actionTab === 'progress' && 'text-blue-500')} />
+          </button>
+          <button
+            className="btn btn-ghost h-10 w-10 p-0"
+            onClick={() => handleSetActionTab('font')}
+          >
+            <FontIcon className={clsx('w-6 h-6', actionTab === 'font' && 'text-blue-500')} />
+          </button>
+          <button
+            className="btn btn-ghost h-10 w-10 p-0"
+            onClick={() => handleSetActionTab('tts')}
+          >
+            <TTSIcon className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* 桌面端底部栏 */}
+        <div className="absolute hidden h-full w-full items-center gap-x-4 px-4 sm:flex">
+          <button
+            className="btn btn-ghost h-8 w-8 p-0"
+            title="上一章节"
+          >
+            <RiArrowLeftDoubleLine className="w-4 h-4" />
+          </button>
+          <button
+            className="btn btn-ghost h-8 w-8 p-0"
+            title="上一页"
+          >
+            <RiArrowLeftSLine className="w-4 h-4" />
+          </button>
+          <button
+            className="btn btn-ghost h-8 w-8 p-0"
+            title="后退"
+          >
+            <RiArrowGoBackLine className="w-4 h-4" />
+          </button>
+          <button
+            className="btn btn-ghost h-8 w-8 p-0"
+            title="前进"
+          >
+            <RiArrowGoForwardLine className="w-4 h-4" />
+          </button>
+          
+          <span className="mx-2 text-center text-sm">
+            {Math.round(progress)}%
+          </span>
+          
+          <input
+            type="range"
+            className="text-base-content mx-2 w-full"
+            min={0}
+            max={100}
+            value={progress}
+            onChange={(e) => handleProgressChange(parseInt(e.target.value, 10))}
+          />
+          
+          <button
+            className="btn btn-ghost h-8 w-8 p-0"
+            title="朗读"
+          >
+            <FaHeadphones className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // Book Reader Component (包含HeaderBar和内容)
 const BookReader: React.FC<{ 
   book: Book
@@ -211,6 +349,7 @@ const BookReader: React.FC<{
   onOpenSettings: () => void
 }> = ({ book, bookDoc, onCloseBook, onOpenSettings }) => {
   const viewerRef = useRef<HTMLDivElement>(null)
+  const [hoveredBookKey, setHoveredBookKey] = useState<string | null>(null)
   const [viewSettings, setViewSettings] = useState<ViewSettings>({
     fontSize: 16,
     fontFamily: 'serif',
@@ -225,13 +364,97 @@ const BookReader: React.FC<{
     invertImgColorInDark: false
   })
 
-  // ViewMenu Content
+  // 添加dropdown状态，影响HeaderBar可见性
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  
+  const isHeaderVisible = hoveredBookKey === book.hash || isDropdownOpen
+  const isFooterVisible = hoveredBookKey === book.hash
+  
+  // 检查是否是移动端
+  const isMobile = typeof window !== 'undefined' && (window.innerWidth < 640 || window.innerHeight < 640)
+  
+  // Toggle states for header controls
+  const [isSidebarToggled, setIsSidebarToggled] = useState(false)
+  const [isBookmarked, setIsBookmarked] = useState(false)
+  const [translationEnabled, setTranslationEnabled] = useState(false)
+  const [notebookVisible, setNotebookVisible] = useState(false)
+  
+  // ViewMenu states
+  const [isScrolledMode, setIsScrolledMode] = useState(false)
+  const [zoomLevel, setZoomLevel] = useState(100)
+  const [themeMode, setThemeMode] = useState<'auto' | 'light' | 'dark'>('auto')
+  const [invertImgColorInDark, setInvertImgColorInDark] = useState(false)
+
+  // ViewMenu Content - 完全参考readest
   const ViewMenuContent = () => (
-    <div className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
-      <li><a onClick={onOpenSettings}>字体和布局</a></li>
-      <li><a>分享</a></li>
-      <li><a>复制链接</a></li>
-      <li><a>关于</a></li>
+    <div className="view-menu dropdown-content no-triangle z-20 mt-1 border bg-base-200 border-base-200 shadow-2xl rounded-md p-3" style={{ maxWidth: '280px' }}>
+      {/* 缩放控制 */}
+      <div className="flex items-center justify-between rounded-md mb-2">
+        <button
+          onClick={() => setZoomLevel(Math.max(zoomLevel - 10, 50))}
+          className="hover:bg-base-300 text-base-content rounded-full p-2"
+          disabled={zoomLevel <= 50}
+        >
+          <MdZoomOut />
+        </button>
+        <button
+          className="hover:bg-base-300 text-base-content h-8 min-h-8 w-[50%] rounded-md p-1 text-center"
+          onClick={() => setZoomLevel(100)}
+        >
+          {zoomLevel}%
+        </button>
+        <button
+          onClick={() => setZoomLevel(Math.min(zoomLevel + 10, 200))}
+          className="hover:bg-base-300 text-base-content rounded-full p-2"
+          disabled={zoomLevel >= 200}
+        >
+          <MdZoomIn />
+        </button>
+      </div>
+
+      <hr className="border-base-300 my-1" />
+
+      {/* 字体和布局 */}
+      <div className="hover:bg-base-300 rounded px-3 py-2 cursor-pointer" onClick={onOpenSettings}>
+        <span className="text-sm">字体和布局</span>
+        <span className="float-right text-xs text-base-content/60">Shift+F</span>
+      </div>
+
+      {/* 滚动模式 */}
+      <div className="hover:bg-base-300 rounded px-3 py-2 cursor-pointer" onClick={() => setIsScrolledMode(!isScrolledMode)}>
+        <span className="text-sm">滚动模式</span>
+        {isScrolledMode && <MdCheck className="float-right mt-0.5" />}
+        <span className="float-right text-xs text-base-content/60 mr-6">Shift+J</span>
+      </div>
+
+      <hr className="border-base-300 my-1" />
+
+      {/* 同步状态 */}
+      <div className="hover:bg-base-300 rounded px-3 py-2 cursor-pointer">
+        <MdSync className="inline mr-2" />
+        <span className="text-sm">从未同步</span>
+      </div>
+
+      <hr className="border-base-300 my-1" />
+
+      {/* 主题模式 */}
+      <div className="hover:bg-base-300 rounded px-3 py-2 cursor-pointer" onClick={() => {
+        const nextMode = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto'
+        setThemeMode(nextMode)
+      }}>
+        {themeMode === 'dark' ? <BiMoon className="inline mr-2" /> : 
+         themeMode === 'light' ? <BiSun className="inline mr-2" /> : 
+         <TbSunMoon className="inline mr-2" />}
+        <span className="text-sm">
+          {themeMode === 'dark' ? '深色模式' : themeMode === 'light' ? '浅色模式' : '自动模式'}
+        </span>
+      </div>
+
+      {/* 深色模式下反转图片 */}
+      <div className="hover:bg-base-300 rounded px-3 py-2 cursor-pointer" onClick={() => setInvertImgColorInDark(!invertImgColorInDark)}>
+        <span className="text-sm">深色模式下反转图片</span>
+        {invertImgColorInDark && <MdCheck className="float-right mt-0.5" />}
+      </div>
     </div>
   )
 
@@ -239,25 +462,74 @@ const BookReader: React.FC<{
     <div className="book-reader relative h-full w-full overflow-hidden bg-base-100">
       {/* HeaderBar - 完全参考readest的HeaderBar */}
       <div className="bg-base-100 relative">
-        {/* 悬停检测层 */}
-        <div className="absolute top-0 z-10 h-11 w-full" />
+        {/* 悬停检测层 - 参考readest的实现 */}
+        <div 
+          className="absolute top-0 z-10 h-11 w-full"
+          onMouseEnter={() => !isMobile && setHoveredBookKey(book.hash)}
+          onTouchStart={() => !isMobile && setHoveredBookKey(book.hash)}
+        />
         
         {/* 实际的Header内容 */}
-        <div className="header-bar bg-base-100 relative z-10 flex h-11 w-full items-center pr-4 pl-4 border-b border-base-300">
+        <div 
+          className={clsx(
+            'header-bar bg-base-100 relative z-10 flex h-11 w-full items-center pr-4 pl-4 border-b border-base-300',
+            'transition-[opacity] duration-300',
+            isHeaderVisible ? 'pointer-events-auto visible opacity-100' : 'pointer-events-none opacity-0',
+            isDropdownOpen && 'header-bar-pinned'
+          )}
+          onMouseLeave={() => !isMobile && setHoveredBookKey('')}
+        >
           {/* 左侧区域 - 参考readest的sidebar-bookmark-toggler */}
           <div className="bg-base-100 sidebar-bookmark-toggler z-20 flex h-full items-center gap-x-4 pe-2">
+            {/* SidebarToggler - 桌面端隐藏 */}
+            <div className="hidden sm:flex">
+              <button
+                className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                onClick={() => setIsSidebarToggled(!isSidebarToggled)}
+                title="侧边栏"
+              >
+                {isSidebarToggled ? (
+                  <TbLayoutSidebarFilled className="w-4 h-4 text-base-content" />
+                ) : (
+                  <TbLayoutSidebar className="w-4 h-4 text-base-content" />
+                )}
+              </button>
+            </div>
+            
+            {/* BookmarkToggler */}
             <button
               className="btn btn-ghost h-8 min-h-8 w-8 p-0"
-              aria-label="书签"
+              onClick={() => {
+                console.log('书签按钮被点击，当前状态:', isBookmarked)
+                setIsBookmarked(!isBookmarked)
+                // 在移动端时隐藏header
+                if (isMobile) {
+                  setHoveredBookKey('')
+                }
+              }}
+              title="书签"
             >
-              <PiNotePencil className="w-4 h-4" />
+              {isBookmarked ? (
+                <MdOutlineBookmark className="w-4 h-4 text-base-content" />
+              ) : (
+                <MdOutlineBookmarkAdd className="w-4 h-4 text-base-content" />
+              )}
             </button>
             
+            {/* TranslationToggler */}
             <button
               className="btn btn-ghost h-8 min-h-8 w-8 p-0"
-              aria-label="搜索"
+              onClick={() => {
+                console.log('翻译按钮被点击，当前状态:', translationEnabled)
+                setTranslationEnabled(!translationEnabled)
+                // 在移动端时隐藏header
+                if (isMobile) {
+                  setHoveredBookKey('')
+                }
+              }}
+              title="翻译"
             >
-              <FiSearch className="w-4 h-4 text-base-content" />
+              <RiTranslateAi className={clsx('w-4 h-4', translationEnabled ? 'text-blue-500' : 'text-base-content')} />
             </button>
           </div>
 
@@ -270,14 +542,36 @@ const BookReader: React.FC<{
 
           {/* 右侧区域 - 参考readest的ml-auto结构 */}
           <div className="bg-base-100 z-20 ml-auto flex h-full items-center space-x-4 ps-2">
+            {/* SettingsToggler */}
             <button
-              onClick={onOpenSettings}
+              onClick={() => {
+                console.log('设置按钮被点击')
+                setHoveredBookKey('')
+                onOpenSettings()
+              }}
               className="btn btn-ghost h-8 min-h-8 w-8 p-0"
-              aria-label="设置"
+              title="字体和布局"
             >
-              <MdOutlineMenu className="w-4 h-4" />
+              <RiFontSize className="w-4 h-4 text-base-content" />
             </button>
 
+            {/* NotebookToggler */}
+            <button
+              onClick={() => {
+                console.log('笔记本按钮被点击，当前状态:', notebookVisible)
+                setNotebookVisible(!notebookVisible)
+                // 在移动端时隐藏header
+                if (isMobile) {
+                  setHoveredBookKey('')
+                }
+              }}
+              className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+              title="笔记本"
+            >
+              <LuNotebookPen className={clsx('w-4 h-4', notebookVisible ? 'text-blue-500' : 'text-base-content')} />
+            </button>
+
+            {/* ViewMenu Dropdown */}
             <Dropdown
               className='exclude-title-bar-mousedown dropdown-bottom dropdown-end'
               buttonClassName='btn btn-ghost h-8 min-h-8 w-8 p-0'
@@ -286,10 +580,11 @@ const BookReader: React.FC<{
               <ViewMenuContent />
             </Dropdown>
 
+            {/* WindowButtons - 关闭按钮 */}
             <button
               onClick={onCloseBook}
               className="btn btn-ghost h-8 min-h-8 w-8 p-0"
-              aria-label="关闭"
+              title="关闭"
             >
               ×
             </button>
@@ -298,7 +593,7 @@ const BookReader: React.FC<{
       </div>
 
       {/* Book Content */}
-      <div className="flex-1 h-[calc(100%-44px)] relative bg-base-200">
+      <div className="flex-1 h-[calc(100%-44px-52px)] relative">
         <div 
           ref={viewerRef}
           className="foliate-viewer w-full h-full"
@@ -317,6 +612,14 @@ const BookReader: React.FC<{
           </div>
         </div>
       </div>
+
+      {/* FooterBar */}
+      <FooterBar 
+        book={book} 
+        onOpenSettings={onOpenSettings} 
+        isVisible={isFooterVisible}
+        onSetHoveredBookKey={setHoveredBookKey}
+      />
     </div>
   )
 }
