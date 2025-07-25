@@ -4,43 +4,16 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FaSearch } from 'react-icons/fa'
 import { PiPlus, PiSelectionAllDuotone, PiDotsThreeCircle } from 'react-icons/pi'
-import { MdOutlineMenu, MdViewList, MdViewModule, MdArrowBackIosNew } from 'react-icons/md'
+import { MdOutlineMenu, MdViewList, MdViewModule, MdArrowBackIosNew, MdClose } from 'react-icons/md'
 import { IoMdCloseCircle } from 'react-icons/io'
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react'
 import 'overlayscrollbars/overlayscrollbars.css'
 import clsx from 'clsx'
 import Dropdown from '@/components/ui/Dropdown'
-
-// Mock data - will be replaced with real data later
-const mockBooks = [
-  {
-    hash: '1',
-    title: 'The Great Gatsby',
-    author: 'F. Scott Fitzgerald',
-    format: 'epub' as const,
-    progress: 45,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  },
-  {
-    hash: '2', 
-    title: 'To Kill a Mockingbird',
-    author: 'Harper Lee',
-    format: 'pdf' as const,
-    progress: 78,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  },
-  {
-    hash: '3',
-    title: '1984',
-    author: 'George Orwell', 
-    format: 'epub' as const,
-    progress: 23,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  },
-]
+import Dialog from '@/components/ui/Dialog'
+import FileUpload from '@/components/FileUpload'
+import { bookService } from '@/services/bookService'
+import { Book } from '@/types/book'
 
 export default function LibraryPage() {
   const router = useRouter()
@@ -51,6 +24,30 @@ export default function LibraryPage() {
   const [isSelectAll, setIsSelectAll] = useState(false)
   const [selectedBooks, setSelectedBooks] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [books, setBooks] = useState<Book[]>([])
+  
+  // 书籍导入相关状态
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
+  const [importError, setImportError] = useState<string | null>(null)
+
+  // 加载书籍列表
+  useEffect(() => {
+    loadBooks()
+  }, [])
+
+  const loadBooks = async () => {
+    try {
+      setLoading(true)
+      const loadedBooks = bookService.getBooks()
+      setBooks(loadedBooks)
+    } catch (error) {
+      console.error('加载书籍失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleBookClick = (bookHash: string) => {
     if (isSelectMode) {
@@ -64,8 +61,75 @@ export default function LibraryPage() {
     }
   }
 
+  // 打开导入对话框
   const handleImportBooks = () => {
-    console.log('Import books')
+    setIsImportDialogOpen(true)
+    setImportError(null)
+  }
+
+  // 处理文件上传
+  const handleFilesSelected = async (files: File[]) => {
+    try {
+      setIsImporting(true)
+      setImportError(null)
+      
+      const importedBooks: Book[] = []
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        setImportProgress(((i + 1) / files.length) * 100)
+        
+        try {
+          console.log(`正在导入: ${file.name}`)
+          const book = await bookService.importBook(file)
+          if (book) {
+            importedBooks.push(book)
+          }
+        } catch (error) {
+          console.error(`导入 ${file.name} 失败:`, error)
+          // 继续导入其他文件，不中断整个过程
+        }
+      }
+
+      // 更新书籍列表
+      await loadBooks()
+      
+      // 显示成功消息
+      if (importedBooks.length > 0) {
+        console.log(`成功导入 ${importedBooks.length} 本书籍`)
+        // 这里可以添加 toast 通知
+      }
+      
+      // 关闭对话框
+      setIsImportDialogOpen(false)
+      
+    } catch (error) {
+      console.error('批量导入失败:', error)
+      setImportError(error instanceof Error ? error.message : '导入失败')
+    } finally {
+      setIsImporting(false)
+      setImportProgress(0)
+    }
+  }
+
+  // 处理书籍删除
+  const handleDeleteBooks = async () => {
+    if (selectedBooks.length === 0) return
+
+    try {
+      setLoading(true)
+      for (const bookHash of selectedBooks) {
+        await bookService.deleteBook(bookHash)
+      }
+      await loadBooks()
+      setSelectedBooks([])
+      setIsSelectMode(false)
+      setIsSelectAll(false)
+    } catch (error) {
+      console.error('删除书籍失败:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,7 +156,7 @@ export default function LibraryPage() {
     }
   }
 
-  const filteredBooks = mockBooks.filter(book =>
+  const filteredBooks = books.filter(book =>
     book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     book.author.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -103,13 +167,13 @@ export default function LibraryPage() {
       <li>
         <button onClick={handleImportBooks}>
           <PiPlus className="w-4 h-4" />
-          Import from Files
+          从文件导入
         </button>
       </li>
       <li>
         <button>
           <PiPlus className="w-4 h-4" />
-          Import from URL
+          从URL导入
         </button>
       </li>
     </>
@@ -180,8 +244,8 @@ export default function LibraryPage() {
                 value={searchQuery}
                 placeholder={
                   filteredBooks.length > 1
-                    ? `Search in ${filteredBooks.length} Book(s)...`
-                    : 'Search Books...'
+                    ? `在 ${filteredBooks.length} 本书中搜索...`
+                    : '搜索书籍...'
                 }
                 onChange={handleSearchChange}
                 spellCheck="false"
@@ -240,7 +304,7 @@ export default function LibraryPage() {
                 aria-label={isSelectAll ? 'Deselect' : 'Select All'}
               >
                 <span className="font-sans text-base font-normal sm:text-sm">
-                  {isSelectAll ? 'Deselect' : 'Select All'}
+                  {isSelectAll ? '取消全选' : '全选'}
                 </span>
               </button>
             </div>
@@ -270,21 +334,27 @@ export default function LibraryPage() {
         <div className="border-b border-base-300 px-4 py-2 bg-base-200">
           <div className="flex items-center justify-between">
             <span className="text-sm text-base-content/70">
-              {selectedBooks.length} selected
+              已选择 {selectedBooks.length} 本书
             </span>
             <div className="flex space-x-2">
-              <button className="btn btn-sm btn-error">Delete</button>
-              <button className="btn btn-sm btn-outline">Download</button>
               <button 
-                className="btn btn-sm btn-ghost"
-                onClick={() => {
-                  setIsSelectMode(false)
-                  setSelectedBooks([])
-                  setIsSelectAll(false)
-                }}
+                className="btn btn-sm btn-error"
+                onClick={handleDeleteBooks}
+                disabled={loading}
               >
-                Cancel
+                删除
               </button>
+                              <button className="btn btn-sm btn-outline">下载</button>
+                <button 
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => {
+                    setIsSelectMode(false)
+                    setSelectedBooks([])
+                    setIsSelectAll(false)
+                  }}
+                >
+                  取消
+                </button>
             </div>
           </div>
         </div>
@@ -307,9 +377,9 @@ export default function LibraryPage() {
                   <div className="w-16 h-16 mx-auto mb-4 bg-base-300 rounded-lg flex items-center justify-center">
                     <PiPlus className="w-8 h-8" />
                   </div>
-                  <h3 className="text-lg font-medium mb-2">No books found</h3>
+                  <h3 className="text-lg font-medium mb-2">没有找到书籍</h3>
                   <p className="text-sm">
-                    {searchQuery ? 'Try adjusting your search terms.' : 'Import some books to get started.'}
+                    {searchQuery ? '尝试调整搜索关键词' : '导入一些书籍开始阅读'}
                   </p>
                 </div>
                 {!searchQuery && (
@@ -318,7 +388,7 @@ export default function LibraryPage() {
                     onClick={handleImportBooks}
                   >
                     <PiPlus className="w-4 h-4" />
-                    Import Books
+                    导入书籍
                   </button>
                 )}
               </div>
@@ -354,7 +424,7 @@ export default function LibraryPage() {
                           <div className="absolute bottom-0 left-0 right-0 h-1 bg-base-300">
                             <div 
                               className="h-full bg-primary transition-all" 
-                              style={{ width: `${book.progress}%` }}
+                              style={{ width: `${book.progress || 0}%` }}
                             />
                           </div>
 
@@ -381,7 +451,7 @@ export default function LibraryPage() {
                           <h3 className="font-medium text-sm line-clamp-2 leading-tight">{book.title}</h3>
                           <p className="text-xs text-base-content/70 line-clamp-1">{book.author}</p>
                           <div className="flex items-center justify-between text-xs text-base-content/60">
-                            <span>{book.progress}%</span>
+                            <span>{book.progress || 0}%</span>
                             <span className="uppercase">{book.format}</span>
                           </div>
                         </div>
@@ -449,6 +519,50 @@ export default function LibraryPage() {
           </div>
         </OverlayScrollbarsComponent>
       </main>
+
+             {/* Import Dialog */}
+       <Dialog
+         isOpen={isImportDialogOpen}
+         onClose={() => setIsImportDialogOpen(false)}
+         title="导入书籍"
+         boxClassName="sm:max-w-2xl"
+       >
+         <div className="p-6">
+           {importError && (
+             <div className="mb-4 p-3 bg-error/10 border border-error/20 rounded-lg">
+               <div className="text-error text-sm">{importError}</div>
+             </div>
+           )}
+           
+           {isImporting && (
+             <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+               <div className="text-primary text-sm mb-2">正在导入书籍...</div>
+               <div className="w-full bg-base-200 rounded-full h-2">
+                 <div 
+                   className="bg-primary h-2 rounded-full transition-all duration-300"
+                   style={{ width: `${importProgress}%` }}
+                 ></div>
+               </div>
+               <div className="text-xs text-primary/70 mt-1">{Math.round(importProgress)}%</div>
+             </div>
+           )}
+           
+           <FileUpload 
+             onFilesSelected={handleFilesSelected}
+             disabled={isImporting}
+           />
+           
+           <div className="mt-6 flex justify-end space-x-3">
+             <button
+               className="btn btn-ghost"
+               onClick={() => setIsImportDialogOpen(false)}
+               disabled={isImporting}
+             >
+               关闭
+             </button>
+           </div>
+         </div>
+       </Dialog>
     </div>
   )
 } 

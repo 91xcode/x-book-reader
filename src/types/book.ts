@@ -19,7 +19,7 @@ export interface Book {
   primaryLanguage?: string;
 }
 
-export type BookFormat = 'epub' | 'pdf' | 'txt' | 'mobi' | 'azw3' | 'fb2' | 'cbz';
+export type BookFormat = 'EPUB' | 'PDF' | 'TXT' | 'MOBI' | 'AZW3' | 'FB2' | 'CBZ' | 'FBZ';
 
 export interface BookMetadata {
   title?: string;
@@ -77,14 +77,34 @@ export interface BookDoc {
   book?: any;
   metadata: BookMetadata;
   toc?: TOCItem[];
+  sections?: SectionItem[];
   rendition?: any;
-  dir?: string;
+  dir: string;
+  splitTOCHref(href: string): Array<string | number>;
+  getCover(): Promise<Blob | null>;
+}
+
+export interface SectionItem {
+  id: string;
+  cfi: string;
+  size: number;
+  linear: string;
+  location?: Location;
 }
 
 export interface TOCItem {
+  id?: number;
   label: string;
   href: string;
+  cfi?: string;
+  location?: Location;
   subitems?: TOCItem[];
+}
+
+export interface Location {
+  current: number;
+  next?: number;
+  total: number;
 }
 
 export interface PageInfo {
