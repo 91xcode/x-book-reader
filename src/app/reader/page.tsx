@@ -2,8 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { RiArrowLeftLine, RiSettingsLine, RiMenuLine, RiFontSize, RiDashboardLine } from 'react-icons/ri'
+import { GiBookshelf } from 'react-icons/gi'
+import { FiSearch } from 'react-icons/fi'
+import { MdOutlineMenu, MdOutlinePushPin, MdPushPin, MdArrowBackIosNew } from 'react-icons/md'
+import { PiDotsThreeVerticalBold } from 'react-icons/pi'
 import { IoIosList } from 'react-icons/io'
+import { RiFontSize, RiDashboardLine } from 'react-icons/ri'
 import { VscSymbolColor } from 'react-icons/vsc'
 import { LiaHandPointerSolid } from 'react-icons/lia'
 import { IoAccessibilityOutline } from 'react-icons/io5'
@@ -13,6 +17,7 @@ import { RxLineHeight } from 'react-icons/rx'
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react'
 import 'overlayscrollbars/overlayscrollbars.css'
 import clsx from 'clsx'
+import Dropdown from '@/components/ui/Dropdown'
 
 // Mock book data
 const mockBookData = {
@@ -49,10 +54,12 @@ export default function ReaderPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isSidebarPinned, setIsSidebarPinned] = useState(true)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isSearchBarVisible, setIsSearchBarVisible] = useState(false)
   const [sidebarTab, setSidebarTab] = useState<'toc' | 'bookmarks' | 'annotations'>('toc')
   const [progress, setProgress] = useState(45)
-  const [isHovered, setIsHovered] = useState(false)
+  const [hoveredBookKey, setHoveredBookKey] = useState<string | null>(null)
   const [fontSize, setFontSize] = useState(16)
   const [lineHeight, setLineHeight] = useState(1.6)
   const [margins, setMargins] = useState(20)
@@ -98,60 +105,138 @@ export default function ReaderPage() {
     setMargins(Number(e.target.value))
   }
 
+  const toggleSidebarPin = () => {
+    setIsSidebarPinned(!isSidebarPinned)
+  }
+
+  const toggleSearchBar = () => {
+    setIsSearchBarVisible(!isSearchBarVisible)
+  }
+
+  // Book Menu Component (matching readest BookMenu)
+  const BookMenu = () => (
+    <>
+      <li>
+        <button className="text-sm">
+          Book Details
+        </button>
+      </li>
+      <li>
+        <button className="text-sm">
+          Export Highlights
+        </button>
+      </li>
+      <li><div className="divider"></div></li>
+      <li>
+        <button className="text-sm">
+          Remove Book
+        </button>
+      </li>
+    </>
+  )
+
+  // View Menu Component (matching readest ViewMenu)
+  const ViewMenu = () => (
+    <>
+      <li>
+        <button 
+          className="text-sm"
+          onClick={() => setIsSettingsOpen(true)}
+        >
+          Reader Settings
+        </button>
+      </li>
+      <li><div className="divider"></div></li>
+      <li>
+        <button className="text-sm">
+          Single Page
+        </button>
+      </li>
+      <li>
+        <button className="text-sm">
+          Double Page
+        </button>
+      </li>
+      <li>
+        <button className="text-sm">
+          Continuous Scroll
+        </button>
+      </li>
+    </>
+  )
+
+  const isHeaderVisible = hoveredBookKey === book.hash
+
   return (
-    <div 
-      className="h-screen flex bg-base-100 relative"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="h-screen flex bg-base-100 relative">
       {/* Sidebar */}
       <div className={clsx(
-        'sidebar-container flex-shrink-0 bg-base-200 border-r border-base-300 transition-all duration-300 z-20',
+        'sidebar-container flex-shrink-0 bg-base-200 transition-all duration-300 z-20',
         isSidebarOpen ? 'w-80' : 'w-0 overflow-hidden'
       )}>
         <div className="h-full flex flex-col">
-          {/* Sidebar Header */}
-          <div className="p-4 border-b border-base-300 bg-base-200">
-            <div className="flex items-center justify-between mb-3">
+          {/* Sidebar Header - 100% match readest SidebarHeader */}
+          <div className={clsx(
+            'sidebar-header flex h-11 items-center justify-between pe-2 ps-1.5'
+          )}>
+            <div className="flex items-center gap-x-8">
               <button
-                className="btn btn-ghost btn-sm flex items-center gap-2 text-base-content/80 hover:text-base-content"
+                onClick={() => setIsSidebarOpen(false)}
+                className="btn btn-ghost btn-circle flex h-6 min-h-6 w-6 hover:bg-transparent sm:hidden"
+              >
+                <MdArrowBackIosNew className="w-[22px] h-[22px]" />
+              </button>
+              <button
+                className="btn btn-ghost hidden h-8 min-h-8 w-8 p-0 sm:flex"
                 onClick={handleBackToLibrary}
               >
-                <RiArrowLeftLine className="w-4 h-4" />
-                <span className="text-sm">Library</span>
-              </button>
-              <button
-                className="sidebar-pin-btn btn btn-ghost btn-sm btn-circle"
-                onClick={() => setIsSidebarOpen(false)}
-              >
-                <RiMenuLine className="w-4 h-4" />
+                <GiBookshelf className="fill-base-content" />
               </button>
             </div>
-            
-            {/* Book Info Card */}
-            <div className="bg-base-100 rounded-lg p-3 shadow-sm">
-              <div className="flex gap-3">
-                <div className="w-12 h-16 bg-gradient-to-br from-primary/20 to-secondary/20 rounded flex items-center justify-center flex-shrink-0">
-                  <span className="text-[10px] font-mono text-base-content/60 uppercase">
-                    {book.format}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="font-semibold text-sm mb-1 line-clamp-2 leading-tight">{book.title}</h2>
-                  <p className="text-xs text-base-content/70 line-clamp-1 mb-2">{book.author}</p>
-                  <div className="w-full bg-base-300 rounded-full h-1">
-                    <div 
-                      className="bg-primary h-1 rounded-full transition-all" 
-                      style={{ width: `${book.progress}%` }}
-                    />
-                  </div>
-                  <div className="text-xs text-base-content/60 mt-1">
-                    {book.progress}% complete
-                  </div>
-                </div>
+            <div className="flex min-w-24 max-w-32 items-center justify-between sm:w-[70%]">
+              <button
+                onClick={toggleSearchBar}
+                className={clsx(
+                  'btn btn-ghost left-0 h-8 min-h-8 w-8 p-0',
+                  isSearchBarVisible ? 'bg-base-300' : '',
+                )}
+              >
+                <FiSearch className="w-[18px] h-[18px] text-base-content" />
+              </button>
+              <Dropdown
+                className="dropdown-bottom flex justify-center"
+                buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                toggleButton={<MdOutlineMenu className="fill-base-content" />}
+              >
+                <BookMenu />
+              </Dropdown>
+              <div className="right-0 hidden h-8 w-8 items-center justify-center sm:flex">
+                <button
+                  onClick={toggleSidebarPin}
+                  className={clsx(
+                    'sidebar-pin-btn btn btn-ghost btn-circle hidden h-6 min-h-6 w-6 sm:flex',
+                    isSidebarPinned ? 'bg-base-300' : 'bg-base-300/65',
+                  )}
+                >
+                  {isSidebarPinned ? 
+                    <MdPushPin className="w-[14px] h-[14px]" /> : 
+                    <MdOutlinePushPin className="w-[14px] h-[14px]" />
+                  }
+                </button>
               </div>
             </div>
           </div>
+
+          {/* Search Bar (conditional) */}
+          {isSearchBarVisible && (
+            <div className="px-4 py-2 border-b border-base-300">
+              <input
+                type="text"
+                placeholder="Search in book..."
+                className="input input-sm w-full bg-base-100"
+              />
+            </div>
+          )}
 
           {/* Sidebar Tabs */}
           <div className="px-4 py-2 border-b border-base-300">
@@ -223,7 +308,7 @@ export default function ReaderPage() {
                 {sidebarTab === 'annotations' && (
                   <div className="text-center py-8">
                     <div className="w-12 h-12 mx-auto mb-3 bg-base-300 rounded-lg flex items-center justify-center">
-                      <RiSettingsLine className="w-6 h-6 text-base-content/50" />
+                      <FiSearch className="w-6 h-6 text-base-content/50" />
                     </div>
                     <p className="text-sm text-base-content/60">No annotations yet</p>
                     <p className="text-xs text-base-content/50 mt-1">Highlight text to create notes</p>
@@ -237,33 +322,78 @@ export default function ReaderPage() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col relative min-w-0">
-        {/* Top Bar */}
-        <div className={clsx(
-          'absolute top-0 left-0 right-0 z-10 bg-base-100/95 backdrop-blur-sm transition-all duration-300',
-          isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'
-        )}>
-          <div className="flex items-center justify-between px-6 py-3 border-b border-base-300/50">
-            <div className="flex items-center space-x-4">
-              {!isSidebarOpen && (
+        {/* Header Bar - 100% match readest HeaderBar */}
+        <div className="bg-base-100 absolute top-0 w-full">
+          <div
+            className="absolute top-0 z-10 h-11 w-full"
+            onMouseEnter={() => setHoveredBookKey(book.hash)}
+            onTouchStart={() => setHoveredBookKey(book.hash)}
+          />
+          <div
+            className={clsx(
+              'header-bar bg-base-100 absolute top-0 z-10 flex h-11 w-full items-center pr-4 pl-4',
+              'shadow-xs transition-[opacity,margin-top] duration-300',
+              isHeaderVisible ? 'pointer-events-auto visible' : 'pointer-events-none opacity-0',
+            )}
+            onMouseLeave={() => setHoveredBookKey(null)}
+          >
+            {/* Left side controls */}
+            <div className="bg-base-100 sidebar-bookmark-toggler z-20 flex h-full items-center gap-x-4 pe-2">
+              <div className="hidden sm:flex">
+                {/* Sidebar Toggler */}
                 <button
-                  className="btn btn-ghost btn-sm btn-circle"
-                  onClick={() => setIsSidebarOpen(true)}
+                  className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 >
-                  <IoIosList className="w-5 h-5" />
+                  <IoIosList className="w-[18px] h-[18px]" />
                 </button>
-              )}
-              <div className="text-sm font-medium text-base-content/80 max-w-md truncate">
-                {book.title}
               </div>
+              {/* Bookmark Toggler */}
+              <button className="btn btn-ghost h-8 min-h-8 w-8 p-0">
+                <svg className="w-[18px] h-[18px] fill-base-content" viewBox="0 0 24 24">
+                  <path d="M17,3H7A2,2 0 0,0 5,5V21L12,18L19,21V5C19,3.89 18.1,3 17,3Z" />
+                </svg>
+              </button>
+              {/* Translation Toggler */}
+              <button className="btn btn-ghost h-8 min-h-8 w-8 p-0">
+                <svg className="w-[18px] h-[18px] fill-base-content" viewBox="0 0 24 24">
+                  <path d="M12.87,15.07L10.33,12.56L10.36,12.53C12.1,10.59 13.34,8.36 14.07,6H17V4H10V2H8V4H1V6H12.17C11.5,7.92 10.44,9.75 9,11.35C8.07,10.32 7.3,9.19 6.69,8H4.69C5.42,9.63 6.42,11.17 7.67,12.56L2.58,17.58L4,19L9,14L12.11,17.11L12.87,15.07Z" />
+                </svg>
+              </button>
             </div>
-            
-            <div className="flex items-center space-x-2">
-              <button
-                className="btn btn-ghost btn-sm btn-circle"
+
+            {/* Center title */}
+            <div className="header-title z-15 bg-base-100 pointer-events-none absolute inset-0 hidden items-center justify-center sm:flex">
+              <h2 className="line-clamp-1 max-w-[50%] text-center text-xs font-semibold">
+                {book.title}
+              </h2>
+            </div>
+
+            {/* Right side controls */}
+            <div className="bg-base-100 z-20 ml-auto flex h-full items-center space-x-4 ps-2">
+              {/* Settings Toggler */}
+              <button 
+                className="btn btn-ghost h-8 min-h-8 w-8 p-0"
                 onClick={() => setIsSettingsOpen(true)}
               >
-                <RiSettingsLine className="w-5 h-5" />
+                <svg className="w-[18px] h-[18px] fill-base-content" viewBox="0 0 24 24">
+                  <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+                </svg>
               </button>
+              {/* Notebook Toggler */}
+              <button className="btn btn-ghost h-8 min-h-8 w-8 p-0">
+                <svg className="w-[18px] h-[18px] fill-base-content" viewBox="0 0 24 24">
+                  <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                </svg>
+              </button>
+              {/* View Menu */}
+              <Dropdown
+                className="exclude-title-bar-mousedown dropdown-bottom dropdown-end"
+                buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                toggleButton={<PiDotsThreeVerticalBold className="w-[16px] h-[16px]" />}
+              >
+                <ViewMenu />
+              </Dropdown>
             </div>
           </div>
         </div>
@@ -294,10 +424,10 @@ export default function ReaderPage() {
           </div>
         </div>
 
-        {/* Bottom Bar */}
+        {/* Footer Bar */}
         <div className={clsx(
           'absolute bottom-0 left-0 right-0 z-10 bg-base-100/95 backdrop-blur-sm transition-all duration-300',
-          isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'
+          isHeaderVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'
         )}>
           <div className="border-t border-base-300/50 px-6 py-4">
             <div className="flex items-center justify-between mb-3">
@@ -359,7 +489,7 @@ export default function ReaderPage() {
         </div>
       </div>
 
-      {/* Settings Modal */}
+      {/* Settings Modal - same as before */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-base-100 rounded-xl w-full max-w-4xl max-h-[80vh] overflow-hidden m-4 shadow-2xl">
