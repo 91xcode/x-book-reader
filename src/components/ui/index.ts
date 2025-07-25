@@ -1,4 +1,6 @@
 export { default as Button } from './Button'
 export { default as Spinner } from './Spinner'
 export { default as Dropdown } from './Dropdown'
-export { default as Dialog } from './Dialog' 
+export { default as Dialog } from './Dialog'
+export { default as MenuItem } from './MenuItem'
+export { default as NumberInput } from './NumberInput' 

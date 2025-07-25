@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { GiBookshelf } from 'react-icons/gi'
 import { FiSearch } from 'react-icons/fi'
 import { MdOutlineMenu, MdOutlinePushPin, MdPushPin, MdArrowBackIosNew, MdArrowForwardIos } from 'react-icons/md'
+import { MdZoomOut, MdZoomIn, MdCheck, MdSync, MdSyncProblem } from 'react-icons/md'
+import { MdOutlineAutoMode, MdOutlineTextRotationNone, MdTextRotateVertical } from 'react-icons/md'
+import { BiMoon, BiSun } from 'react-icons/bi'
+import { TbSunMoon, TbTextDirectionRtl } from 'react-icons/tb'
 import { PiDotsThreeVerticalBold, PiPlus } from 'react-icons/pi'
 import { IoIosList } from 'react-icons/io'
 import { RiFontSize, RiDashboardLine, RiTranslate } from 'react-icons/ri'
@@ -19,6 +23,8 @@ import 'overlayscrollbars/overlayscrollbars.css'
 import clsx from 'clsx'
 import Dropdown from '@/components/ui/Dropdown'
 import Dialog from '@/components/ui/Dialog'
+import MenuItem from '@/components/ui/MenuItem'
+import NumberInput from '@/components/ui/NumberInput'
 
 // Types for settings
 export type SettingsPanelType = 'Font' | 'Layout' | 'Color' | 'Control' | 'Language' | 'Custom'
@@ -89,6 +95,32 @@ export default function ReaderPage() {
   const [showAllTabLabels, setShowAllTabLabels] = useState(false)
   const tabsRef = useRef<HTMLDivElement | null>(null)
   const [isRtl] = useState(false)
+
+  // ViewMenu state
+  const [zoomLevel, setZoomLevel] = useState(100)
+  const [isScrolledMode, setIsScrolledMode] = useState(false)
+  const [themeMode, setThemeMode] = useState<'auto' | 'light' | 'dark'>('auto')
+  const [invertImgColorInDark, setInvertImgColorInDark] = useState(false)
+
+  // Layout settings state
+  const [overrideLayout, setOverrideLayout] = useState(false)
+  const [writingMode, setWritingMode] = useState<'auto' | 'horizontal-tb' | 'vertical-rl' | 'horizontal-rl'>('auto')
+  const [paragraphMargin, setParagraphMargin] = useState(1.0)
+  const [wordSpacing, setWordSpacing] = useState(0)
+  const [letterSpacing, setLetterSpacing] = useState(0)
+  const [textIndent, setTextIndent] = useState(0)
+  const [fullJustification, setFullJustification] = useState(true)
+  const [hyphenation, setHyphenation] = useState(false)
+  const [marginTopPx, setMarginTopPx] = useState(44)
+  const [marginBottomPx, setMarginBottomPx] = useState(44)
+  const [marginLeftPx, setMarginLeftPx] = useState(20)
+  const [marginRightPx, setMarginRightPx] = useState(20)
+  const [gapPercent, setGapPercent] = useState(4)
+  const [maxColumnCount, setMaxColumnCount] = useState(1)
+  const [maxInlineSize, setMaxInlineSize] = useState(720)
+  const [maxBlockSize, setMaxBlockSize] = useState(1200)
+  const [doubleBorder, setDoubleBorder] = useState(false)
+  const [borderColor, setBorderColor] = useState<'red' | 'black'>('red')
 
   const bookId = searchParams?.get('ids') || '1'
   const book = mockBookData[bookId as keyof typeof mockBookData]
@@ -179,12 +211,21 @@ export default function ReaderPage() {
   }
 
   const handleResetCurrentPanel = () => {
-    // Reset logic for current panel
     console.log('Reset panel:', activePanel)
   }
 
   const handleCloseSettings = () => {
     setIsSettingsOpen(false)
+  }
+
+  // ViewMenu functions
+  const zoomIn = () => setZoomLevel(prev => Math.min(prev + 10, 200))
+  const zoomOut = () => setZoomLevel(prev => Math.max(prev - 10, 50))
+  const resetZoom = () => setZoomLevel(100)
+  const toggleScrolledMode = () => setIsScrolledMode(!isScrolledMode)
+  const cycleThemeMode = () => {
+    const nextMode = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto'
+    setThemeMode(nextMode)
   }
 
   // Effect to check button widths for label visibility - matching readest
@@ -254,34 +295,86 @@ export default function ReaderPage() {
     </>
   )
 
-  // View Menu Component (matching readest ViewMenu)
+  // View Menu Component - 100% matching readest ViewMenu
   const ViewMenu = () => (
-    <>
-      <li>
-        <button 
-          className="text-sm"
-          onClick={() => setIsSettingsOpen(true)}
+    <div
+      tabIndex={0}
+      className="view-menu dropdown-content dropdown-right no-triangle z-20 mt-1 border bgcolor-base-200 border-base-200 shadow-2xl p-3 rounded-md"
+      style={{
+        maxWidth: `${typeof window !== 'undefined' ? window.innerWidth - 40 : 600}px`,
+        marginRight: typeof window !== 'undefined' && window.innerWidth < 640 ? '-36px' : '0px',
+      }}
+    >
+      {/* Zoom Controls */}
+      <div className="flex items-center justify-between rounded-md mb-3">
+        <button
+          onClick={zoomOut}
+          className={clsx(
+            'hover:bg-base-300 text-base-content rounded-full p-2',
+            zoomLevel <= 50 && 'btn-disabled text-gray-400',
+          )}
         >
-          Reader Settings
+          <MdZoomOut />
         </button>
-      </li>
-      <li><div className="divider"></div></li>
-      <li>
-        <button className="text-sm">
-          Single Page
+        <button
+          className="hover:bg-base-300 text-base-content h-8 min-h-8 w-[50%] rounded-md p-1 text-center"
+          onClick={resetZoom}
+        >
+          {zoomLevel}%
         </button>
-      </li>
-      <li>
-        <button className="text-sm">
-          Double Page
+        <button
+          onClick={zoomIn}
+          className={clsx(
+            'hover:bg-base-300 text-base-content rounded-full p-2',
+            zoomLevel >= 200 && 'btn-disabled text-gray-400',
+          )}
+        >
+          <MdZoomIn />
         </button>
-      </li>
-      <li>
-        <button className="text-sm">
-          Continuous Scroll
-        </button>
-      </li>
-    </>
+      </div>
+
+      <hr className="border-base-300 my-1" />
+
+      <MenuItem label="Font & Layout" shortcut="Shift+F" onClick={() => setIsSettingsOpen(true)} />
+
+      <MenuItem
+        label="Scrolled Mode"
+        shortcut="Shift+J"
+        Icon={isScrolledMode ? MdCheck : undefined}
+        onClick={toggleScrolledMode}
+      />
+
+      <hr className="border-base-300 my-1" />
+
+      <MenuItem
+        label="Never synced"
+        Icon={MdSyncProblem}
+        onClick={() => console.log('Sync')}
+      />
+
+      <hr className="border-base-300 my-1" />
+
+      <MenuItem label="Fullscreen" onClick={() => console.log('Fullscreen')} />
+      
+      <MenuItem
+        label={
+          themeMode === 'dark'
+            ? 'Dark Mode'
+            : themeMode === 'light'
+              ? 'Light Mode'
+              : 'Auto Mode'
+        }
+        Icon={themeMode === 'dark' ? BiMoon : themeMode === 'light' ? BiSun : TbSunMoon}
+        onClick={cycleThemeMode}
+      />
+      
+      <MenuItem
+        label="Invert Image In Dark Mode"
+        disabled={themeMode !== 'dark'}
+        Icon={invertImgColorInDark ? MdCheck : undefined}
+        onClick={() => setInvertImgColorInDark(!invertImgColorInDark)}
+      />
+    </div>
   )
 
   // Dialog Menu Component (matching readest DialogMenu)
@@ -297,6 +390,8 @@ export default function ReaderPage() {
       </li>
     </>
   )
+
+  const isHeaderVisible = hoveredBookKey === book.hash
 
   // Settings Panels Components
   const FontPanel = () => (
@@ -418,127 +513,240 @@ export default function ReaderPage() {
     </div>
   )
 
-  const LayoutPanel = () => (
-    <div className="my-4 w-full space-y-6">
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">Typography</h2>
-        <div className="card border-base-200 border shadow">
-          <div className="divide-base-200 divide-y">
-            <div className="config-item p-4 flex items-center justify-between">
-              <span>Line Height</span>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-base-content/70 w-8">1.0</span>
-                <input 
-                  type="range" 
-                  min="10" 
-                  max="30" 
-                  value={lineHeight * 10}
-                  onChange={handleLineHeightChange}
-                  className="range range-sm flex-1 w-32" 
-                />
-                <span className="text-sm text-base-content/70 w-8">3.0</span>
-                <span className="text-sm font-medium w-12">{lineHeight.toFixed(1)}</span>
+  // Layout Panel - 100% matching readest LayoutPanel
+  const LayoutPanel = () => {
+    const isVertical = writingMode.includes('vertical')
+    const mightBeRTLBook = true // Simplified for demo
+    
+    return (
+      <div className="my-4 w-full space-y-6">
+        <div className="flex items-center justify-between">
+          <h2>Override Book Layout</h2>
+          <input
+            type="checkbox"
+            className="toggle"
+            checked={overrideLayout}
+            onChange={() => setOverrideLayout(!overrideLayout)}
+          />
+        </div>
+
+        {mightBeRTLBook && (
+          <div className="flex items-center justify-between">
+            <h2 className="font-medium">Writing Mode</h2>
+            <div className="flex gap-4">
+              <div className="lg:tooltip lg:tooltip-bottom" data-tip="Default">
+                <button
+                  className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'auto' ? 'btn-active bg-base-300' : ''}`}
+                  onClick={() => setWritingMode('auto')}
+                >
+                  <MdOutlineAutoMode />
+                </button>
+              </div>
+
+              <div className="lg:tooltip lg:tooltip-bottom" data-tip="Horizontal Direction">
+                <button
+                  className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'horizontal-tb' ? 'btn-active bg-base-300' : ''}`}
+                  onClick={() => setWritingMode('horizontal-tb')}
+                >
+                  <MdOutlineTextRotationNone />
+                </button>
+              </div>
+
+              <div className="lg:tooltip lg:tooltip-bottom" data-tip="Vertical Direction">
+                <button
+                  className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'vertical-rl' ? 'btn-active bg-base-300' : ''}`}
+                  onClick={() => setWritingMode('vertical-rl')}
+                >
+                  <MdTextRotateVertical />
+                </button>
+              </div>
+
+              <div className="lg:tooltip lg:tooltip-bottom" data-tip="RTL Direction">
+                <button
+                  className={`btn btn-ghost btn-circle btn-sm ${writingMode === 'horizontal-rl' ? 'btn-active bg-base-300' : ''}`}
+                  onClick={() => setWritingMode('horizontal-rl')}
+                >
+                  <TbTextDirectionRtl />
+                </button>
               </div>
             </div>
-            <div className="config-item p-4 flex items-center justify-between">
-              <span>Paragraph Margin</span>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-base-content/70 w-8">0</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="2" 
-                  step="0.1"
-                  defaultValue="1.0"
-                  className="range range-sm flex-1 w-32" 
-                />
-                <span className="text-sm text-base-content/70 w-8">2.0</span>
-                <span className="text-sm font-medium w-12">1.0em</span>
+          </div>
+        )}
+
+        {isVertical && (
+          <div className="w-full">
+            <h2 className="mb-2 font-medium">Border Frame</h2>
+            <div className="card bg-base-100 border-base-200 border shadow">
+              <div className="divide-base-200 divide-y">
+                <div className="config-item p-4 flex items-center justify-between">
+                  <span>Double Border</span>
+                  <input
+                    type="checkbox"
+                    className="toggle"
+                    checked={doubleBorder}
+                    onChange={() => setDoubleBorder(!doubleBorder)}
+                  />
+                </div>
+
+                <div className="config-item p-4 flex items-center justify-between">
+                  <span>Border Color</span>
+                  <div className="flex gap-4">
+                    <button
+                      className={`btn btn-circle btn-sm bg-red-300 hover:bg-red-500 ${borderColor === 'red' ? 'btn-active !bg-red-500' : ''}`}
+                      onClick={() => setBorderColor('red')}
+                    ></button>
+
+                    <button
+                      className={`btn btn-circle btn-sm bg-black/50 hover:bg-black ${borderColor === 'black' ? 'btn-active !bg-black' : ''}`}
+                      onClick={() => setBorderColor('black')}
+                    ></button>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="config-item p-4 flex items-center justify-between">
-              <span>Text Justification</span>
-              <input
-                type="checkbox"
-                className="toggle"
-                defaultChecked={true}
+          </div>
+        )}
+
+        <div className="w-full">
+          <h2 className="mb-2 font-medium">Paragraph</h2>
+          <div className="card bg-base-100 border-base-200 border shadow">
+            <div className="divide-base-200 divide-y">
+              <NumberInput
+                label="Paragraph Margin"
+                value={paragraphMargin}
+                onChange={setParagraphMargin}
+                min={0}
+                max={4}
+                step={0.2}
+              />
+              <NumberInput
+                label="Line Spacing"
+                value={lineHeight}
+                onChange={setLineHeight}
+                min={1.0}
+                max={3.0}
+                step={0.1}
+              />
+              <NumberInput
+                label="Word Spacing"
+                value={wordSpacing}
+                onChange={setWordSpacing}
+                min={-4}
+                max={8}
+                step={0.5}
+              />
+              <NumberInput
+                label="Letter Spacing"
+                value={letterSpacing}
+                onChange={setLetterSpacing}
+                min={-2}
+                max={4}
+                step={0.5}
+              />
+              <NumberInput
+                label="Text Indent"
+                value={textIndent}
+                onChange={setTextIndent}
+                min={-2}
+                max={4}
+                step={1}
+              />
+              <div className="config-item p-4 flex items-center justify-between">
+                <span>Full Justification</span>
+                <input
+                  type="checkbox"
+                  className="toggle"
+                  checked={fullJustification}
+                  onChange={() => setFullJustification(!fullJustification)}
+                />
+              </div>
+              <div className="config-item p-4 flex items-center justify-between">
+                <span>Hyphenation</span>
+                <input
+                  type="checkbox"
+                  className="toggle"
+                  checked={hyphenation}
+                  onChange={() => setHyphenation(!hyphenation)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full">
+          <h2 className="mb-2 font-medium">Page</h2>
+          <div className="card bg-base-100 border-base-200 border shadow">
+            <div className="divide-base-200 divide-y">
+              <NumberInput
+                label="Top Margin (px)"
+                value={marginTopPx}
+                onChange={setMarginTopPx}
+                min={0}
+                max={88}
+                step={4}
+              />
+              <NumberInput
+                label="Bottom Margin (px)"
+                value={marginBottomPx}
+                onChange={setMarginBottomPx}
+                min={0}
+                max={88}
+                step={4}
+              />
+              <NumberInput
+                label="Left Margin (px)"
+                value={marginLeftPx}
+                onChange={setMarginLeftPx}
+                min={0}
+                max={88}
+                step={4}
+              />
+              <NumberInput
+                label="Right Margin (px)"
+                value={marginRightPx}
+                onChange={setMarginRightPx}
+                min={0}
+                max={88}
+                step={4}
+              />
+              <NumberInput
+                label="Column Gap (%)"
+                value={gapPercent}
+                onChange={setGapPercent}
+                min={0}
+                max={30}
+              />
+              <NumberInput
+                label="Maximum Number of Columns"
+                value={maxColumnCount}
+                onChange={setMaxColumnCount}
+                min={1}
+                max={4}
+              />
+              <NumberInput
+                label={isVertical ? "Maximum Column Height" : "Maximum Column Width"}
+                value={maxInlineSize}
+                onChange={setMaxInlineSize}
+                disabled={maxColumnCount === 1 || isScrolledMode}
+                min={400}
+                max={9999}
+                step={100}
+              />
+              <NumberInput
+                label={isVertical ? "Maximum Column Width" : "Maximum Column Height"}
+                value={maxBlockSize}
+                onChange={setMaxBlockSize}
+                disabled={maxColumnCount === 1 || isScrolledMode}
+                min={400}
+                max={9999}
+                step={100}
               />
             </div>
           </div>
         </div>
       </div>
-
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">Margins</h2>
-        <div className="card border-base-200 border shadow">
-          <div className="divide-base-200 divide-y">
-            <div className="config-item p-4 flex items-center justify-between">
-              <span>Page Margins</span>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-base-content/70 w-8">0</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="120" 
-                  value={margins}
-                  onChange={handleMarginsChange}
-                  className="range range-sm flex-1 w-32" 
-                />
-                <span className="text-sm text-base-content/70 w-8">120</span>
-                <span className="text-sm font-medium w-12">{margins}px</span>
-              </div>
-            </div>
-            <div className="config-item p-4 flex items-center justify-between">
-              <span>Gap Between Pages</span>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-base-content/70 w-8">0</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="20" 
-                  defaultValue="4"
-                  className="range range-sm flex-1 w-32" 
-                />
-                <span className="text-sm text-base-content/70 w-8">20</span>
-                <span className="text-sm font-medium w-12">4%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">Page Layout</h2>
-        <div className="card border-base-200 border shadow">
-          <div className="divide-base-200 divide-y">
-            <div className="config-item p-4 flex items-center justify-between">
-              <span>Max Column Count</span>
-              <select className="select select-bordered select-sm w-32">
-                <option>1</option>
-                <option>2</option>
-                <option>Auto</option>
-              </select>
-            </div>
-            <div className="config-item p-4 flex items-center justify-between">
-              <span>Max Page Width</span>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-base-content/70 w-8">30</span>
-                <input 
-                  type="range" 
-                  min="30" 
-                  max="120" 
-                  defaultValue="60"
-                  className="range range-sm flex-1 w-32" 
-                />
-                <span className="text-sm text-base-content/70 w-8">120</span>
-                <span className="text-sm font-medium w-12">60em</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+    )
+  }
 
   const ColorPanel = () => (
     <div className="my-4 w-full space-y-6">
@@ -783,8 +991,6 @@ export default function ReaderPage() {
     }
   }
 
-  const isHeaderVisible = hoveredBookKey === book.hash
-
   return (
     <div className="h-screen flex bg-base-100 relative">
       {/* Sidebar */}
@@ -1005,13 +1211,15 @@ export default function ReaderPage() {
                 </svg>
               </button>
               {/* View Menu */}
-              <Dropdown
-                className="exclude-title-bar-mousedown dropdown-bottom dropdown-end"
-                buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0"
-                toggleButton={<PiDotsThreeVerticalBold className="w-[16px] h-[16px]" />}
-              >
-                <ViewMenu />
-              </Dropdown>
+              <div className="relative">
+                <Dropdown
+                  className="exclude-title-bar-mousedown dropdown-bottom dropdown-end"
+                  buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                  toggleButton={<PiDotsThreeVerticalBold className="w-[16px] h-[16px]" />}
+                >
+                  <ViewMenu />
+                </Dropdown>
+              </div>
             </div>
           </div>
         </div>
