@@ -26,6 +26,11 @@ import Dialog from '@/components/ui/Dialog'
 import MenuItem from '@/components/ui/MenuItem'
 import NumberInput from '@/components/ui/NumberInput'
 import { TbLayoutSidebar, TbLayoutSidebarFilled } from 'react-icons/tb'
+import { RiArrowLeftDoubleLine, RiArrowLeftSLine, RiArrowGoBackLine, RiArrowGoForwardLine, RiArrowRightSLine, RiArrowRightDoubleLine, RiFontFamily } from 'react-icons/ri'
+import { PiNotePencil } from 'react-icons/pi'
+import { RxSlider } from 'react-icons/rx'
+import { FaHeadphones } from 'react-icons/fa'
+import { MdOutlineHeadphones } from 'react-icons/md'
 
 // Types for settings
 export type SettingsPanelType = 'Font' | 'Layout' | 'Color' | 'Control' | 'Language' | 'Custom'
@@ -1022,6 +1027,8 @@ export default function ReaderPage() {
     }
   }
 
+  const [actionTab, setActionTab] = useState('')
+
   return (
     <div className="h-screen flex bg-base-100 relative">
       {/* Sidebar - 100% matching readest width */}
@@ -1316,149 +1323,374 @@ export default function ReaderPage() {
           </div>
         </div>
 
-        {/* Footer Bar */}
-        <div className={clsx(
-          'absolute bottom-0 left-0 right-0 z-10 bg-base-100/95 backdrop-blur-sm transition-all duration-300',
-          isHeaderVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'
-        )}>
-          <div className="border-t border-base-300/50 px-6 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-4 text-sm text-base-content/70">
-                <span>第 1 章，共 {book.toc.length} 章</span>
-                <span>•</span>
-                <span>第 12 页，共 180 页</span>
+        {/* Footer Bar - 100% 匹配 readest FooterBar */}
+        <>
+          {/* 触控区域 */}
+          <div
+            className={clsx(
+              'absolute bottom-0 left-0 z-10 hidden w-full sm:flex sm:h-[52px]',
+              // 垂直滚动模式下的调整
+              // viewSettings?.vertical && viewSettings?.scrolled && 'sm:!bottom-3 sm:!h-7',
+            )}
+            onMouseEnter={() => setHoveredBookKey(book.hash)}
+            onTouchStart={() => setHoveredBookKey(book.hash)}
+          />
+          
+          <div
+            className={clsx(
+              'footer-bar shadow-xs absolute bottom-0 z-50 flex w-full flex-col',
+              'sm:h-[52px] sm:justify-center',
+              'sm:bg-base-100 border-base-300/50 border-t sm:border-none',
+              'transition-[opacity,transform] duration-300',
+              // 垂直滚动模式下的调整
+              // viewSettings?.vertical && viewSettings?.scrolled && 'sm:!bottom-3 sm:!h-7',
+              isHeaderVisible
+                ? `pointer-events-auto translate-y-0 opacity-100`
+                : `pointer-events-none translate-y-full opacity-0 sm:translate-y-0`,
+            )}
+            dir={'ltr'} // TODO: 支持RTL
+            onMouseLeave={() => typeof window !== 'undefined' && window.innerWidth >= 640 && setHoveredBookKey(null)}
+            aria-hidden={!isHeaderVisible}
+          >
+            {/* 移动端进度面板 */}
+            <div
+              className={clsx(
+                'bg-base-200 absolute bottom-16 flex w-full flex-col items-center gap-y-8 px-4 transition-all sm:hidden',
+                actionTab === 'progress'
+                  ? 'pointer-events-auto translate-y-0 pb-4 pt-8 ease-out'
+                  : 'pointer-events-none invisible translate-y-full overflow-hidden pb-0 pt-0 ease-in',
+              )}
+              style={{
+                bottom: '64px',
+              }}
+            >
+              <div className='flex w-full items-center justify-between gap-x-6'>
+                {/* 移动端进度滑块 */}
+                <input
+                  type="range"
+                  className="range range-sm w-full"
+                  min={0}
+                  max={100}
+                  value={progress}
+                  onChange={handleProgressChange}
+                />
               </div>
-              
-              <div className="flex items-center space-x-3">
-                <button className="btn btn-ghost btn-sm">
-                  ← 上一页
+              <div className='flex w-full items-center justify-between gap-x-6'>
+                <button
+                  className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                  title="上一章"
+                >
+                  <RiArrowLeftDoubleLine className="w-4 h-4" />
                 </button>
-                <button className="btn btn-ghost btn-sm">
-                  下一页 →
+                <button
+                  className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                  title="上一页"
+                >
+                  <RiArrowLeftSLine className="w-4 h-4" />
+                </button>
+                <button
+                  className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                  title="后退"
+                >
+                  <RiArrowGoBackLine className="w-4 h-4" />
+                </button>
+                <button
+                  className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                  title="前进"
+                >
+                  <RiArrowGoForwardLine className="w-4 h-4" />
+                </button>
+                <button
+                  className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                  title="下一页"
+                >
+                  <RiArrowRightSLine className="w-4 h-4" />
+                </button>
+                <button
+                  className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                  title="下一章"
+                >
+                  <RiArrowRightDoubleLine className="w-4 h-4" />
                 </button>
               </div>
             </div>
             
-            {/* Progress Bar */}
-            <div className="flex items-center space-x-4">
-              <span className="text-xs text-base-content/60 whitespace-nowrap">
-                0%
-              </span>
-              <div className="flex-1">
+            {/* 移动端字体面板 */}
+            <div
+              className={clsx(
+                'bg-base-200 absolute flex w-full flex-col items-center gap-y-8 px-4 transition-all sm:hidden',
+                actionTab === 'font'
+                  ? 'pointer-events-auto translate-y-0 pb-4 pt-8 ease-out'
+                  : 'pointer-events-none invisible translate-y-full overflow-hidden pb-0 pt-0 ease-in',
+              )}
+              style={{
+                bottom: '64px',
+              }}
+            >
+              {/* 字体大小滑块 */}
+              <div className="w-full">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs">A</span>
+                  <span className="text-sm font-medium">{fontSize}</span>
+                  <span className="text-base font-bold">A</span>
+                </div>
                 <input
                   type="range"
-                  min="0"
-                  max="100"
-                  value={progress}
-                  onChange={handleProgressChange}
                   className="range range-sm w-full"
+                  min={8}
+                  max={30}
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
                 />
               </div>
-              <span className="text-xs text-base-content/60 whitespace-nowrap">
-                100%
-              </span>
+              
+              <div className='flex w-full items-center justify-between gap-x-6'>
+                {/* 边距控制 */}
+                <div className="flex-1">
+                  <div className="flex items-center justify-center mb-2">
+                    <TbBoxMargin className="w-5 h-5" />
+                  </div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>小</span>
+                    <span>大</span>
+                  </div>
+                  <input
+                    type="range"
+                    className="range range-sm w-full"
+                    min={0}
+                    max={100}
+                    step={10}
+                    value={margins}
+                    onChange={handleMarginsChange}
+                  />
+                </div>
+                
+                {/* 行高控制 */}
+                <div className="flex-1 ml-6">
+                  <div className="flex items-center justify-center mb-2">
+                    <RxLineHeight className="w-5 h-5" />
+                  </div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span>小</span>
+                    <span>大</span>
+                  </div>
+                  <input
+                    type="range"
+                    className="range range-sm w-full"
+                    min={8}
+                    max={24}
+                    value={lineHeight * 10}
+                    onChange={(e) => setLineHeight(Number(e.target.value) / 10)}
+                  />
+                </div>
+              </div>
             </div>
-
-            {/* Quick Controls */}
-            <div className="flex items-center justify-center space-x-6 mt-3 pt-3 border-t border-base-300/30">
-              <button className="btn btn-ghost btn-sm btn-circle" title="目录">
-                <IoIosList className="w-4 h-4" />
+            
+            {/* 移动端底部控制栏 */}
+            <div
+              className={clsx(
+                'bg-base-200 z-50 mt-auto flex w-full justify-between px-8 py-4 sm:hidden',
+              )}
+              style={{
+                paddingBottom: '16px',
+              }}
+            >
+              <button
+                className={clsx(
+                  'btn btn-ghost h-8 min-h-8 w-8 p-0',
+                  actionTab === 'toc' && 'text-blue-500'
+                )}
+                onClick={() => setActionTab(actionTab === 'toc' ? '' : 'toc')}
+              >
+                <IoIosList className="w-[23px] h-[23px]" />
               </button>
-              <button className="btn btn-ghost btn-sm btn-circle" title="字体大小">
-                <RiFontSize className="w-4 h-4" />
+              <button
+                className={clsx(
+                  'btn btn-ghost h-8 min-h-8 w-8 p-0',
+                  actionTab === 'note' && 'text-blue-500'
+                )}
+                onClick={() => setActionTab(actionTab === 'note' ? '' : 'note')}
+              >
+                <PiNotePencil className="w-4 h-4" />
               </button>
-              <button className="btn btn-ghost btn-sm btn-circle" title="边距">
-                <TbBoxMargin className="w-4 h-4" />
+              <button
+                className={clsx(
+                  'btn btn-ghost h-8 min-h-8 w-8 p-0',
+                  actionTab === 'progress' && 'text-blue-500'
+                )}
+                onClick={() => setActionTab(actionTab === 'progress' ? '' : 'progress')}
+              >
+                <RxSlider className="w-4 h-4" />
               </button>
-              <button className="btn btn-ghost btn-sm btn-circle" title="行高">
-                <RxLineHeight className="w-4 h-4" />
+              <button
+                className={clsx(
+                  'btn btn-ghost h-8 min-h-8 w-8 p-0',
+                  actionTab === 'font' && 'text-blue-500'
+                )}
+                onClick={() => setActionTab(actionTab === 'font' ? '' : 'font')}
+              >
+                <RiFontFamily className="w-[18px] h-[18px]" />
               </button>
-              <button className="btn btn-ghost btn-sm btn-circle" title="语音朗读">
-                <TTSIcon className="w-4 h-4" />
+              <button
+                className={clsx(
+                  'btn btn-ghost h-8 min-h-8 w-8 p-0',
+                  actionTab === 'tts' && 'text-blue-500'
+                )}
+                onClick={() => setActionTab(actionTab === 'tts' ? '' : 'tts')}
+              >
+                <MdOutlineHeadphones className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {/* 桌面端底部控制栏 */}
+            <div
+              className='absolute hidden h-full w-full items-center gap-x-4 px-4 sm:flex'
+              style={{
+                bottom: '0px',
+              }}
+            >
+              <button
+                className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                title="上一章"
+              >
+                <RiArrowLeftDoubleLine className="w-4 h-4" />
+              </button>
+              <button
+                className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                title="上一页"
+              >
+                <RiArrowLeftSLine className="w-4 h-4" />
+              </button>
+              <button
+                className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                title="后退"
+                disabled={true}
+              >
+                <RiArrowGoBackLine className="w-4 h-4" />
+              </button>
+              <button
+                className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                title="前进"
+                disabled={true}
+              >
+                <RiArrowGoForwardLine className="w-4 h-4" />
+              </button>
+              <span className='mx-2 text-center text-sm'>
+                {Math.round(progress)}%
+              </span>
+              <input
+                type='range'
+                className='text-base-content mx-2 w-full'
+                min={0}
+                max={100}
+                value={progress}
+                onChange={handleProgressChange}
+              />
+              <button
+                className={clsx(
+                  'btn btn-ghost h-8 min-h-8 w-8 p-0',
+                  actionTab === 'tts' && 'text-blue-500'
+                )}
+                title="语音朗读"
+                onClick={() => setActionTab(actionTab === 'tts' ? '' : 'tts')}
+              >
+                <FaHeadphones className="w-4 h-4" />
+              </button>
+              <button
+                className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                title="下一页"
+              >
+                <RiArrowRightSLine className="w-4 h-4" />
+              </button>
+              <button
+                className="btn btn-ghost h-8 min-h-8 w-8 p-0"
+                title="下一章"
+              >
+                <RiArrowRightDoubleLine className="w-4 h-4" />
               </button>
             </div>
           </div>
-        </div>
-      </div>
+        </>
 
-      {/* Settings Dialog - 100% match readest SettingsDialog */}
-      {isSettingsOpen && (
-        <Dialog
-          isOpen={isSettingsOpen}
-          onClose={handleCloseSettings}
-          className="modal-open"
-          boxClassName={clsx('sm:min-w-[520px] sm:max-w-[90%] sm:w-3/4')}
-          header={
-            <div className="flex w-full flex-col items-center">
-              <div className="tab-title flex pb-2 text-base font-semibold sm:hidden">
-                {currentPanel?.label || ''}
-              </div>
-              <div className="flex w-full flex-row items-center justify-between">
-                <button
-                  tabIndex={-1}
-                  onClick={handleCloseSettings}
-                  className="btn btn-ghost btn-circle flex h-8 min-h-8 w-8 hover:bg-transparent focus:outline-none sm:hidden"
-                >
-                  {isRtl ? <MdArrowForwardIos /> : <MdArrowBackIosNew />}
-                </button>
-                <div
-                  ref={tabsRef}
-                  className={clsx('dialog-tabs ms-1 flex h-10 w-full items-center gap-1 sm:ms-0 justify-center')}
-                >
-                  {tabConfig.map(({ tab, icon: Icon, label }) => (
-                    <button
-                      key={tab}
-                      data-tab={tab}
-                      className={clsx(
-                        'btn btn-ghost text-base-content btn-sm gap-1 px-2',
-                        activePanel === tab ? 'btn-active' : '',
-                      )}
-                      onClick={() => handleSetActivePanel(tab)}
-                    >
-                      <Icon className="mr-0" />
-                      <span
-                        className={clsx(
-                          typeof window !== 'undefined' && window.innerWidth < 640 && 'hidden',
-                          !(showAllTabLabels || activePanel === tab) && 'hidden',
-                        )}
-                      >
-                        {label}
-                      </span>
-                    </button>
-                  ))}
+        {/* Settings Dialog - 100% match readest SettingsDialog */}
+        {isSettingsOpen && (
+          <Dialog
+            isOpen={isSettingsOpen}
+            onClose={handleCloseSettings}
+            className="modal-open"
+            boxClassName={clsx('sm:min-w-[520px] sm:max-w-[90%] sm:w-3/4')}
+            header={
+              <div className="flex w-full flex-col items-center">
+                <div className="tab-title flex pb-2 text-base font-semibold sm:hidden">
+                  {currentPanel?.label || ''}
                 </div>
-                <div className="flex h-full items-center justify-end gap-x-2">
-                  <Dropdown
-                    className="dropdown-bottom dropdown-end"
-                    buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0 flex items-center justify-center"
-                    toggleButton={<PiDotsThreeVerticalBold />}
-                  >
-                    <DialogMenu />
-                  </Dropdown>
+                <div className="flex w-full flex-row items-center justify-between">
                   <button
+                    tabIndex={-1}
                     onClick={handleCloseSettings}
-                    className="bg-base-300/65 btn btn-ghost btn-circle hidden h-6 min-h-6 w-6 p-0 sm:flex"
+                    className="btn btn-ghost btn-circle flex h-8 min-h-8 w-8 hover:bg-transparent focus:outline-none sm:hidden"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="1em"
-                      height="1em"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"
-                      />
-                    </svg>
+                    {isRtl ? <MdArrowForwardIos /> : <MdArrowBackIosNew />}
                   </button>
+                  <div
+                    ref={tabsRef}
+                    className={clsx('dialog-tabs ms-1 flex h-10 w-full items-center gap-1 sm:ms-0 justify-center')}
+                  >
+                    {tabConfig.map(({ tab, icon: Icon, label }) => (
+                      <button
+                        key={tab}
+                        data-tab={tab}
+                        className={clsx(
+                          'btn btn-ghost text-base-content btn-sm gap-1 px-2',
+                          activePanel === tab ? 'btn-active' : '',
+                        )}
+                        onClick={() => handleSetActivePanel(tab)}
+                      >
+                        <Icon className="mr-0" />
+                        <span
+                          className={clsx(
+                            typeof window !== 'undefined' && window.innerWidth < 640 && 'hidden',
+                            !(showAllTabLabels || activePanel === tab) && 'hidden',
+                          )}
+                        >
+                          {label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex h-full items-center justify-end gap-x-2">
+                    <Dropdown
+                      className="dropdown-bottom dropdown-end"
+                      buttonClassName="btn btn-ghost h-8 min-h-8 w-8 p-0 flex items-center justify-center"
+                      toggleButton={<PiDotsThreeVerticalBold />}
+                    >
+                      <DialogMenu />
+                    </Dropdown>
+                    <button
+                      onClick={handleCloseSettings}
+                      className="bg-base-300/65 btn btn-ghost btn-circle hidden h-6 min-h-6 w-6 p-0 sm:flex"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="1em"
+                        height="1em"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          fill="currentColor"
+                          d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          }
-        >
-          {renderCurrentPanel()}
-        </Dialog>
-      )}
+            }
+          >
+            {renderCurrentPanel()}
+          </Dialog>
+        )}
+      </div>
     </div>
   )
 } 
