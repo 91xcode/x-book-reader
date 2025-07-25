@@ -8,6 +8,10 @@ export interface Book {
   groupName?: string;
   tags?: string[];
   progress?: number;
+  readingStatus?: 'unread' | 'reading' | 'finished';
+  lastReadAt?: number;
+  totalPages?: number;
+  currentPage?: number;
   metadata?: BookMetadata;
   createdAt: number;
   updatedAt: number;

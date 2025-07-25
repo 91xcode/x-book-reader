@@ -4,27 +4,39 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FaSearch } from 'react-icons/fa'
 import { PiPlus, PiSelectionAllDuotone, PiDotsThreeCircle } from 'react-icons/pi'
-import { MdOutlineMenu, MdViewList, MdViewModule, MdArrowBackIosNew, MdClose } from 'react-icons/md'
+import { MdOutlineMenu, MdViewList, MdViewModule, MdArrowBackIosNew, MdClose, MdCheck } from 'react-icons/md'
 import { IoMdCloseCircle } from 'react-icons/io'
 import { OverlayScrollbarsComponent } from 'overlayscrollbars-react'
 import 'overlayscrollbars/overlayscrollbars.css'
 import clsx from 'clsx'
 import Dropdown from '@/components/ui/Dropdown'
 import Dialog from '@/components/ui/Dialog'
+import MenuItem from '@/components/ui/MenuItem'
 import FileUpload from '@/components/FileUpload'
 import { bookService } from '@/services/bookService'
 import { Book } from '@/types/book'
+import { LibraryViewModeType, LibrarySortByType, LibraryCoverFitType, BookFilter } from '@/types/settings'
 
 export default function LibraryPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '')
+  
+  // 基础状态
+  const [loading, setLoading] = useState(false)
+  const [books, setBooks] = useState<Book[]>([])
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [isSelectAll, setIsSelectAll] = useState(false)
   const [selectedBooks, setSelectedBooks] = useState<string[]>([])
-  const [loading, setLoading] = useState(false)
-  const [books, setBooks] = useState<Book[]>([])
+
+  // 搜索和过滤状态
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '')
+  const [viewMode, setViewMode] = useState<LibraryViewModeType>('grid')
+  const [sortBy, setSortBy] = useState<LibrarySortByType>('updated')
+  const [sortAscending, setSortAscending] = useState(false)
+  const [coverFit, setCoverFit] = useState<LibraryCoverFitType>('crop')
+  const [bookFilter, setBookFilter] = useState<BookFilter>({
+    searchFields: ['title', 'author', 'description', 'format']
+  })
   
   // 书籍导入相关状态
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
@@ -40,6 +52,8 @@ export default function LibraryPage() {
   const loadBooks = async () => {
     try {
       setLoading(true)
+      // 确保服务已初始化（用于客户端hydration）
+      await bookService.initialize()
       const loadedBooks = bookService.getBooks()
       setBooks(loadedBooks)
     } catch (error) {
@@ -49,10 +63,79 @@ export default function LibraryPage() {
     }
   }
 
+  // 格式化标题和作者的辅助函数
+  const formatTitle = (title: string): string => {
+    return title?.trim() || '未知标题'
+  }
+
+  const formatAuthors = (author: string): string => {
+    return author?.trim() || '未知作者'
+  }
+
+  // 高级搜索过滤器
+  const advancedBookFilter = (book: Book, queryTerm: string): boolean => {
+    if (book.deletedAt) return false
+    if (!queryTerm) return true
+
+    const searchTerm = new RegExp(queryTerm, 'i')
+    const title = formatTitle(book.title)
+    const authors = formatAuthors(book.author)
+    
+    return (
+      searchTerm.test(title) ||
+      searchTerm.test(authors) ||
+      searchTerm.test(book.format) ||
+      (book.metadata?.description && searchTerm.test(book.metadata.description)) ||
+      (!!book.groupName && searchTerm.test(book.groupName))
+    )
+  }
+
+  // 书籍排序器
+  const bookSorter = (a: Book, b: Book): number => {
+    switch (sortBy) {
+      case 'title':
+        const aTitle = formatTitle(a.title)
+        const bTitle = formatTitle(b.title)
+        return aTitle.localeCompare(bTitle, 'zh-CN')
+      case 'author':
+        const aAuthors = formatAuthors(a.author)
+        const bAuthors = formatAuthors(b.author)
+        return aAuthors.localeCompare(bAuthors, 'zh-CN')
+      case 'updated':
+        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
+      case 'created':
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      case 'format':
+        return a.format.localeCompare(b.format, 'zh-CN')
+      default:
+        return new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
+    }
+  }
+
+  // 过滤和排序书籍
+  const filteredAndSortedBooks = books
+    .filter(book => advancedBookFilter(book, searchQuery))
+    .filter(book => {
+      // 按格式过滤
+      if (bookFilter.formats && bookFilter.formats.length > 0) {
+        return bookFilter.formats.includes(book.format)
+      }
+      // 按阅读状态过滤
+      if (bookFilter.status && bookFilter.status.length > 0) {
+        const status = book.readingStatus || 'unread'
+        return bookFilter.status.includes(status)
+      }
+      return true
+    })
+    .sort((a, b) => {
+      const sortResult = bookSorter(a, b)
+      return sortAscending ? sortResult : -sortResult
+    })
+
   const handleBookClick = (bookHash: string) => {
     if (isSelectMode) {
-      setSelectedBooks(prev => 
-        prev.includes(bookHash) 
+      setSelectedBooks(prev =>
+        prev.includes(bookHash)
           ? prev.filter(id => id !== bookHash)
           : [...prev, bookHash]
       )
@@ -72,13 +155,13 @@ export default function LibraryPage() {
     try {
       setIsImporting(true)
       setImportError(null)
-      
+
       const importedBooks: Book[] = []
-      
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         setImportProgress(((i + 1) / files.length) * 100)
-        
+
         try {
           console.log(`正在导入: ${file.name}`)
           const book = await bookService.importBook(file)
@@ -93,16 +176,16 @@ export default function LibraryPage() {
 
       // 更新书籍列表
       await loadBooks()
-      
+
       // 显示成功消息
       if (importedBooks.length > 0) {
         console.log(`成功导入 ${importedBooks.length} 本书籍`)
         // 这里可以添加 toast 通知
       }
-      
+
       // 关闭对话框
       setIsImportDialogOpen(false)
-      
+
     } catch (error) {
       console.error('批量导入失败:', error)
       setImportError(error instanceof Error ? error.message : '导入失败')
@@ -151,15 +234,17 @@ export default function LibraryPage() {
       setSelectedBooks([])
       setIsSelectAll(false)
     } else {
-      setSelectedBooks(filteredBooks.map(book => book.hash))
+      setSelectedBooks(filteredAndSortedBooks.map(book => book.hash))
       setIsSelectAll(true)
     }
   }
 
-  const filteredBooks = books.filter(book =>
-    book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    book.author.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // 获取所有可用的格式用于过滤
+  const availableFormats = [...new Set(books.map(book => book.format))].sort()
+
+  // 统计信息
+  const totalBooks = books.length
+  const displayedBooks = filteredAndSortedBooks.length
 
   // Import Menu Component
   const ImportMenu = () => (
@@ -179,52 +264,102 @@ export default function LibraryPage() {
     </>
   )
 
-  // View Menu Component
+  // View Menu Component - 完全参考readest的ViewMenu
   const ViewMenu = () => (
     <>
-      <li>
-        <button 
-          onClick={() => setViewMode('grid')}
-          className={viewMode === 'grid' ? 'active' : ''}
-        >
-          <MdViewModule className="w-4 h-4" />
-          Grid View
-        </button>
-      </li>
-      <li>
-        <button 
-          onClick={() => setViewMode('list')}
-          className={viewMode === 'list' ? 'active' : ''}
-        >
-          <MdViewList className="w-4 h-4" />
-          List View
-        </button>
-      </li>
-      <li><div className="divider"></div></li>
-      <li>
-        <button>Sort by Title</button>
-      </li>
-      <li>
-        <button>Sort by Author</button>
-      </li>
-      <li>
-        <button>Sort by Date Added</button>
-      </li>
+      {/* 视图模式 */}
+      <MenuItem
+        label="列表视图"
+        Icon={viewMode === 'list' ? MdCheck : undefined}
+        onClick={() => setViewMode('list')}
+      />
+      <MenuItem
+        label="网格视图"
+        Icon={viewMode === 'grid' ? MdCheck : undefined}
+        onClick={() => setViewMode('grid')}
+      />
+      
+      <hr className="border-base-200 my-1" />
+      
+      {/* 封面适配 */}
+      <MenuItem
+        label="书籍封面"
+        disabled={true}
+        labelClass="text-sm opacity-50"
+      />
+      <MenuItem
+        label="裁剪适配"
+        Icon={coverFit === 'crop' ? MdCheck : undefined}
+        onClick={() => setCoverFit('crop')}
+      />
+      <MenuItem
+        label="完整显示"
+        Icon={coverFit === 'fit' ? MdCheck : undefined}
+        onClick={() => setCoverFit('fit')}
+      />
+      
+      <hr className="border-base-200 my-1" />
+      
+      {/* 排序方式 */}
+      <MenuItem
+        label="排序方式..."
+        disabled={true}
+        labelClass="text-sm opacity-50"
+      />
+      <MenuItem
+        label="按标题"
+        Icon={sortBy === 'title' ? MdCheck : undefined}
+        onClick={() => setSortBy('title')}
+      />
+      <MenuItem
+        label="按作者"
+        Icon={sortBy === 'author' ? MdCheck : undefined}
+        onClick={() => setSortBy('author')}
+      />
+      <MenuItem
+        label="按格式"
+        Icon={sortBy === 'format' ? MdCheck : undefined}
+        onClick={() => setSortBy('format')}
+      />
+      <MenuItem
+        label="按更新时间"
+        Icon={sortBy === 'updated' ? MdCheck : undefined}
+        onClick={() => setSortBy('updated')}
+      />
+      <MenuItem
+        label="按添加时间"
+        Icon={sortBy === 'created' ? MdCheck : undefined}
+        onClick={() => setSortBy('created')}
+      />
+      
+      <hr className="border-base-200 my-1" />
+      
+      {/* 排序顺序 */}
+      <MenuItem
+        label="升序"
+        Icon={sortAscending ? MdCheck : undefined}
+        onClick={() => setSortAscending(true)}
+      />
+      <MenuItem
+        label="降序"
+        Icon={!sortAscending ? MdCheck : undefined}
+        onClick={() => setSortAscending(false)}
+      />
     </>
   )
 
-  // Settings Menu Component  
+  // Settings Menu Component
   const SettingsMenu = () => (
     <>
       <li>
-        <button>Preferences</button>
+        <button>偏好设置</button>
       </li>
       <li>
-        <button>About</button>
+        <button>关于</button>
       </li>
       <li><div className="divider"></div></li>
       <li>
-        <button>Export Library</button>
+        <button>导出图书馆</button>
       </li>
     </>
   )
@@ -243,8 +378,8 @@ export default function LibraryPage() {
                 type="text"
                 value={searchQuery}
                 placeholder={
-                  filteredBooks.length > 1
-                    ? `在 ${filteredBooks.length} 本书中搜索...`
+                  displayedBooks > 1
+                    ? `在 ${displayedBooks} 本书中搜索...`
                     : '搜索书籍...'
                 }
                 onChange={handleSearchChange}
@@ -272,7 +407,7 @@ export default function LibraryPage() {
                 className="exclude-title-bar-mousedown dropdown-bottom flex h-6 cursor-pointer justify-center dropdown-center"
                 buttonClassName="p-0 h-6 min-h-6 w-6 flex items-center justify-center btn-ghost"
                 toggleButton={
-                  <div className="lg:tooltip lg:tooltip-bottom" data-tip="Import Books">
+                  <div className="lg:tooltip lg:tooltip-bottom" data-tip="导入书籍">
                     <PiPlus className="m-0.5 h-5 w-5" />
                   </div>
                 }
@@ -281,12 +416,12 @@ export default function LibraryPage() {
               </Dropdown>
               <button
                 onClick={toggleSelectMode}
-                aria-label="Select Multiple Books"
+                aria-label="选择多本书籍"
                 className="h-6"
               >
                 <div
                   className="lg:tooltip lg:tooltip-bottom cursor-pointer"
-                  data-tip="Select Books"
+                  data-tip="选择书籍"
                 >
                   <PiSelectionAllDuotone
                     role="button"
@@ -301,7 +436,7 @@ export default function LibraryPage() {
               <button
                 onClick={handleSelectAll}
                 className="btn btn-ghost text-base-content/85 h-8 min-h-8 w-[72px] p-0 sm:w-[80px]"
-                aria-label={isSelectAll ? 'Deselect' : 'Select All'}
+                aria-label={isSelectAll ? '取消全选' : '全选'}
               >
                 <span className="font-sans text-base font-normal sm:text-sm">
                   {isSelectAll ? '取消全选' : '全选'}
@@ -337,25 +472,41 @@ export default function LibraryPage() {
               已选择 {selectedBooks.length} 本书
             </span>
             <div className="flex space-x-2">
-              <button 
+              <button
                 className="btn btn-sm btn-error"
                 onClick={handleDeleteBooks}
                 disabled={loading}
               >
                 删除
               </button>
-                              <button className="btn btn-sm btn-outline">下载</button>
-                <button 
-                  className="btn btn-sm btn-ghost"
-                  onClick={() => {
-                    setIsSelectMode(false)
-                    setSelectedBooks([])
-                    setIsSelectAll(false)
-                  }}
-                >
-                  取消
-                </button>
+              <button className="btn btn-sm btn-outline">下载</button>
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={() => {
+                  setIsSelectMode(false)
+                  setSelectedBooks([])
+                  setIsSelectAll(false)
+                }}
+              >
+                取消
+              </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Library Stats */}
+      {totalBooks > 0 && (
+        <div className="border-b border-base-300 px-4 py-2 bg-base-50">
+          <div className="flex items-center justify-between text-sm text-base-content/70">
+            <span>
+              显示 {displayedBooks} / {totalBooks} 本书籍
+              {searchQuery && ` - 搜索: "${searchQuery}"`}
+            </span>
+            <span>
+              排序: {sortBy === 'title' ? '标题' : sortBy === 'author' ? '作者' : sortBy === 'format' ? '格式' : sortBy === 'created' ? '添加时间' : '更新时间'}
+              ({sortAscending ? '升序' : '降序'})
+            </span>
           </div>
         </div>
       )}
@@ -364,26 +515,28 @@ export default function LibraryPage() {
       <main className="flex-1 overflow-hidden">
         <OverlayScrollbarsComponent
           className="h-full"
-          options={{ 
-            scrollbars: { autoHide: 'scroll' }, 
-            showNativeOverlaidScrollbars: false 
+          options={{
+            scrollbars: { autoHide: 'scroll' },
+            showNativeOverlaidScrollbars: false
           }}
           defer
         >
           <div className="p-4">
-            {filteredBooks.length === 0 ? (
+            {filteredAndSortedBooks.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center min-h-[400px]">
                 <div className="text-base-content/60 mb-4">
                   <div className="w-16 h-16 mx-auto mb-4 bg-base-300 rounded-lg flex items-center justify-center">
                     <PiPlus className="w-8 h-8" />
                   </div>
-                  <h3 className="text-lg font-medium mb-2">没有找到书籍</h3>
+                  <h3 className="text-lg font-medium mb-2">
+                    {searchQuery ? '没有找到匹配的书籍' : '没有找到书籍'}
+                  </h3>
                   <p className="text-sm">
-                    {searchQuery ? '尝试调整搜索关键词' : '导入一些书籍开始阅读'}
+                    {searchQuery ? '尝试调整搜索关键词或清除过滤条件' : '导入一些书籍开始阅读'}
                   </p>
                 </div>
                 {!searchQuery && (
-                  <button 
+                  <button
                     className="btn btn-primary"
                     onClick={handleImportBooks}
                   >
@@ -397,7 +550,7 @@ export default function LibraryPage() {
                 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4': viewMode === 'grid',
                 'space-y-2': viewMode === 'list'
               })}>
-                {filteredBooks.map((book) => (
+                {filteredAndSortedBooks.map((book) => (
                   <div
                     key={book.hash}
                     className={clsx(
@@ -414,19 +567,42 @@ export default function LibraryPage() {
                       <div className="space-y-2">
                         {/* Book Cover */}
                         <div className="aspect-[2/3] bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg shadow-md flex items-center justify-center relative overflow-hidden">
-                          <div className="text-center">
-                            <div className="text-xs font-mono text-base-content/60 uppercase tracking-wider">
-                              {book.format}
+                          {book.metadata?.cover ? (
+                            <img
+                              src={book.metadata.cover}
+                              alt={book.title}
+                              className={clsx(
+                                'w-full h-full',
+                                coverFit === 'crop' ? 'object-cover' : 'object-contain'
+                              )}
+                            />
+                          ) : (
+                            <div className="text-center">
+                              <div className="text-xs font-mono text-base-content/60 uppercase tracking-wider">
+                                {book.format}
+                              </div>
                             </div>
-                          </div>
-                          
+                          )}
+
                           {/* Progress indicator */}
                           <div className="absolute bottom-0 left-0 right-0 h-1 bg-base-300">
-                            <div 
-                              className="h-full bg-primary transition-all" 
+                            <div
+                              className="h-full bg-primary transition-all"
                               style={{ width: `${book.progress || 0}%` }}
                             />
                           </div>
+
+                          {/* Reading Status Badge */}
+                          {book.readingStatus && book.readingStatus !== 'unread' && (
+                            <div className="absolute top-2 left-2">
+                              <span className={clsx(
+                                'badge badge-xs',
+                                book.readingStatus === 'reading' ? 'badge-warning' : 'badge-success'
+                              )}>
+                                {book.readingStatus === 'reading' ? '在读' : '完成'}
+                              </span>
+                            </div>
+                          )}
 
                           {isSelectMode && (
                             <div className="absolute top-2 right-2">
@@ -445,7 +621,7 @@ export default function LibraryPage() {
                             </div>
                           )}
                         </div>
-                        
+
                         {/* Book Info */}
                         <div className="space-y-1">
                           <h3 className="font-medium text-sm line-clamp-2 leading-tight">{book.title}</h3>
@@ -458,56 +634,58 @@ export default function LibraryPage() {
                       </div>
                     ) : (
                       <div className="flex w-full">
-                        {/* Book Cover */}
-                        <div className="w-20 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-l-lg flex items-center justify-center flex-shrink-0 relative">
-                          <div className="text-xs font-mono text-base-content/60 uppercase">
-                            {book.format}
-                          </div>
-                          {/* Progress indicator */}
-                          <div className="absolute bottom-0 left-0 right-0 h-1 bg-base-300">
-                            <div 
-                              className="h-full bg-primary" 
-                              style={{ width: `${book.progress}%` }}
+                        {/* List View - Book Cover */}
+                        <div className="w-20 h-full flex-shrink-0 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-l-lg flex items-center justify-center relative overflow-hidden">
+                          {book.metadata?.cover ? (
+                            <img
+                              src={book.metadata.cover}
+                              alt={book.title}
+                              className={clsx(
+                                'w-full h-full',
+                                coverFit === 'crop' ? 'object-cover' : 'object-contain'
+                              )}
                             />
-                          </div>
-                        </div>
-                        
-                        <div className="card-body p-4 flex-1">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-base line-clamp-1 mb-1">{book.title}</h3>
-                              <p className="text-sm text-base-content/70 line-clamp-1 mb-2">{book.author}</p>
-                              
-                              {/* Progress */}
-                              <div className="flex items-center space-x-2">
-                                <div className="flex-1 bg-base-300 rounded-full h-1">
-                                  <div 
-                                    className="bg-primary h-1 rounded-full" 
-                                    style={{ width: `${book.progress}%` }}
-                                  />
-                                </div>
-                                <span className="text-xs text-base-content/60 whitespace-nowrap">
-                                  {book.progress}%
-                                </span>
+                          ) : (
+                            <div className="text-center">
+                              <div className="text-xs font-mono text-base-content/60 uppercase tracking-wider">
+                                {book.format}
                               </div>
                             </div>
-
-                            {isSelectMode && (
-                              <div className="ml-4">
-                                <div className={clsx(
-                                  'w-5 h-5 rounded-full border-2 flex items-center justify-center',
-                                  selectedBooks.includes(book.hash)
-                                    ? 'bg-primary border-primary text-primary-content'
-                                    : 'border-base-content/30 bg-base-100'
-                                )}>
-                                  {selectedBooks.includes(book.hash) && (
-                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                  )}
-                                </div>
+                          )}
+                          {isSelectMode && (
+                            <div className="absolute top-2 left-2">
+                              <div className={clsx(
+                                'w-5 h-5 rounded-full border-2 flex items-center justify-center',
+                                selectedBooks.includes(book.hash)
+                                  ? 'bg-primary border-primary text-primary-content'
+                                  : 'border-base-content/30 bg-base-100/80 backdrop-blur-sm'
+                              )}>
+                                {selectedBooks.includes(book.hash) && (
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
                               </div>
+                            </div>
+                          )}
+                        </div>
+                        {/* List View - Book Info */}
+                        <div className="flex-1 p-3 flex flex-col justify-between">
+                          <div>
+                            <h3 className="font-medium text-sm line-clamp-1">{book.title}</h3>
+                            <p className="text-xs text-base-content/70 line-clamp-1">{book.author}</p>
+                            {book.readingStatus && book.readingStatus !== 'unread' && (
+                              <span className={clsx(
+                                'inline-block mt-1 badge badge-xs',
+                                book.readingStatus === 'reading' ? 'badge-warning' : 'badge-success'
+                              )}>
+                                {book.readingStatus === 'reading' ? '在读' : '完成'}
+                              </span>
                             )}
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-base-content/60 mt-2">
+                            <span>{book.progress || 0}%</span>
+                            <span className="uppercase">{book.format}</span>
                           </div>
                         </div>
                       </div>
@@ -518,51 +696,51 @@ export default function LibraryPage() {
             )}
           </div>
         </OverlayScrollbarsComponent>
-      </main>
 
-             {/* Import Dialog */}
-       <Dialog
-         isOpen={isImportDialogOpen}
-         onClose={() => setIsImportDialogOpen(false)}
-         title="导入书籍"
-         boxClassName="sm:max-w-2xl"
-       >
-         <div className="p-6">
-           {importError && (
-             <div className="mb-4 p-3 bg-error/10 border border-error/20 rounded-lg">
-               <div className="text-error text-sm">{importError}</div>
-             </div>
-           )}
-           
-           {isImporting && (
-             <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
-               <div className="text-primary text-sm mb-2">正在导入书籍...</div>
-               <div className="w-full bg-base-200 rounded-full h-2">
-                 <div 
-                   className="bg-primary h-2 rounded-full transition-all duration-300"
-                   style={{ width: `${importProgress}%` }}
-                 ></div>
-               </div>
-               <div className="text-xs text-primary/70 mt-1">{Math.round(importProgress)}%</div>
-             </div>
-           )}
-           
-           <FileUpload 
-             onFilesSelected={handleFilesSelected}
-             disabled={isImporting}
-           />
-           
-           <div className="mt-6 flex justify-end space-x-3">
-             <button
-               className="btn btn-ghost"
-               onClick={() => setIsImportDialogOpen(false)}
-               disabled={isImporting}
-             >
-               关闭
-             </button>
-           </div>
-         </div>
-       </Dialog>
+        {/* Import Dialog */}
+        <Dialog
+          isOpen={isImportDialogOpen}
+          onClose={() => setIsImportDialogOpen(false)}
+          title="导入书籍"
+          boxClassName="sm:max-w-2xl"
+        >
+          <div className="p-6">
+            {importError && (
+              <div className="mb-4 p-3 bg-error/10 border border-error/20 rounded-lg">
+                <div className="text-error text-sm">{importError}</div>
+              </div>
+            )}
+
+            {isImporting && (
+              <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                <div className="text-primary text-sm mb-2">正在导入书籍...</div>
+                <div className="w-full bg-base-200 rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${importProgress}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-primary/70 mt-1">{Math.round(importProgress)}%</div>
+              </div>
+            )}
+
+            <FileUpload
+              onFilesSelected={handleFilesSelected}
+              disabled={isImporting}
+            />
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                className="btn btn-ghost"
+                onClick={() => setIsImportDialogOpen(false)}
+                disabled={isImporting}
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </Dialog>
+      </main>
     </div>
   )
 } 

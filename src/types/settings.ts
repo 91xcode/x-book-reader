@@ -48,6 +48,16 @@ export interface CustomTheme {
 }
 
 export type LibraryViewModeType = 'grid' | 'list';
-export type LibrarySortByType = 'title' | 'author' | 'updated' | 'created';
-export type LibraryCoverFitType = 'cover' | 'contain' | 'crop';
-export type SettingsPanelType = 'Font' | 'Layout' | 'Color' | 'Control' | 'Language' | 'Custom'; 
+export type LibrarySortByType = 'title' | 'author' | 'updated' | 'created' | 'format';
+export type LibraryCoverFitType = 'crop' | 'fit';
+export type SettingsPanelType = 'Font' | 'Layout' | 'Color' | 'Control' | 'Language' | 'Custom';
+
+// 阅读状态
+export type ReadingStatus = 'unread' | 'reading' | 'finished';
+
+// 书籍过滤选项
+export interface BookFilter {
+  status?: ReadingStatus[];
+  formats?: string[];
+  searchFields?: ('title' | 'author' | 'description' | 'format')[];
+} 

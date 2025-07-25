@@ -15,9 +15,13 @@ export interface ProgressHandler {
 
 export class BookService {
   private books: Book[] = []
+  private isClient = typeof window !== 'undefined'
 
   constructor() {
-    this.loadBooksFromStorage()
+    // 只在客户端环境下加载数据
+    if (this.isClient) {
+      this.loadBooksFromStorage()
+    }
   }
 
   /**
@@ -55,7 +59,7 @@ export class BookService {
 
       // 生成书籍hash
       const hash = await this.generateBookHash(processedFile)
-      
+
       // 检查是否已存在相同的书籍
       const existingBook = this.books.find(b => b.hash === hash)
       if (existingBook && !overwrite) {
@@ -113,7 +117,7 @@ export class BookService {
       // 这里是云端上传的简化实现
       // 实际应用中需要连接到真实的云存储服务
       console.log('上传书籍到云端:', book.title)
-      
+
       if (onProgress) {
         // 模拟上传进度
         for (let i = 0; i <= 100; i += 10) {
@@ -130,7 +134,7 @@ export class BookService {
       book.uploadedAt = Date.now()
       book.updatedAt = Date.now()
       await this.saveBooksToStorage()
-      
+
       console.log('书籍上传完成:', book.title)
     } catch (error) {
       console.error('上传书籍失败:', error)
@@ -143,6 +147,15 @@ export class BookService {
    */
   getBooks(): Book[] {
     return this.books.filter(book => !book.deletedAt)
+  }
+
+  /**
+   * 初始化服务（用于客户端hydration）
+   */
+  async initialize(): Promise<void> {
+    if (this.isClient && this.books.length === 0) {
+      this.loadBooksFromStorage()
+    }
   }
 
   /**
@@ -171,7 +184,7 @@ export class BookService {
     if (index !== -1) {
       this.books.splice(index, 1)
       await this.saveBooksToStorage()
-      
+
       // 删除相关文件
       await this.deleteBookFiles(hash)
     }
@@ -208,7 +221,7 @@ export class BookService {
     }
     if (typeof title === 'object' && title !== null) {
       // 处理多语言标题
-      return title.zh || title.en || title['zh-CN'] || title['en-US'] || Object.values(title)[0] || '未知标题'
+      return title.zh || title.en || title['zh-CN'] || title['en-US'] || Object.values(title)[0] as string || '未知标题'
     }
     return '未知标题'
   }
@@ -233,11 +246,13 @@ export class BookService {
    * 保存书籍文件
    */
   private async saveBookFile(book: Book, file: File, overwrite: boolean): Promise<void> {
+    if (!this.isClient) return
+
     try {
       // 在实际应用中，这里应该保存到文件系统或数据库
       // 目前使用IndexedDB或localStorage作为简化实现
       const key = `book_file_${book.hash}`
-      
+
       if (!overwrite && localStorage.getItem(key)) {
         return // 文件已存在且不覆盖
       }
@@ -246,7 +261,7 @@ export class BookService {
       const arrayBuffer = await file.arrayBuffer()
       const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
       localStorage.setItem(key, base64)
-      
+
       console.log('书籍文件已保存:', book.title)
     } catch (error) {
       console.error('保存书籍文件失败:', error)
@@ -257,9 +272,11 @@ export class BookService {
    * 保存书籍封面
    */
   private async saveBookCover(book: Book, loadedBook: any, overwrite: boolean): Promise<void> {
+    if (!this.isClient) return
+
     try {
       const key = `book_cover_${book.hash}`
-      
+
       if (!overwrite && localStorage.getItem(key)) {
         return // 封面已存在且不覆盖
       }
@@ -270,11 +287,11 @@ export class BookService {
         const arrayBuffer = await cover.arrayBuffer()
         const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
         localStorage.setItem(key, base64)
-        
+
         // 生成封面URL
         book.metadata = book.metadata || {}
         book.metadata.cover = `data:${cover.type};base64,${base64}`
-        
+
         console.log('书籍封面已保存:', book.title)
       }
     } catch (error) {
@@ -286,6 +303,8 @@ export class BookService {
    * 删除书籍相关文件
    */
   private async deleteBookFiles(hash: string): Promise<void> {
+    if (!this.isClient) return
+
     try {
       localStorage.removeItem(`book_file_${hash}`)
       localStorage.removeItem(`book_cover_${hash}`)
@@ -300,6 +319,11 @@ export class BookService {
    * 从存储中加载书籍列表
    */
   private loadBooksFromStorage(): void {
+    if (!this.isClient) {
+      this.books = []
+      return
+    }
+
     try {
       const stored = localStorage.getItem('books')
       if (stored) {
@@ -315,6 +339,8 @@ export class BookService {
    * 保存书籍列表到存储
    */
   private async saveBooksToStorage(): Promise<void> {
+    if (!this.isClient) return
+
     try {
       localStorage.setItem('books', JSON.stringify(this.books))
     } catch (error) {

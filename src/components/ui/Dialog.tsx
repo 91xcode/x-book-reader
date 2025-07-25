@@ -34,8 +34,10 @@ const Dialog: React.FC<DialogProps> = ({
 }) => {
   const [isFullHeightInMobile, setIsFullHeightInMobile] = useState(!snapHeight)
   const [isRtl] = useState(false) // Simplified for now
+  const [isMounted, setIsMounted] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [isPortrait, setIsPortrait] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const isMobile = typeof window !== 'undefined' && (window.innerWidth < 640 || window.innerHeight < 640)
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
@@ -43,14 +45,60 @@ const Dialog: React.FC<DialogProps> = ({
     }
   }
 
+  // 检测设备和方向
+  useEffect(() => {
+    setIsMounted(true)
+    
+    const checkViewport = () => {
+      if (typeof window !== 'undefined') {
+        const mobile = window.innerWidth < 640 || window.innerHeight < 640
+        const portrait = window.innerWidth < window.innerHeight
+        setIsMobile(mobile)
+        setIsPortrait(portrait)
+        setIsFullHeightInMobile(!snapHeight && mobile)
+      }
+    }
+
+    checkViewport()
+    window.addEventListener('resize', checkViewport)
+
+    return () => {
+      window.removeEventListener('resize', checkViewport)
+    }
+  }, [snapHeight])
+
   useEffect(() => {
     if (!isOpen) return
-    setIsFullHeightInMobile(!snapHeight && isMobile)
     window.addEventListener('keydown', handleKeyDown)
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen, snapHeight, isMobile])
+  }, [isOpen])
+
+  // 计算响应式样式类 - 只在客户端应用
+  const getResponsiveClasses = () => {
+    if (!isMounted) {
+      // 服务器端渲染时使用默认样式
+      return 'sm:h-[65%] sm:w-1/2 sm:max-w-[600px]'
+    }
+    
+    // 客户端渲染时根据屏幕方向决定样式
+    return isPortrait
+      ? 'sm:h-[50%] sm:w-3/4'
+      : 'sm:h-[65%] sm:w-1/2 sm:max-w-[600px]'
+  }
+
+  // 计算移动端内联样式 - 只在客户端应用
+  const getMobileInlineStyles = () => {
+    if (!isMounted || !isMobile) {
+      return {}
+    }
+    
+    return {
+      height: snapHeight ? `${snapHeight * 100}%` : '100%',
+      bottom: 0
+    }
+  }
 
   return (
     <dialog
@@ -74,14 +122,10 @@ const Dialog: React.FC<DialogProps> = ({
         className={clsx(
           'modal-box settings-content absolute z-20 flex flex-col rounded-none rounded-tl-2xl rounded-tr-2xl p-0 sm:rounded-2xl',
           'h-full max-h-full w-full max-w-full',
-          typeof window !== 'undefined' && window.innerWidth < window.innerHeight
-            ? 'sm:h-[50%] sm:w-3/4'
-            : 'sm:h-[65%] sm:w-1/2 sm:max-w-[600px]',
+          getResponsiveClasses(),
           boxClassName,
         )}
-        style={{
-          ...(isMobile ? { height: snapHeight ? `${snapHeight * 100}%` : '100%', bottom: 0 } : {}),
-        }}
+        style={getMobileInlineStyles()}
       >
         <div
           className={clsx(
