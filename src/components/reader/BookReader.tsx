@@ -60,17 +60,28 @@ const BookReader: React.FC<BookReaderProps> = ({
     }
   };
 
-  // 内容边距
+  // 内容边距 - 参考 readest 项目
   const contentInsets: Insets = {
-    top: 0,
+    top: 44, // HeaderBar 高度 (h-11 = 44px)
     right: 0,
     bottom: 0,
     left: 0,
   };
 
+  // 顶部遮罩层高度 - 参考 readest 的 SectionInfo
+  const topInset = 44; // 固定为 HeaderBar 高度
+
   return (
     <div className="book-reader relative h-full w-full overflow-hidden">
-      {/* Header Bar */}
+      {/* 顶部遮罩层 - 参考 readest 的 SectionInfo */}
+      <div
+        className="absolute left-0 right-0 top-0 z-10 bg-base-100"
+        style={{
+          height: `${topInset}px`,
+        }}
+      />
+      
+      {/* Header Bar - 绝对定位在顶部 */}
       <HeaderBar
         bookKey={book.hash}
         bookTitle={book.title}
@@ -80,7 +91,7 @@ const BookReader: React.FC<BookReaderProps> = ({
         onOpenSettings={onOpenSettings}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content Area - 不需要额外的 paddingTop */}
       <div className="content-area relative h-full w-full">
         <FoliateViewer
           bookKey={book.hash}

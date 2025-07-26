@@ -65,7 +65,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   );
 
   return (
-    <div className="bg-base-100 relative">
+    <div className="bg-base-100 absolute top-0 w-full z-20">
       {/* 悬停检测层 */}
       <div 
         className="absolute top-0 z-10 h-11 w-full"
@@ -76,7 +76,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
       {/* 实际的Header内容 */}
       <div 
         className={clsx(
-          'header-bar bg-base-100 relative z-10 flex h-11 w-full items-center pr-4 pl-4 border-b border-base-300',
+          'header-bar bg-base-100 absolute top-0 z-10 flex h-11 w-full items-center pr-4 pl-4 border-b border-base-300',
           'transition-[opacity] duration-300',
           isHeaderVisible ? 'pointer-events-auto visible opacity-100' : 'pointer-events-none opacity-0',
           isDropdownOpen && 'header-bar-pinned'
