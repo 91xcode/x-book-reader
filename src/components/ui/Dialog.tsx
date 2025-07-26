@@ -178,8 +178,13 @@ const Dialog: React.FC<DialogProps> = ({
         <div
           className={clsx(
             'text-base-content my-2 flex-grow overflow-y-auto px-6 sm:px-[10%]',
+            'scrollbar-thin scrollbar-track-transparent scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/20',
             contentClassName,
           )}
+          style={{
+            WebkitOverflowScrolling: 'touch', // iOS平滑滚动
+            scrollBehavior: 'smooth'
+          }}
         >
           {children}
         </div>

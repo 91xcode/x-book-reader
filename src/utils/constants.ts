@@ -1,7 +1,24 @@
 import { SystemSettings, ReadSettings } from '@/types/settings';
-import { ViewSettings } from '@/types/book';
+import { ViewSettings, BookLayout, BookStyle, BookFont, ViewConfig, TTSConfig, TranslatorConfig, ScreenConfig } from '@/types/book';
 
 export const SYSTEM_SETTINGS_VERSION = 1;
+
+// 工具函数
+const getDefaultMaxInlineSize = () => 720;
+const getDefaultMaxBlockSize = () => 1440;
+const isCJKEnv = () => {
+  if (typeof window === 'undefined') return false;
+  const lang = navigator.language || 'en';
+  return ['zh', 'ja', 'ko'].some(l => lang.startsWith(l));
+};
+const getTargetLang = () => {
+  if (typeof window === 'undefined') return 'EN';
+  const lang = navigator.language || 'en';
+  if (lang.startsWith('zh')) return 'ZH';
+  if (lang.startsWith('ja')) return 'JA';
+  if (lang.startsWith('ko')) return 'KO';
+  return 'EN';
+};
 
 export const DEFAULT_SYSTEM_SETTINGS: Partial<SystemSettings> = {
   version: SYSTEM_SETTINGS_VERSION,
@@ -86,7 +103,7 @@ export const CJK_SANS_SERIF_FONTS = [
 export const FALLBACK_FONTS = ['MiSans L3'];
 
 // 默认字体配置 - 与readest项目完全一致
-export const DEFAULT_BOOK_FONT = {
+export const DEFAULT_BOOK_FONT: BookFont = {
   serifFont: 'Bitter',
   sansSerifFont: 'Roboto',
   monospaceFont: 'Consolas',
@@ -97,47 +114,112 @@ export const DEFAULT_BOOK_FONT = {
   fontWeight: 400,
 };
 
-// 默认视图设置 - 集成字体配置
-export const DEFAULT_VIEW_SETTINGS: ViewSettings = {
-  theme: 'light',
-  overrideColor: false,
-  invertImgColorInDark: false,
-  
-  // 字体设置（来自DEFAULT_BOOK_FONT）
-  ...DEFAULT_BOOK_FONT,
-  overrideFont: false,
-  
-  // 布局设置
-  lineHeight: 1.6,
-  fontFamily: 'default',
-  marginTopPx: 48,
-  marginBottomPx: 48,
-  marginLeftPx: 48,
-  marginRightPx: 48,
-  gapPercent: 3.33,
-  maxColumnCount: 2,
-  maxInlineSize: 720,
-  maxBlockSize: 1440,
+// 默认布局设置 - 与readest项目完全一致
+export const DEFAULT_BOOK_LAYOUT: BookLayout = {
+  marginTopPx: 44,
+  marginBottomPx: 44,
+  marginLeftPx: 16,
+  marginRightPx: 16,
+  compactMarginTopPx: 16,
+  compactMarginBottomPx: 16,
+  compactMarginLeftPx: 16,
+  compactMarginRightPx: 16,
+  gapPercent: 5,
   scrolled: false,
-  animated: true,
-  writingMode: 'auto',
-  allowScript: false,
-  showHeader: true,
-  showFooter: true,
-  doubleBorder: false,
-  continuousScroll: false,
   disableClick: false,
   swapClickArea: false,
   volumeKeysToFlip: false,
+  continuousScroll: false,
+  maxColumnCount: 2,
+  maxInlineSize: getDefaultMaxInlineSize(),
+  maxBlockSize: getDefaultMaxBlockSize(),
+  animated: false,
+  writingMode: 'auto',
+  vertical: false,
+  rtl: false,
   scrollingOverlap: 0,
-  showBarsOnScroll: false,
-  translationEnabled: false,
-  translationProvider: 'google',
-  translateTargetLang: 'en',
-  showTranslateSource: false,
-  uiLanguage: 'zh-CN',
+  allowScript: false,
+};
+
+// 默认样式设置 - 与readest项目完全一致
+export const DEFAULT_BOOK_STYLE: BookStyle = {
+  zoomLevel: 100,
+  paragraphMargin: 1,
+  lineHeight: 1.6,
+  wordSpacing: 0,
+  letterSpacing: 0,
+  textIndent: 0,
+  fullJustification: true,
+  hyphenation: true,
+  invertImgColorInDark: false,
+  theme: 'light',
+  overrideFont: false,
+  overrideLayout: false,
+  overrideColor: false,
   codeHighlighting: false,
   codeLanguage: 'auto-detect',
+  userStylesheet: '',
+  userUIStylesheet: '',
+};
+
+// 移动端默认设置
+export const DEFAULT_MOBILE_VIEW_SETTINGS: Partial<ViewSettings> = {
+  fullJustification: false,
+  animated: true,
+  defaultFont: 'Sans-serif',
+  marginBottomPx: 16,
+};
+
+// 中日韩语言环境默认设置
+export const DEFAULT_CJK_VIEW_SETTINGS: Partial<ViewSettings> = {
+  fullJustification: true,
+  textIndent: 2,
+};
+
+// 默认视图配置
+export const DEFAULT_VIEW_CONFIG: ViewConfig = {
+  sideBarTab: 'toc',
+  uiLanguage: '',
+  sortedTOC: false,
+  doubleBorder: false,
+  borderColor: 'red',
+  showHeader: true,
+  showFooter: true,
+  showBarsOnScroll: false,
+  showRemainingTime: false,
+  showRemainingPages: false,
+  showPageNumber: true,
+};
+
+// 默认TTS配置
+export const DEFAULT_TTS_CONFIG: TTSConfig = {
+  ttsRate: 1.3,
+  ttsVoice: '',
+  ttsLocation: '',
+};
+
+// 默认翻译配置
+export const DEFAULT_TRANSLATOR_CONFIG: TranslatorConfig = {
+  translationEnabled: false,
+  translationProvider: 'deepl',
+  translateTargetLang: getTargetLang(),
+  showTranslateSource: true,
+};
+
+// 默认屏幕配置
+export const DEFAULT_SCREEN_CONFIG: ScreenConfig = {
+  screenOrientation: 'auto',
+};
+
+// 合并所有默认视图设置
+export const DEFAULT_VIEW_SETTINGS: ViewSettings = {
+  ...DEFAULT_BOOK_LAYOUT,
+  ...DEFAULT_BOOK_STYLE,
+  ...DEFAULT_BOOK_FONT,
+  ...DEFAULT_VIEW_CONFIG,
+  ...DEFAULT_TTS_CONFIG,
+  ...DEFAULT_TRANSLATOR_CONFIG,
+  ...DEFAULT_SCREEN_CONFIG,
 };
 
 export const SUPPORTED_FORMATS = ['epub', 'pdf', 'txt', 'mobi', 'azw3', 'fb2', 'cbz'] as const;

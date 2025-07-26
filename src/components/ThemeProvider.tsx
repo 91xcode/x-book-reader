@@ -17,6 +17,10 @@ import {
   smartFontPreload 
 } from '@/utils/fontOptimizer'
 import { initializeGlobalFontManager } from '@/utils/globalFontManager'
+// 在开发环境中导入布局设置测试（会自动运行）
+if (process.env.NODE_ENV === 'development') {
+  import('@/utils/layoutSettingsTest')
+}
 
 interface ThemeProviderProps {
   children: React.ReactNode

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { FoliateView } from '@/types/view';
 import { ViewSettings, TOCItem, Location } from '@/types/book';
+import { DEFAULT_VIEW_SETTINGS } from '@/utils/constants';
+import { getCompleteStyles } from '@/utils/style';
 
 interface Progress {
   cfi?: string;
@@ -32,6 +35,8 @@ interface ReaderState {
   
   setViewSettings: (bookKey: string, settings: ViewSettings) => void;
   getViewSettings: (bookKey: string) => ViewSettings | null;
+  initializeViewSettings: (bookKey: string) => void;
+  applyViewStyles: (bookKey: string) => void;
   
   setProgress: (
     bookKey: string,
@@ -49,7 +54,9 @@ interface ReaderState {
   clearBookKeys: () => void;
 }
 
-export const useReaderStore = create<ReaderState>((set, get) => ({
+export const useReaderStore = create<ReaderState>()(
+  persist(
+    (set, get) => ({
   views: {},
   viewSettings: {},
   progress: {},
@@ -82,10 +89,78 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
         [bookKey]: settings,
       },
     }));
+    
+    // Apply styles immediately after setting (debounced to prevent infinite loops)
+    const timeoutId = setTimeout(() => {
+      get().applyViewStyles(bookKey);
+    }, 50);
+    
+    // Store timeout to allow cleanup if needed
+    (globalThis as any).__styleApplyTimeout = timeoutId;
   },
 
   getViewSettings: (bookKey: string) => {
     return get().viewSettings[bookKey] || null;
+  },
+
+  initializeViewSettings: (bookKey: string) => {
+    const currentSettings = get().viewSettings[bookKey];
+    if (!currentSettings) {
+      set((state) => ({
+        viewSettings: {
+          ...state.viewSettings,
+          [bookKey]: { ...DEFAULT_VIEW_SETTINGS },
+        },
+      }));
+    }
+  },
+
+  applyViewStyles: (bookKey: string) => {
+    const state = get();
+    const view = state.views[bookKey];
+    const settings = state.viewSettings[bookKey];
+    
+    if (!view || !settings) return;
+    
+    try {
+      // Apply styles - will be handled by view events or direct CSS injection
+      const styles = getCompleteStyles(settings);
+      
+      // Store styles for later application when docs are loaded
+      (view as any)._pendingStyles = styles;
+      
+      // Apply layout properties to renderer
+      if (view.renderer) {
+        const { renderer } = view;
+        
+        // Apply margins
+        renderer.setAttribute('margin-top', `${settings.marginTopPx}px`);
+        renderer.setAttribute('margin-bottom', `${settings.marginBottomPx}px`);
+        renderer.setAttribute('margin-left', `${settings.marginLeftPx}px`);
+        renderer.setAttribute('margin-right', `${settings.marginRightPx}px`);
+        
+        // Apply gap
+        renderer.setAttribute('gap', `${settings.gapPercent}%`);
+        
+        // Apply column settings
+        renderer.setAttribute('max-column-count', settings.maxColumnCount.toString());
+        renderer.setAttribute('max-inline-size', `${settings.maxInlineSize}px`);
+        renderer.setAttribute('max-block-size', `${settings.maxBlockSize}px`);
+        
+        // Apply flow mode
+        renderer.setAttribute('flow', settings.scrolled ? 'scrolled' : 'paginated');
+        
+        // Apply writing mode
+        if (settings.writingMode !== 'auto') {
+          renderer.setAttribute('writing-mode', settings.writingMode);
+        }
+        
+        // Apply animation
+        renderer.setAttribute('animated', settings.animated.toString());
+      }
+    } catch (error) {
+      console.error('Failed to apply view styles:', error);
+    }
   },
 
   setProgress: (
@@ -140,12 +215,23 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     }));
   },
 
-  clearBookKeys: () => {
-    set({
-      bookKeys: [],
-      views: {},
-      viewSettings: {},
-      progress: {},
-    });
-  },
-})); 
+      clearBookKeys: () => {
+      set({
+        bookKeys: [],
+        views: {},
+        viewSettings: {},
+        progress: {},
+      });
+    },
+  }),
+  {
+    name: 'reader-store',
+    partialize: (state) => ({
+      viewSettings: state.viewSettings,
+      progress: state.progress,
+    }),
+    // Skip hydration to prevent initial render issues
+    skipHydration: true,
+  }
+  )
+);  

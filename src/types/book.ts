@@ -49,50 +49,99 @@ export interface BookConfig {
   updatedAt?: number;
 }
 
-export interface ViewSettings {
-  theme: 'light' | 'dark' | 'sepia' | 'auto';
-  defaultFontSize: number;
-  minimumFontSize?: number;
-  fontWeight?: number;
-  defaultFont?: string;
-  defaultCJKFont?: string;
-  serifFont?: string;
-  sansSerifFont?: string;
-  monospaceFont?: string;
-  overrideFont?: boolean;
-  lineHeight: number;
-  fontFamily?: string;
+export type WritingMode = 'auto' | 'horizontal-tb' | 'horizontal-rl' | 'vertical-rl';
+
+export interface BookLayout {
   marginTopPx: number;
   marginBottomPx: number;
   marginLeftPx: number;
   marginRightPx: number;
-  gapPercent?: number;
-  maxColumnCount?: number;
-  maxInlineSize?: number;
-  maxBlockSize?: number;
-  overrideColor?: boolean;
-  invertImgColorInDark?: boolean;
-  scrolled?: boolean;
-  animated?: boolean;
-  writingMode?: 'auto' | 'horizontal-tb' | 'vertical-rl' | 'horizontal-rl';
-  allowScript?: boolean;
-  showHeader?: boolean;
-  showFooter?: boolean;
-  doubleBorder?: boolean;
-  showBarsOnScroll?: boolean;
-  scrollingOverlap?: number;
-  continuousScroll?: boolean;
-  volumeKeysToFlip?: boolean;
-  disableClick?: boolean;
-  swapClickArea?: boolean;
-  uiLanguage?: string;
-  translationEnabled?: boolean;
-  translationProvider?: string;
-  translateTargetLang?: string;
-  showTranslateSource?: boolean;
-  codeHighlighting?: boolean;
-  codeLanguage?: string;
+  marginPx?: number; // deprecated
+  compactMarginTopPx: number;
+  compactMarginBottomPx: number;
+  compactMarginLeftPx: number;
+  compactMarginRightPx: number;
+  compactMarginPx?: number; // deprecated
+  gapPercent: number;
+  scrolled: boolean;
+  disableClick: boolean;
+  swapClickArea: boolean;
+  volumeKeysToFlip: boolean;
+  continuousScroll: boolean;
+  maxColumnCount: number;
+  maxInlineSize: number;
+  maxBlockSize: number;
+  animated: boolean;
+  writingMode: WritingMode;
+  vertical: boolean;
+  rtl: boolean;
+  scrollingOverlap: number;
+  allowScript: boolean;
 }
+
+export interface BookStyle {
+  zoomLevel: number;
+  paragraphMargin: number;
+  lineHeight: number;
+  wordSpacing: number;
+  letterSpacing: number;
+  textIndent: number;
+  fullJustification: boolean;
+  hyphenation: boolean;
+  invertImgColorInDark: boolean;
+  theme: string;
+  overrideFont: boolean;
+  overrideLayout: boolean;
+  overrideColor: boolean;
+  codeHighlighting: boolean;
+  codeLanguage: string;
+  userStylesheet: string;
+  userUIStylesheet: string;
+}
+
+export interface BookFont {
+  serifFont: string;
+  sansSerifFont: string;
+  monospaceFont: string;
+  defaultFont: string;
+  defaultCJKFont: string;
+  defaultFontSize: number;
+  minimumFontSize: number;
+  fontWeight: number;
+}
+
+export interface ViewConfig {
+  sideBarTab: 'toc' | 'annotations' | 'bookmarks';
+  uiLanguage: string;
+  sortedTOC: boolean;
+  doubleBorder: boolean;
+  borderColor: string;
+  showHeader: boolean;
+  showFooter: boolean;
+  showBarsOnScroll: boolean;
+  showRemainingTime: boolean;
+  showRemainingPages: boolean;
+  showPageNumber: boolean;
+}
+
+export interface TTSConfig {
+  ttsRate: number;
+  ttsVoice: string;
+  ttsLocation: string;
+}
+
+export interface TranslatorConfig {
+  translationEnabled: boolean;
+  translationProvider: string;
+  translateTargetLang: string;
+  showTranslateSource: boolean;
+}
+
+export interface ScreenConfig {
+  screenOrientation: 'auto' | 'portrait' | 'landscape';
+}
+
+export interface ViewSettings extends BookLayout, BookStyle, BookFont, ViewConfig, TTSConfig, TranslatorConfig, ScreenConfig {}
 
 export interface BookDoc {
   book?: any;

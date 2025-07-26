@@ -6,8 +6,9 @@ import { useReaderStore } from '@/store/readerStore';
 import { useFoliateEvents } from '../../hooks/useFoliateEvents';
 import { useProgressSync } from '../../hooks/useProgressSync';
 import { useProgressAutoSave } from '../../hooks/useProgressAutoSave';
-import { getStyles } from '@/utils/style';
+import { getCompleteStyles, applyFixedlayoutStyles } from '@/utils/style';
 import { DEFAULT_VIEW_SETTINGS } from '@/utils/constants';
+import { useViewSettingsSync } from '@/utils/viewSettingsHelper';
 
 declare global {
   interface Window {
@@ -29,7 +30,8 @@ const FoliateViewer: React.FC<{
   contentInsets: Insets;
 }> = ({ bookKey, bookDoc, config, contentInsets: insets }) => {
   const { getView, setView: setFoliateView, setProgress } = useReaderStore();
-  const { getViewSettings, setViewSettings } = useReaderStore();
+  const { getViewSettings, setViewSettings, initializeViewSettings, applyViewStyles } = useReaderStore();
+  const { initializeBookSettings } = useViewSettingsSync();
   const viewSettings = getViewSettings(bookKey);
 
   const viewRef = useRef<FoliateView | null>(null);
@@ -47,6 +49,17 @@ const FoliateViewer: React.FC<{
 
   const progressRelocateHandler = (event: Event) => {
     const detail = (event as CustomEvent).detail;
+    
+    // Debounce progress updates to prevent excessive calls
+    const now = Date.now();
+    const lastUpdate = (progressRelocateHandler as any).lastUpdate || 0;
+    
+    if (now - lastUpdate < 100) { // Limit to once per 100ms
+      return;
+    }
+    
+    (progressRelocateHandler as any).lastUpdate = now;
+    
     setProgress(
       bookKey,
       detail.cfi,
@@ -85,6 +98,9 @@ const FoliateViewer: React.FC<{
       if (detail.isScript) {
         detail.allowScript = currentViewSettings?.allowScript ?? false;
       }
+
+      // Apply layout styles using the new method
+      applyFixedlayoutStyles(detail.doc, currentViewSettings);
 
       // Add basic event listeners to the document
       if (!detail.doc.isEventListenersAdded) {
@@ -148,6 +164,9 @@ const FoliateViewer: React.FC<{
     
     console.log('Starting view creation...');
     isViewCreated.current = true;
+    
+    // Initialize view settings if not exists
+    initializeBookSettings(bookKey, DEFAULT_VIEW_SETTINGS);
 
     const openBook = async () => {
       try {
@@ -194,6 +213,11 @@ const FoliateViewer: React.FC<{
         // 设置引用 - 在 open 之后立即设置
         viewRef.current = view;
         setFoliateView(bookKey, view);
+        
+        // Apply styles after view is ready (debounced)
+        setTimeout(() => {
+          applyViewStyles(bookKey);
+        }, 200);
 
         const { book } = view;
 
@@ -218,7 +242,7 @@ const FoliateViewer: React.FC<{
         setTimeout(() => {
           try {
             console.log('Applying styles...');
-            view.renderer.setStyles?.(getStyles(finalViewSettings));
+            view.renderer.setStyles?.(getCompleteStyles(finalViewSettings));
 
             // 配置视图参数
             const animated = finalViewSettings.animated ?? true;
@@ -293,38 +317,56 @@ const FoliateViewer: React.FC<{
           console.error('Error cleaning up view:', error);
         }
       }
+      
+      // Clear any pending style application timeouts
+      if ((globalThis as any).__styleApplyTimeout) {
+        clearTimeout((globalThis as any).__styleApplyTimeout);
+        delete (globalThis as any).__styleApplyTimeout;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookKey, bookDoc]);
 
-  // 当视图设置改变时更新样式
+  // 当视图设置改变时更新样式 (debounced to prevent loops)
   useEffect(() => {
-    if (viewRef.current && viewRef.current.renderer && viewSettings) {
-      console.log('📖 FoliateViewer: 更新字体样式', {
-        defaultCJKFont: viewSettings.defaultCJKFont,
-        serifFont: viewSettings.serifFont,
-        sansSerifFont: viewSettings.sansSerifFont,
-        monospaceFont: viewSettings.monospaceFont
-      });
-      const styles = getStyles(viewSettings);
-      console.log('📖 生成的样式长度:', styles.length);
-      viewRef.current.renderer.setStyles?.(styles);
-    }
+    if (!viewRef.current || !viewRef.current.renderer || !viewSettings) return;
+    
+    const timeoutId = setTimeout(() => {
+      if (viewRef.current && viewRef.current.renderer && viewSettings) {
+        console.log('📖 FoliateViewer: 更新字体样式', {
+          defaultCJKFont: viewSettings.defaultCJKFont,
+          serifFont: viewSettings.serifFont,
+          sansSerifFont: viewSettings.sansSerifFont,
+          monospaceFont: viewSettings.monospaceFont
+        });
+        const styles = getCompleteStyles(viewSettings);
+        console.log('📖 生成的样式长度:', styles.length);
+        viewRef.current.renderer.setStyles?.(styles);
+      }
+    }, 150);
+    
+    return () => clearTimeout(timeoutId);
   }, [viewSettings]);
 
-  // 当insets改变时更新边距和间距
+  // 当insets改变时更新边距和间距 (debounced)
   useEffect(() => {
-    if (viewRef.current && viewRef.current.renderer && viewSettings) {
-      const { renderer } = viewRef.current;
-      renderer.setAttribute('margin-top', `${insets.top}px`);
-      renderer.setAttribute('margin-right', `${insets.right}px`);
-      renderer.setAttribute('margin-bottom', `${insets.bottom}px`);
-      renderer.setAttribute('margin-left', `${insets.left}px`);
-      
-      if (viewSettings.gapPercent) {
-        renderer.setAttribute('gap', `${viewSettings.gapPercent}%`);
+    if (!viewRef.current || !viewRef.current.renderer || !viewSettings) return;
+    
+    const timeoutId = setTimeout(() => {
+      if (viewRef.current && viewRef.current.renderer && viewSettings) {
+        const { renderer } = viewRef.current;
+        renderer.setAttribute('margin-top', `${insets.top}px`);
+        renderer.setAttribute('margin-right', `${insets.right}px`);
+        renderer.setAttribute('margin-bottom', `${insets.bottom}px`);
+        renderer.setAttribute('margin-left', `${insets.left}px`);
+        
+        if (viewSettings.gapPercent) {
+          renderer.setAttribute('gap', `${viewSettings.gapPercent}%`);
+        }
       }
-    }
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     insets.top,

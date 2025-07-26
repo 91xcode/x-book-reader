@@ -14,6 +14,7 @@ interface SettingsStore {
   loadSettings: () => Promise<void>
   setFontLayoutSettingsDialogOpen: (open: boolean) => void
   setIsFontLayoutSettingsGlobal: (global: boolean) => void
+  updateGlobalViewSettings: (newSettings: Partial<ViewSettings>) => void
 }
 
 const createDefaultSettings = (): SystemSettings => ({
@@ -37,6 +38,19 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     } catch (error) {
       console.error('Failed to save settings:', error)
     }
+  },
+
+  updateGlobalViewSettings: (newSettings: Partial<ViewSettings>) => {
+    const { settings } = get()
+    const updatedSettings = {
+      ...settings,
+      globalViewSettings: {
+        ...settings.globalViewSettings,
+        ...newSettings,
+      },
+    }
+    set({ settings: updatedSettings })
+    get().saveSettings(updatedSettings)
   },
 
   loadSettings: async () => {

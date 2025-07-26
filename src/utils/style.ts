@@ -1,6 +1,69 @@
 import { ViewSettings } from '@/types/book';
 import { getFontStyles } from '@/utils/fontStyles';
 
+// 主题代码类型
+export interface ThemeCode {
+  bg: string;
+  fg: string;
+  primary: string;
+  isDarkMode: boolean;
+}
+
+// 获取主题代码
+export const getThemeCode = (theme: string = 'light'): ThemeCode => {
+  switch (theme) {
+    case 'dark':
+      return {
+        bg: '#1a1a1a',
+        fg: '#e4e4e7',
+        primary: '#60a5fa',
+        isDarkMode: true,
+      };
+    case 'sepia':
+      return {
+        bg: '#f7f3e3',
+        fg: '#5c4b37',
+        primary: '#8b5a2b',
+        isDarkMode: false,
+      };
+    case 'solarized-light':
+      return {
+        bg: '#fdf6e3',
+        fg: '#657b83',
+        primary: '#268bd2',
+        isDarkMode: false,
+      };
+    case 'solarized-dark':
+      return {
+        bg: '#002b36',
+        fg: '#839496',
+        primary: '#268bd2',
+        isDarkMode: true,
+      };
+    case 'gruvbox-light':
+      return {
+        bg: '#fbf1c7',
+        fg: '#3c3836',
+        primary: '#af3a03',
+        isDarkMode: false,
+      };
+    case 'gruvbox-dark':
+      return {
+        bg: '#282828',
+        fg: '#ebdbb2',
+        primary: '#fabd2f',
+        isDarkMode: true,
+      };
+    default: // light
+      return {
+        bg: '#ffffff',
+        fg: '#1f2937',
+        primary: '#3b82f6',
+        isDarkMode: false,
+      };
+  }
+};
+
 /**
  * 生成阅读器的CSS样式
  * 参考readest的样式生成逻辑
@@ -133,11 +196,237 @@ export const getStyles = (viewSettings: ViewSettings): string => {
 };
 
 /**
+ * 获取布局样式 - 与readest项目一致
+ */
+export const getLayoutStyles = (
+  overrideLayout: boolean,
+  paragraphMargin: number,
+  lineSpacing: number,
+  wordSpacing: number,
+  letterSpacing: number,
+  textIndent: number,
+  justify: boolean,
+  hyphenate: boolean,
+  zoomLevel: number,
+  writingMode: string,
+  vertical: boolean,
+) => {
+  const layoutStyle = `
+  @namespace epub "http://www.idpf.org/2007/ops";
+  html {
+    --default-text-align: ${justify ? 'justify' : 'start'};
+    hanging-punctuation: allow-end last;
+    orphans: 2;
+    widows: 2;
+  }
+  [align="left"] { text-align: left; }
+  [align="right"] { text-align: right; }
+  [align="center"] { text-align: center; }
+  [align="justify"] { text-align: justify; }
+  :is(hgroup, header) p {
+      text-align: unset;
+      hyphens: unset;
+  }
+  pre {
+      white-space: pre-wrap !important;
+      tab-size: 2;
+  }
+  html, body {
+    ${writingMode === 'auto' ? '' : `writing-mode: ${writingMode} !important;`}
+    text-align: var(--default-text-align);
+    max-height: unset;
+  }
+  body {
+    overflow: unset;
+    zoom: ${zoomLevel};
+  }
+  svg, img {
+    height: auto;
+    width: auto;
+    background-color: transparent !important;
+  }
+  /* enlarge the clickable area of links */
+  a {
+    position: relative !important;
+  }
+  a::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+  }
+  p, blockquote, dd, div:not(:has(*:not(b, a, em, i, strong, u, span))) {
+    line-height: ${lineSpacing} ${overrideLayout ? '!important' : ''};
+    word-spacing: ${wordSpacing}px ${overrideLayout ? '!important' : ''};
+    letter-spacing: ${letterSpacing}px ${overrideLayout ? '!important' : ''};
+    text-indent: ${vertical ? textIndent * 1.2 : textIndent}em ${overrideLayout ? '!important' : ''};
+    ${justify ? `text-align: justify ${overrideLayout ? '!important' : ''};` : ''}
+    ${!justify && overrideLayout ? 'text-align: unset !important;' : ''};
+    -webkit-hyphens: ${hyphenate ? 'auto' : 'manual'};
+    hyphens: ${hyphenate ? 'auto' : 'manual'};
+    -webkit-hyphenate-limit-before: 3;
+    -webkit-hyphenate-limit-after: 2;
+    -webkit-hyphenate-limit-lines: 2;
+    hanging-punctuation: allow-end last;
+    widows: 2;
+    orphans: 2;
+  }
+  /* add space between multiple paragraphs in the same element */
+  :is(div, td, th, section) > :is(p, div):not(:last-child) {
+    ${overrideLayout ? `margin-bottom: ${paragraphMargin}em !important;` : `margin-bottom: ${paragraphMargin}em;`}
+  }
+  /* clear margin in forced line breaks */
+  :is(div, td, th, section) > :is(p, div):last-child {
+    ${overrideLayout ? 'margin-bottom: 0 !important;' : 'margin-bottom: 0;'}
+  }
+  `;
+
+  return layoutStyle.trim();
+};
+
+/**
+ * 获取颜色样式 - 与readest项目一致
+ */
+export const getColorStyles = (
+  theme: string,
+  overrideColor: boolean,
+  invertImgColorInDark: boolean,
+) => {
+  const themeCode = getThemeCode(theme);
+  const { bg, fg, primary, isDarkMode } = themeCode;
+  
+  const colorStyles = `
+    html {
+      --theme-bg-color: ${bg};
+      --theme-fg-color: ${fg};
+      --theme-primary-color: ${primary};
+      color-scheme: ${isDarkMode ? 'dark' : 'light'};
+    }
+    html, body {
+      color: ${fg};
+    }
+    html[has-background], body[has-background] {
+      --background-set: var(--theme-bg-color);
+    }
+    html {
+      background-color: var(--theme-bg-color, transparent);
+      background: var(--background-set, none);
+    }
+    div, p, h1, h2, h3, h4, h5, h6 {
+      ${overrideColor ? `background-color: ${bg} !important;` : ''}
+      ${overrideColor ? `color: ${fg} !important;` : ''}
+    }
+    pre, span { /* inline code blocks */
+      ${overrideColor ? `background-color: ${bg} !important;` : ''}
+    }
+    a:any-link {
+      ${overrideColor ? `color: ${primary};` : isDarkMode ? `color: lightblue;` : ''}
+      text-decoration: none;
+    }
+    p:has(img), span:has(img) {
+      background-color: ${bg};
+    }
+    body.pbg {
+      ${isDarkMode ? `background-color: ${bg} !important;` : ''}
+    }
+    img {
+      ${isDarkMode && invertImgColorInDark ? 'filter: invert(100%);' : ''}
+      ${!isDarkMode && overrideColor ? 'mix-blend-mode: multiply;' : ''}
+    }
+    /* inline images */
+    p img, span img, sup img {
+      mix-blend-mode: ${isDarkMode ? 'screen' : 'multiply'};
+    }
+    /* override inline hardcoded text color */
+    *[style*="color: rgb(0,0,0)"], *[style*="color: rgb(0, 0, 0)"],
+    *[style*="color: #000"], *[style*="color: #000000"], *[style*="color: black"],
+    *[style*="color:rgb(0,0,0)"], *[style*="color:rgb(0, 0, 0)"],
+    *[style*="color:#000"], *[style*="color:#000000"], *[style*="color:black"] {
+      color: ${fg} !important;
+    }
+    /* for the Gutenberg eBooks */
+    #pg-header * {
+      color: inherit !important;
+    }
+    .x-ebookmaker, .x-ebookmaker-cover, .x-ebookmaker-coverpage {
+      background-color: unset !important;
+    }
+    /* for the Feedbooks eBooks */
+    .chapterHeader, .chapterHeader * {
+      border-color: unset;
+      background-color: ${bg} !important;
+    }
+  `;
+  return colorStyles;
+};
+
+/**
+ * 获取完整的样式 - 与readest项目一致
+ */
+export const getCompleteStyles = (viewSettings: ViewSettings) => {
+  const layoutStyles = getLayoutStyles(
+    viewSettings.overrideLayout,
+    viewSettings.paragraphMargin,
+    viewSettings.lineHeight,
+    viewSettings.wordSpacing,
+    viewSettings.letterSpacing,
+    viewSettings.textIndent,
+    viewSettings.fullJustification,
+    viewSettings.hyphenation,
+    viewSettings.zoomLevel / 100.0,
+    viewSettings.writingMode,
+    viewSettings.vertical,
+  );
+  
+  const fontStyles = getFontStyles(
+    viewSettings.serifFont,
+    viewSettings.sansSerifFont,
+    viewSettings.monospaceFont,
+    viewSettings.defaultFont,
+    viewSettings.defaultCJKFont,
+    viewSettings.defaultFontSize,
+    viewSettings.minimumFontSize,
+    viewSettings.fontWeight,
+    viewSettings.overrideFont
+  );
+  const colorStyles = getColorStyles(viewSettings.theme, viewSettings.overrideColor, viewSettings.invertImgColorInDark);
+  const translationStyles = getTranslationStyles(viewSettings.showTranslateSource);
+  const userStylesheet = viewSettings.userStylesheet;
+  
+  return `${layoutStyles}\n${fontStyles}\n${colorStyles}\n${translationStyles}\n${userStylesheet}`;
+};
+
+/**
+ * 获取翻译样式
+ */
+export const getTranslationStyles = (showTranslateSource: boolean) => {
+  return `
+    .translation-highlight {
+      background-color: rgba(255, 255, 0, 0.3);
+      padding: 2px 4px;
+      border-radius: 2px;
+      ${showTranslateSource ? '' : 'opacity: 0.7;'}
+    }
+    .translation-popup {
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      z-index: 1000;
+    }
+  `;
+};
+
+/**
  * 应用固定布局样式（用于PDF等）
  */
 export const applyFixedlayoutStyles = (doc: Document, viewSettings: ViewSettings) => {
   const style = doc.createElement('style');
-  style.textContent = getStyles(viewSettings);
+  style.textContent = getCompleteStyles(viewSettings);
   doc.head.appendChild(style);
 };
 

@@ -123,6 +123,34 @@ body {
   @apply hover:bg-base-100/50;
 }
 
+/* 设置对话框滚动优化 */
+.settings-content {
+  /* 确保内容不会产生水平滚动 */
+  overflow-x: hidden;
+  /* 移动端优化触摸滚动 */
+  -webkit-overflow-scrolling: touch;
+  /* 防止滚动弹跳 */
+  overscroll-behavior: contain;
+}
+
+/* 卡片样式优化 */
+.card {
+  /* 确保卡片不会产生独立滚动 */
+  overflow: visible;
+}
+
+/* 防止嵌套滚动容器 */
+.card .card {
+  overflow: visible;
+}
+
+/* 数字输入框优化 */
+.config-item input[type="text"] {
+  /* 防止输入框在移动端被放大 */
+  transform-origin: center;
+  transition: none;
+}
+
 /* Font dropdown improvements for better readability */
 .font-dropdown-item {
   @apply transition-all duration-200 ease-in-out;
