@@ -44,13 +44,30 @@
 }
 
 /* LXGW WenKai 字体族 - 本地文件 (TTF格式) */
+/* 使用原始字体名称作为主要名称 */
+@font-face {
+  font-family: 'LXGW WenKai';
+  src: url('/fonts/lxgw/LXGWWenKai-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'LXGW WenKai';
+  src: url('/fonts/lxgw/LXGWWenKai-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 为兼容性创建GB Screen别名 */
 @font-face {
   font-family: 'LXGW WenKai GB Screen';
   src: url('/fonts/lxgw/LXGWWenKai-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
-  font-display: block; /* 使用block确保中文字体优先显示 */
-  unicode-range: U+4E00-9FFF; /* 限制为中文字符范围 */
+  font-display: swap;
 }
 
 @font-face {
@@ -58,17 +75,16 @@
   src: url('/fonts/lxgw/LXGWWenKai-Light.ttf') format('truetype');
   font-weight: 300;
   font-style: normal;
-  font-display: block;
-  unicode-range: U+4E00-9FFF; /* 限制为中文字符范围 */
+  font-display: swap;
 }
 
-/* LXGW WenKai 别名定义 - 增加兼容性 */
+/* 其他别名定义 */
 @font-face {
   font-family: 'LXGWWenKai-Regular';
   src: url('/fonts/lxgw/LXGWWenKai-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 /* CSS字体变量 - 基于readest项目 */
@@ -83,7 +99,7 @@
   --font-monospace: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
   
   /* 中文字体栈 - 本地LXGW优先 */
-  --font-cjk: 'LXGW WenKai GB Screen', 'LXGWWenKai-Regular', 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif;
+  --font-cjk: 'LXGW WenKai', 'LXGW WenKai GB Screen', 'LXGWWenKai-Regular', 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif;
   
   /* 回退字体栈 */
   --font-fallback: 'MiSans L3', system-ui, -apple-system, sans-serif;

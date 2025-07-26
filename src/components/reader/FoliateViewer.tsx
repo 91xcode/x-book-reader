@@ -300,7 +300,15 @@ const FoliateViewer: React.FC<{
   // 当视图设置改变时更新样式
   useEffect(() => {
     if (viewRef.current && viewRef.current.renderer && viewSettings) {
-      viewRef.current.renderer.setStyles?.(getStyles(viewSettings));
+      console.log('📖 FoliateViewer: 更新字体样式', {
+        defaultCJKFont: viewSettings.defaultCJKFont,
+        serifFont: viewSettings.serifFont,
+        sansSerifFont: viewSettings.sansSerifFont,
+        monospaceFont: viewSettings.monospaceFont
+      });
+      const styles = getStyles(viewSettings);
+      console.log('📖 生成的样式长度:', styles.length);
+      viewRef.current.renderer.setStyles?.(styles);
     }
   }, [viewSettings]);
 

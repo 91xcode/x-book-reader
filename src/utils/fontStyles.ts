@@ -117,6 +117,20 @@ export const getFontStyles = (
       -webkit-text-size-adjust: none;
       text-size-adjust: none;
     }
+    code, pre, .code, tt, kbd, samp {
+      font-family: var(--monospace) !important;
+    }
+    [lang="zh"], [lang="zh-CN"], [lang="zh-TW"] {
+      font-family: "${defaultCJKFont}", var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) ${overrideFont ? '!important' : ''};
+    }
+    /* 确保阅读器内容使用正确的字体 */
+    .content, .chapter, .book-content, article, section {
+      font-family: var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) ${overrideFont ? '!important' : ''};
+    }
+    /* 中文字符强制使用CJK字体 */
+    .cjk, [data-lang*="zh"], [data-lang*="ja"], [data-lang*="ko"] {
+      font-family: "${defaultCJKFont}", var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) !important;
+    }
     font[size="1"] {
       font-size: ${minFontSize}px;
     }
@@ -142,9 +156,18 @@ export const getFontStyles = (
     [style*="font-size: 16px"], [style*="font-size:16px"] {
       font-size: 1rem !important;
     }
-    body * {
-      ${overrideFont ? 'font-family: revert !important;' : ''}
+    ${overrideFont ? `
+    /* 强制覆盖所有字体 */
+    * {
+      font-family: var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) !important;
     }
+    code, pre, .code, tt, kbd, samp {
+      font-family: var(--monospace) !important;
+    }
+    [lang="zh"], [lang="zh-CN"], [lang="zh-TW"], .cjk {
+      font-family: "${defaultCJKFont}", var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) !important;
+    }
+    ` : ''}
   `;
   return fontStyles;
 };
@@ -164,7 +187,7 @@ export const applyFontStyles = (viewSettings: ViewSettings) => {
     viewSettings.sansSerifFont || 'Roboto',
     viewSettings.monospaceFont || 'Consolas',
     viewSettings.defaultFont || 'Serif',
-    viewSettings.defaultCJKFont || 'LXGW WenKai GB Screen',
+    viewSettings.defaultCJKFont || 'LXGW WenKai',
     viewSettings.defaultFontSize || 16,
     viewSettings.minimumFontSize || 8,
     viewSettings.fontWeight || 400,

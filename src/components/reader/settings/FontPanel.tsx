@@ -3,6 +3,8 @@ import { useReaderStore } from '@/store/readerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import NumberInput from './NumberInput';
 import FontDropdown from './FontDropdown';
+import { applyFontStyles } from '@/utils/fontStyles';
+import { setGlobalFontSettings } from '@/utils/globalFontManager';
 
 interface FontPanelProps {
   bookKey: string;
@@ -17,7 +19,7 @@ const MONOSPACE_FONTS = ['Courier New', 'Consolas', 'Monaco', 'Menlo'];
 
 // 字体名称映射：界面显示名称 -> CSS字体名称
 const FONT_NAME_MAP: Record<string, string> = {
-  '霞鹜文楷': 'LXGW WenKai GB Screen',
+  '霞鹜文楷': 'LXGW WenKai',
   '微软雅黑': 'Microsoft YaHei',
   '宋体': 'SimSun',
   '黑体': 'SimHei',
@@ -77,7 +79,7 @@ const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
   const [minFontSize, setMinFontSize] = useState(viewSettings?.minimumFontSize ?? 8);
   const [fontWeight, setFontWeight] = useState(viewSettings?.fontWeight ?? 400);
   const [defaultFont, setDefaultFont] = useState(viewSettings?.defaultFont ?? 'Serif');
-  const [defaultCJKFont, setDefaultCJKFont] = useState(viewSettings?.defaultCJKFont ?? 'LXGW WenKai GB Screen');
+  const [defaultCJKFont, setDefaultCJKFont] = useState(viewSettings?.defaultCJKFont ?? 'LXGW WenKai');
   const [serifFont, setSerifFont] = useState(viewSettings?.serifFont ?? 'Georgia');
   const [sansSerifFont, setSansSerifFont] = useState(viewSettings?.sansSerifFont ?? 'Arial');
   const [monospaceFont, setMonospaceFont] = useState(viewSettings?.monospaceFont ?? 'Courier New');
@@ -99,7 +101,7 @@ const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
     setMinFontSize(8);
     setFontWeight(400);
     setDefaultFont('Serif');
-    setDefaultCJKFont('LXGW WenKai GB Screen');
+    setDefaultCJKFont('LXGW WenKai');
     setSerifFont('Georgia');
     setSansSerifFont('Arial');
     setMonospaceFont('Courier New');
@@ -109,7 +111,14 @@ const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
     onRegisterReset(resetToDefaults);
     // Mark as initialized after first render
     isInitialized.current = true;
-  }, [onRegisterReset]);
+    
+    // 初始应用字体样式
+    const currentSettings = getViewSettings(bookKey);
+    if (currentSettings) {
+      console.log('📚 初始化时应用字体设置:', currentSettings);
+      setGlobalFontSettings(currentSettings);
+    }
+  }, [onRegisterReset, bookKey, getViewSettings]);
 
   // Update view settings when font values change
   const updateViewSettings = useCallback((newSettings: Partial<any>) => {
@@ -123,6 +132,10 @@ const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
         ...newSettings,
       };
       setViewSettings(bookKey, updatedSettings);
+      
+      // 使用全局字体管理器应用字体样式
+      console.log('🎨 应用字体样式:', updatedSettings);
+      setGlobalFontSettings(updatedSettings);
     }
   }, [bookKey, getViewSettings, setViewSettings]);
 
@@ -249,6 +262,7 @@ const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
               onSelect={(option) => {
                 // 保存映射后的字体名称到state
                 const fontName = FONT_NAME_MAP[option] || option;
+                console.log('🔤 选择中文字体:', option, '->', fontName);
                 setDefaultCJKFont(fontName);
               }}
             />

@@ -1,4 +1,5 @@
 import { ViewSettings } from '@/types/book';
+import { getFontStyles } from '@/utils/fontStyles';
 
 /**
  * 生成阅读器的CSS样式
@@ -112,6 +113,21 @@ export const getStyles = (viewSettings: ViewSettings): string => {
       }
     `;
   }
+
+  // 添加字体样式
+  const fontStyles = getFontStyles(
+    viewSettings.serifFont || 'Bitter',
+    viewSettings.sansSerifFont || 'Roboto',
+    viewSettings.monospaceFont || 'Consolas',
+    viewSettings.defaultFont || 'Serif',
+    viewSettings.defaultCJKFont || 'LXGW WenKai',
+    viewSettings.defaultFontSize || 16,
+    viewSettings.minimumFontSize || 8,
+    viewSettings.fontWeight || 400,
+    viewSettings.overrideFont || false,
+  );
+  
+  styles += '\n' + fontStyles;
 
   return styles.trim();
 };

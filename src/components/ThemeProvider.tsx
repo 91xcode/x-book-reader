@@ -16,6 +16,7 @@ import {
   initializeFontOptimization,
   smartFontPreload 
 } from '@/utils/fontOptimizer'
+import { initializeGlobalFontManager } from '@/utils/globalFontManager'
 
 interface ThemeProviderProps {
   children: React.ReactNode
@@ -78,6 +79,9 @@ export default function ThemeProvider({
     
     // 智能字体预加载
     smartFontPreload()
+    
+    // 初始化全局字体管理器
+    initializeGlobalFontManager()
   }, [])
 
   // 简化的字体系统初始化

@@ -48,7 +48,7 @@ export const makeSafeFilename = (filename: string, replacement = '_'): string =>
   }
 
   return safeName;
-};
+}; 
 
 // CJK 环境检测（来自 readest 项目）
 export const detectCJKEnvironment = () => {

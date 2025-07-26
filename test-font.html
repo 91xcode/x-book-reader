@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>字体测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+        }
+        .test-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .font-name {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .test-text {
+            font-size: 24px;
+            color: #333;
+        }
+        .lxgw-wenkai {
+            font-family: 'LXGW WenKai', sans-serif;
+        }
+        .lxgw-wenkai-gb {
+            font-family: 'LXGW WenKai GB Screen', sans-serif;
+        }
+        .microsoft-yahei {
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+        .system-default {
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <h1>字体渲染测试</h1>
+    
+    <div class="test-container">
+        <div class="font-name">字体: LXGW WenKai</div>
+        <div class="test-text lxgw-wenkai">
+            霞鹜文楷字体测试 - 这是一段中文文字用于测试字体渲染效果。
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <div class="font-name">字体: LXGW WenKai GB Screen</div>
+        <div class="test-text lxgw-wenkai-gb">
+            霞鹜文楷GB Screen字体测试 - 这是一段中文文字用于测试字体渲染效果。
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <div class="font-name">字体: Microsoft YaHei</div>
+        <div class="test-text microsoft-yahei">
+            微软雅黑字体测试 - 这是一段中文文字用于测试字体渲染效果。
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <div class="font-name">字体: 系统默认</div>
+        <div class="test-text system-default">
+            系统默认字体测试 - 这是一段中文文字用于测试字体渲染效果。
+        </div>
+    </div>
+    
+    <script>
+        // 检查字体加载状态
+        function checkFontStatus() {
+            console.log('🔤 字体检测结果:');
+            
+            const fonts = [
+                'LXGW WenKai',
+                'LXGW WenKai GB Screen', 
+                'Microsoft YaHei'
+            ];
+            
+            fonts.forEach(fontName => {
+                if (document.fonts) {
+                    const loaded = document.fonts.check(`16px "${fontName}"`);
+                    console.log(`${fontName}: ${loaded ? '✅ 已加载' : '❌ 未加载'}`);
+                }
+            });
+        }
+        
+        // 页面加载完成后检查字体
+        window.addEventListener('load', () => {
+            setTimeout(checkFontStatus, 1000);
+        });
+    </script>
+</body>
+</html> 
