@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PiDotsThreeVerticalBold } from 'react-icons/pi';
 import { GiBookshelf } from 'react-icons/gi';
 import { FiSearch } from 'react-icons/fi';
@@ -7,8 +7,10 @@ import { MdOutlineMenu, MdOutlinePushPin, MdPushPin } from 'react-icons/md';
 import { MdArrowBackIosNew } from 'react-icons/md';
 import { RiFontSize } from 'react-icons/ri';
 import { LuNotebookPen } from 'react-icons/lu';
+import { MdCheck } from 'react-icons/md';
 
 import Dropdown from '@/components/ui/Dropdown';
+import { useReaderStore } from '@/store/readerStore';
 
 interface HeaderBarProps {
   bookKey: string;
@@ -27,6 +29,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   onCloseBook,
   onOpenSettings,
 }) => {
+  const { getView, getViewSettings, setViewSettings } = useReaderStore();
   const [hoveredBookKey, setHoveredBookKey] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -36,33 +39,82 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   const isHeaderVisible = hoveredBookKey === bookKey || isDropdownOpen;
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
-  const ViewMenuContent = () => (
-    <div className="view-menu dropdown-content no-triangle z-20 mt-1 border bg-base-200 border-base-200 shadow-2xl rounded-md p-3" style={{ maxWidth: '280px' }}>
-      <button 
-        className="hover:bg-base-300 text-base-content flex w-full flex-col items-center justify-center rounded-md p-1 py-[10px]"
-        onClick={onOpenSettings}
-      >
-        <div className='flex w-full items-center justify-between'>
-          <div className='flex min-w-0 items-center'>
-            <span style={{ minWidth: '16px' }}></span>
-            <span className='mx-2 flex-1 truncate text-base sm:text-sm'>字体和布局</span>
+  const ViewMenuContent = () => {
+    const viewSettings = getViewSettings(bookKey);
+    const [isScrolledMode, setIsScrolledMode] = useState(viewSettings?.scrolled || false);
+    
+    // 同步 store 中的滚动模式状态
+    useEffect(() => {
+      if (viewSettings?.scrolled !== undefined) {
+        setIsScrolledMode(viewSettings.scrolled);
+      }
+    }, [viewSettings?.scrolled]);
+    
+    const toggleScrolledMode = () => {
+      const newScrolledMode = !isScrolledMode;
+      setIsScrolledMode(newScrolledMode);
+      
+      // 更新 store 中的设置
+      if (viewSettings) {
+        const updatedSettings = { ...viewSettings, scrolled: newScrolledMode };
+        setViewSettings(bookKey, updatedSettings);
+        
+        // 更新 Foliate.js 视图的 flow 属性
+        const view = getView(bookKey);
+        if (view?.renderer) {
+          view.renderer.setAttribute('flow', newScrolledMode ? 'scrolled' : 'paginated');
+          console.log('Switched to', newScrolledMode ? 'scrolled' : 'paginated', 'mode');
+        }
+      }
+    };
+
+    return (
+      <div className="view-menu dropdown-content no-triangle z-20 mt-1 border bg-base-200 border-base-200 shadow-2xl rounded-md p-3" style={{ maxWidth: '280px' }}>
+        <button 
+          className="hover:bg-base-300 text-base-content flex w-full flex-col items-center justify-center rounded-md p-1 py-[10px]"
+          onClick={onOpenSettings}
+        >
+          <div className='flex w-full items-center justify-between'>
+            <div className='flex min-w-0 items-center'>
+              <span style={{ minWidth: '16px' }}></span>
+              <span className='mx-2 flex-1 truncate text-base sm:text-sm'>字体和布局</span>
+            </div>
+            <kbd className='border-base-300/40 bg-base-300/75 text-neutral-content hidden rounded-md border shadow-sm sm:flex shrink-0 px-1.5 py-0.5 text-xs font-medium'>Shift+F</kbd>
           </div>
-          <kbd className='border-base-300/40 bg-base-300/75 text-neutral-content hidden rounded-md border shadow-sm sm:flex shrink-0 px-1.5 py-0.5 text-xs font-medium'>Shift+F</kbd>
-        </div>
-      </button>
-      <hr className="border-base-300 my-1" />
-      <button 
-        className="hover:bg-base-300 text-base-content flex w-full flex-col items-center justify-center rounded-md p-1 py-[10px]"
-      >
-        <div className='flex w-full items-center justify-between'>
-          <div className='flex min-w-0 items-center'>
-            <span style={{ minWidth: '16px' }}></span>
-            <span className='mx-2 flex-1 truncate text-base sm:text-sm'>从未同步</span>
+        </button>
+        <hr className="border-base-300 my-1" />
+        <button 
+          className="hover:bg-base-300 text-base-content flex w-full flex-col items-center justify-center rounded-md p-1 py-[10px]"
+          onClick={toggleScrolledMode}
+        >
+          <div className='flex w-full items-center justify-between'>
+            <div className='flex min-w-0 items-center'>
+              <span style={{ minWidth: '16px' }}></span>
+              <span className='mx-2 flex-1 truncate text-base sm:text-sm'>滚动模式</span>
+            </div>
+            {isScrolledMode && (
+              <span className="text-base-content">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </span>
+            )}
           </div>
-        </div>
-      </button>
-    </div>
-  );
+        </button>
+        <hr className="border-base-300 my-1" />
+        <button 
+          className="hover:bg-base-300 text-base-content flex w-full flex-col items-center justify-center rounded-md p-1 py-[10px]"
+        >
+          <div className='flex w-full items-center justify-between'>
+            <div className='flex min-w-0 items-center'>
+              <span style={{ minWidth: '16px' }}></span>
+              <span className='mx-2 flex-1 truncate text-base sm:text-sm'>从未同步</span>
+            </div>
+          </div>
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-base-100 absolute top-0 w-full z-20">
