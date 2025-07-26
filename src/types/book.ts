@@ -71,6 +71,8 @@ export interface ViewSettings {
   showHeader?: boolean;
   showFooter?: boolean;
   doubleBorder?: boolean;
+  showBarsOnScroll?: boolean;
+  scrollingOverlap?: number;
 }
 
 export interface BookDoc {

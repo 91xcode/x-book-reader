@@ -11,6 +11,7 @@ import { RiFontFamily as FontIcon } from 'react-icons/ri';
 import { MdOutlineHeadphones as TTSIcon } from 'react-icons/md';
 
 import { useReaderStore } from '@/store/readerStore';
+import { usePagination } from '@/hooks/usePagination';
 
 interface FooterBarProps {
   bookKey: string;
@@ -36,6 +37,17 @@ const FooterBar: React.FC<FooterBarProps> = ({
   const progress = getProgress(bookKey);
   const viewSettings = getViewSettings(bookKey);
   
+  const {
+    goLeft,
+    goRight,
+    goPrev,
+    goNext,
+    goPrevSection,
+    goNextSection,
+    goBack,
+    goForward,
+  } = usePagination(bookKey);
+  
   const isVisible = hoveredBookKey === bookKey;
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
@@ -44,43 +56,27 @@ const FooterBar: React.FC<FooterBarProps> = ({
   };
 
   const handleGoPrevPage = () => {
-    // 使用 Foliate.js 的导航方法
-    if (view?.renderer) {
-      // 这里需要根据实际的 Foliate.js API 来调用
-      console.log('Go to previous page');
-    }
+    goLeft();
   };
 
   const handleGoNextPage = () => {
-    // 使用 Foliate.js 的导航方法
-    if (view?.renderer) {
-      // 这里需要根据实际的 Foliate.js API 来调用
-      console.log('Go to next page');
-    }
+    goRight();
   };
 
   const handleGoPrevSection = () => {
-    // 使用 Foliate.js 的导航方法
-    if (view?.renderer) {
-      // 这里需要根据实际的 Foliate.js API 来调用
-      console.log('Go to previous section');
-    }
+    goPrevSection();
   };
 
   const handleGoNextSection = () => {
-    // 使用 Foliate.js 的导航方法
-    if (view?.renderer) {
-      // 这里需要根据实际的 Foliate.js API 来调用
-      console.log('Go to next section');
-    }
+    goNextSection();
   };
 
   const handleGoBack = () => {
-    view?.history?.back?.();
+    goBack();
   };
 
   const handleGoForward = () => {
-    view?.history?.forward?.();
+    goForward();
   };
 
   const handleSpeakText = async () => {
