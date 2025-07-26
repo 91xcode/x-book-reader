@@ -17,7 +17,7 @@ const SideBar: React.FC<{
 }> = ({ isVisible, onGoToLibrary, onClose, book, bookDoc }) => {
   const { getView, getViewSettings } = useReaderStore();
   const [isSearchBarVisible, setIsSearchBarVisible] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  const [isPinned, setIsPinned] = useState(true); // 默认固定侧边栏
   const sideBarBookKey = book.hash;
 
   const onNavigateEvent = async () => {
