@@ -38,14 +38,29 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const ViewMenuContent = () => (
     <div className="view-menu dropdown-content no-triangle z-20 mt-1 border bg-base-200 border-base-200 shadow-2xl rounded-md p-3" style={{ maxWidth: '280px' }}>
-      <div className="hover:bg-base-300 rounded px-3 py-2 cursor-pointer" onClick={onOpenSettings}>
-        <span className="text-sm">字体和布局</span>
-        <span className="float-right text-xs text-base-content/60">Shift+F</span>
-      </div>
+      <button 
+        className="hover:bg-base-300 text-base-content flex w-full flex-col items-center justify-center rounded-md p-1 py-[10px]"
+        onClick={onOpenSettings}
+      >
+        <div className='flex w-full items-center justify-between'>
+          <div className='flex min-w-0 items-center'>
+            <span style={{ minWidth: '16px' }}></span>
+            <span className='mx-2 flex-1 truncate text-base sm:text-sm'>字体和布局</span>
+          </div>
+          <kbd className='border-base-300/40 bg-base-300/75 text-neutral-content hidden rounded-md border shadow-sm sm:flex shrink-0 px-1.5 py-0.5 text-xs font-medium'>Shift+F</kbd>
+        </div>
+      </button>
       <hr className="border-base-300 my-1" />
-      <div className="hover:bg-base-300 rounded px-3 py-2 cursor-pointer">
-        <span className="text-sm">从未同步</span>
-      </div>
+      <button 
+        className="hover:bg-base-300 text-base-content flex w-full flex-col items-center justify-center rounded-md p-1 py-[10px]"
+      >
+        <div className='flex w-full items-center justify-between'>
+          <div className='flex min-w-0 items-center'>
+            <span style={{ minWidth: '16px' }}></span>
+            <span className='mx-2 flex-1 truncate text-base sm:text-sm'>从未同步</span>
+          </div>
+        </div>
+      </button>
     </div>
   );
 

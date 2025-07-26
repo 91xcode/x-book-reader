@@ -21,58 +21,46 @@ const Dropdown: React.FC<DropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen])
-
-  const handleToggle = () => {
+  const toggleDropdown = () => {
     setIsOpen(!isOpen)
   }
 
-  const handleItemClick = () => {
+  const closeDropdown = () => {
     setIsOpen(false)
   }
 
   return (
-    <div
-      ref={dropdownRef}
-      className={clsx('dropdown', className, {
-        'dropdown-open': isOpen,
-        'dropdown-end': align === 'right',
-        'dropdown-top': position === 'top',
-        'dropdown-bottom': position === 'bottom'
-      })}
-    >
-      <div
-        tabIndex={0}
-        role="button"
-        className={clsx('btn', buttonClassName)}
-        onClick={handleToggle}
-      >
-        {toggleButton}
-      </div>
+    <div className='dropdown-container flex'>
+      {/* 全屏遮罩层 - 参考 readest 实现 */}
       {isOpen && (
-        <ul
+        <div 
+          className='fixed inset-0 bg-transparent' 
+          onClick={closeDropdown}
+        />
+      )}
+      <div
+        ref={dropdownRef}
+        className={clsx('dropdown', className, {
+          'dropdown-open': isOpen,
+          'dropdown-end': align === 'right',
+          'dropdown-top': position === 'top',
+          'dropdown-bottom': position === 'bottom'
+        })}
+      >
+        <div
           tabIndex={0}
-          className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52"
+          role="button"
+          className={clsx('dropdown-toggle', buttonClassName, isOpen && 'bg-base-300/50')}
+          onClick={toggleDropdown}
         >
-          <div onClick={handleItemClick}>
+          {toggleButton}
+        </div>
+        {isOpen && (
+          <div onClick={closeDropdown}>
             {children}
           </div>
-        </ul>
-      )}
+        )}
+      </div>
     </div>
   )
 }
