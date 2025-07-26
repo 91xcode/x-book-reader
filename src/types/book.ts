@@ -52,6 +52,14 @@ export interface BookConfig {
 export interface ViewSettings {
   theme: 'light' | 'dark' | 'sepia' | 'auto';
   defaultFontSize: number;
+  minimumFontSize?: number;
+  fontWeight?: number;
+  defaultFont?: string;
+  defaultCJKFont?: string;
+  serifFont?: string;
+  sansSerifFont?: string;
+  monospaceFont?: string;
+  overrideFont?: boolean;
   lineHeight: number;
   fontFamily?: string;
   marginTopPx: number;
@@ -73,6 +81,17 @@ export interface ViewSettings {
   doubleBorder?: boolean;
   showBarsOnScroll?: boolean;
   scrollingOverlap?: number;
+  continuousScroll?: boolean;
+  volumeKeysToFlip?: boolean;
+  disableClick?: boolean;
+  swapClickArea?: boolean;
+  uiLanguage?: string;
+  translationEnabled?: boolean;
+  translationProvider?: string;
+  translateTargetLang?: string;
+  showTranslateSource?: boolean;
+  codeHighlighting?: boolean;
+  codeLanguage?: string;
 }
 
 export interface BookDoc {

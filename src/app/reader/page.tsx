@@ -8,6 +8,8 @@ import { DocumentLoader } from '@/libs/document'
 import Spinner from '@/components/ui/Spinner'
 import BookReader from '@/components/reader/BookReader'
 import SideBar from '@/components/reader/sidebar/SideBar'
+import SettingsDialog from '@/components/reader/settings/SettingsDialog'
+import { useSettingsStore } from '@/store/settingsStore'
 
 export default function ReaderPage() {
   const router = useRouter()
@@ -21,7 +23,7 @@ export default function ReaderPage() {
   
   // UI State
   const [isSidebarVisible, setIsSidebarVisible] = useState(true)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const { fontLayoutSettingsDialogOpen, setFontLayoutSettingsDialogOpen } = useSettingsStore()
 
   const handleBackToLibrary = () => {
     router.push('/library')
@@ -32,7 +34,7 @@ export default function ReaderPage() {
   }
 
   const handleOpenSettings = () => {
-    setIsSettingsOpen(true)
+    setFontLayoutSettingsDialogOpen(true)
   }
 
   useEffect(() => {
@@ -150,23 +152,12 @@ export default function ReaderPage() {
       </div>
 
       {/* Settings Dialog */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-base-100 rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">阅读设置</h3>
-              <button 
-                onClick={() => setIsSettingsOpen(false)}
-                className="btn btn-ghost btn-sm"
-              >
-                ×
-              </button>
-            </div>
-            <div className="text-center text-base-content/60">
-              <p>设置功能开发中...</p>
-            </div>
-          </div>
-        </div>
+      {fontLayoutSettingsDialogOpen && book && (
+        <SettingsDialog
+          bookKey={book.hash}
+          isOpen={fontLayoutSettingsDialogOpen}
+          onClose={() => setFontLayoutSettingsDialogOpen(false)}
+        />
       )}
     </div>
   )
