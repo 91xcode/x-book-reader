@@ -10,6 +10,7 @@ import BookReader from '@/components/reader/BookReader'
 import SideBar from '@/components/reader/sidebar/SideBar'
 import SettingsDialog from '@/components/reader/settings/SettingsDialog'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useReaderStore } from '@/store/readerStore'
 
 export default function ReaderPage() {
   const router = useRouter()
@@ -24,6 +25,9 @@ export default function ReaderPage() {
   // UI State
   const [isSidebarVisible, setIsSidebarVisible] = useState(true)
   const { fontLayoutSettingsDialogOpen, setFontLayoutSettingsDialogOpen } = useSettingsStore()
+  
+  // 添加readerStore以初始化viewSettings
+  const { initializeViewSettings } = useReaderStore()
 
   const handleBackToLibrary = () => {
     router.push('/library')
@@ -72,6 +76,11 @@ export default function ReaderPage() {
         
         if (parsedDocument && parsedDocument.book) {
           setBookDoc(parsedDocument.book)
+          
+          // 初始化viewSettings - 与readest项目保持一致
+          const bookKey = `${foundBook.hash}-primary`
+          console.log('🔧 Reader页面: 初始化viewSettings for bookKey:', bookKey)
+          await initializeViewSettings(bookKey)
         } else {
           setError('无法解析书籍内容')
         }

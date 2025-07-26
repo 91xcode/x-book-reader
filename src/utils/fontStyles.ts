@@ -2,45 +2,48 @@
 
 import { ViewSettings } from '@/types/book';
 
-// 字体常量定义（与readest一致）
+// 常量定义 - 使用本地字体
 const SERIF_FONTS = [
   'Bitter',
-  'Literata', 
-  'Merriweather',
-  'Vollkorn',
-  'Georgia',
   'Times New Roman',
+  'Georgia',
+  'serif'
 ];
 
 const SANS_SERIF_FONTS = [
   'Roboto',
-  'Noto Sans',
-  'Open Sans', 
-  'Helvetica'
+  'Arial',
+  'Helvetica',
+  'sans-serif'
 ];
 
 const MONOSPACE_FONTS = [
   'Fira Code',
-  'Lucida Console', 
   'Consolas',
-  'Courier New'
+  'Monaco',
+  'Courier New',
+  'monospace'
 ];
 
 const CJK_SERIF_FONTS = [
-  'LXGW WenKai GB Screen',
-  'LXGW WenKai TC',
-  'GuanKiapTsingKhai-T',
-  'Source Han Serif CN VF',
-  'Huiwen-mincho',
-  'KingHwa_OldSong',
+  'LXGW WenKai',
+  'SimSun',
+  'Microsoft YaHei',
+  'PingFang SC',
+  'Source Han Serif SC',
+  'Noto Serif CJK SC'
 ];
 
 const CJK_SANS_SERIF_FONTS = [
-  'Noto Sans SC',
-  'Noto Sans TC'
+  'LXGW WenKai',
+  'Microsoft YaHei',
+  'PingFang SC',
+  'SimHei',
+  'Source Han Sans SC',
+  'Noto Sans CJK SC'
 ];
 
-const FALLBACK_FONTS = ['MiSans L3'];
+const FALLBACK_FONTS = ['serif', 'sans-serif'];
 
 // 平台检测（简化版）
 const getOSPlatform = () => {
@@ -59,7 +62,9 @@ const isMobile = () => {
   return ['ios', 'android'].includes(platform);
 };
 
-// 字体样式生成函数（与readest完全一致）
+/**
+ * 生成字体样式CSS - 采用readest的字体处理策略
+ */
 export const getFontStyles = (
   serif: string,
   sansSerif: string,
@@ -70,46 +75,51 @@ export const getFontStyles = (
   minFontSize: number,
   fontWeight: number,
   overrideFont: boolean,
-) => {
-  const lastSerifFonts = ['Georgia', 'Times New Roman'];
+): string => {
+  // 构建字体数组
+  const serifFonts = [serif, ...SERIF_FONTS.filter(f => f !== serif)];
+  const sansSerifFonts = [sansSerif, ...SANS_SERIF_FONTS.filter(f => f !== sansSerif)];
+  const monospaceFonts = [monospace, ...MONOSPACE_FONTS.filter(f => f !== monospace)];
   
-  // 构建衬线字体栈
-  const serifFonts = [
-    serif,
-    ...SERIF_FONTS.filter(
-      (font) => font !== serif && font !== defaultCJKFont && !lastSerifFonts.includes(font),
-    ),
-    ...(defaultCJKFont !== serif ? [defaultCJKFont] : []),
-    ...CJK_SERIF_FONTS.filter((font) => font !== serif && font !== defaultCJKFont),
-    ...lastSerifFonts.filter(
-      (font) => SERIF_FONTS.includes(font) && !lastSerifFonts.includes(defaultCJKFont),
-    ),
-    ...FALLBACK_FONTS,
-  ];
-  
-  // 构建无衬线字体栈
-  const sansSerifFonts = [
-    sansSerif,
-    ...SANS_SERIF_FONTS.filter((font) => font !== sansSerif && font !== defaultCJKFont),
-    ...(defaultCJKFont !== sansSerif ? [defaultCJKFont] : []),
-    ...CJK_SANS_SERIF_FONTS.filter((font) => font !== sansSerif && font !== defaultCJKFont),
-    ...FALLBACK_FONTS,
-  ];
-  
-  // 构建等宽字体栈
-  const monospaceFonts = [monospace, ...MONOSPACE_FONTS.filter((font) => font !== monospace)];
-  
-  // 移动端字体缩放（与readest一致）
+  // 移动端字体缩放
   const fontScale = isMobile() ? 1.25 : 1;
   const scaledFontSize = fontSize * fontScale;
   
-  // 生成CSS样式（与readest格式完全一致）
+  // 组合字体栈 - 参考readest的策略
+  const lastSerifFonts = ['Georgia', 'Times New Roman'];
+  const finalSerifFonts = [
+    serif,
+    ...SERIF_FONTS.filter(f => f !== serif && f !== defaultCJKFont && !lastSerifFonts.includes(f)),
+    ...(defaultCJKFont !== serif ? [defaultCJKFont] : []),
+    ...CJK_SERIF_FONTS.filter(f => f !== serif && f !== defaultCJKFont),
+    ...lastSerifFonts.filter(f => SERIF_FONTS.includes(f) && !lastSerifFonts.includes(defaultCJKFont)),
+    ...FALLBACK_FONTS,
+  ];
+  
+  const finalSansSerifFonts = [
+    sansSerif,
+    ...SANS_SERIF_FONTS.filter(f => f !== sansSerif && f !== defaultCJKFont),
+    ...(defaultCJKFont !== sansSerif ? [defaultCJKFont] : []),
+    ...CJK_SANS_SERIF_FONTS.filter(f => f !== sansSerif && f !== defaultCJKFont),
+    ...FALLBACK_FONTS,
+  ];
+  
+  console.log('🎨 字体切换 (readest策略):', {
+    defaultFont,
+    defaultCJKFont,
+    scaledFontSize,
+    overrideFont
+  });
+  
+  // 采用readest的字体样式策略
   const fontStyles = `
     html {
-      --serif: ${serifFonts.map((font) => `"${font}"`).join(', ')}, serif;
-      --sans-serif: ${sansSerifFonts.map((font) => `"${font}"`).join(', ')}, sans-serif;
-      --monospace: ${monospaceFonts.map((font) => `"${font}"`).join(', ')}, monospace;
+      --serif: ${finalSerifFonts.map(f => `"${f}"`).join(', ')}, serif;
+      --sans-serif: ${finalSansSerifFonts.map(f => `"${f}"`).join(', ')}, sans-serif;
+      --monospace: ${monospaceFonts.map(f => `"${f}"`).join(', ')}, monospace;
     }
+    
+    /* 基础字体设置 - 关键：字体大小总是强制设置 */
     html, body {
       font-family: var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) ${overrideFont ? '!important' : ''};
       font-size: ${scaledFontSize}px !important;
@@ -117,57 +127,52 @@ export const getFontStyles = (
       -webkit-text-size-adjust: none;
       text-size-adjust: none;
     }
+    
+    /* 🔥 增强优先级：强制字体大小应用到所有元素 */
+    html *, body *, p, div, span, h1, h2, h3, h4, h5, h6, article, section, main, li, td, th {
+      font-size: inherit !important;
+    }
+    
+    /* 🔥 特定字体大小覆盖 */
+    p, div:not([class*="icon"]):not([class*="svg"]), span:not([class*="icon"]) {
+      font-size: ${scaledFontSize}px !important;
+      line-height: inherit !important;
+    }
+    
+    /* 标题相对大小 */
+    h1 { font-size: ${scaledFontSize * 2}px !important; }
+    h2 { font-size: ${scaledFontSize * 1.5}px !important; }
+    h3 { font-size: ${scaledFontSize * 1.3}px !important; }
+    h4 { font-size: ${scaledFontSize * 1.1}px !important; }
+    h5 { font-size: ${scaledFontSize}px !important; }
+    h6 { font-size: ${scaledFontSize * 0.9}px !important; }
+    
+    /* 字体大小规则 */
+    font[size="1"] { font-size: ${minFontSize}px !important; }
+    font[size="2"] { font-size: ${minFontSize * 1.5}px !important; }
+    font[size="3"] { font-size: ${scaledFontSize}px !important; }
+    font[size="4"] { font-size: ${scaledFontSize * 1.2}px !important; }
+    font[size="5"] { font-size: ${scaledFontSize * 1.5}px !important; }
+    font[size="6"] { font-size: ${scaledFontSize * 2}px !important; }
+    font[size="7"] { font-size: ${scaledFontSize * 3}px !important; }
+    
+    /* 覆盖常见的内联样式 */
+    [style*="font-size: 16px"], [style*="font-size:16px"],
+    [style*="font-size: 14px"], [style*="font-size:14px"],
+    [style*="font-size: 12px"], [style*="font-size:12px"],
+    [style*="font-size: 18px"], [style*="font-size:18px"] {
+      font-size: ${scaledFontSize}px !important;
+    }
+    
+    /* readest策略：子元素字体继承 */
+    body * {
+      ${overrideFont ? 'font-family: revert !important;' : ''}
+    }
+    
+    /* 等宽字体 */
     code, pre, .code, tt, kbd, samp {
       font-family: var(--monospace) !important;
     }
-    [lang="zh"], [lang="zh-CN"], [lang="zh-TW"] {
-      font-family: "${defaultCJKFont}", var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) ${overrideFont ? '!important' : ''};
-    }
-    /* 确保阅读器内容使用正确的字体 */
-    .content, .chapter, .book-content, article, section {
-      font-family: var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) ${overrideFont ? '!important' : ''};
-    }
-    /* 中文字符强制使用CJK字体 */
-    .cjk, [data-lang*="zh"], [data-lang*="ja"], [data-lang*="ko"] {
-      font-family: "${defaultCJKFont}", var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) !important;
-    }
-    font[size="1"] {
-      font-size: ${minFontSize}px;
-    }
-    font[size="2"] {
-      font-size: ${minFontSize * 1.5}px;
-    }
-    font[size="3"] {
-      font-size: ${scaledFontSize}px;
-    }
-    font[size="4"] {
-      font-size: ${scaledFontSize * 1.2}px;
-    }
-    font[size="5"] {
-      font-size: ${scaledFontSize * 1.5}px;
-    }
-    font[size="6"] {
-      font-size: ${scaledFontSize * 2}px;
-    }
-    font[size="7"] {
-      font-size: ${scaledFontSize * 3}px;
-    }
-    /* hardcoded inline font size */
-    [style*="font-size: 16px"], [style*="font-size:16px"] {
-      font-size: 1rem !important;
-    }
-    ${overrideFont ? `
-    /* 强制覆盖所有字体 */
-    * {
-      font-family: var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) !important;
-    }
-    code, pre, .code, tt, kbd, samp {
-      font-family: var(--monospace) !important;
-    }
-    [lang="zh"], [lang="zh-CN"], [lang="zh-TW"], .cjk {
-      font-family: "${defaultCJKFont}", var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) !important;
-    }
-    ` : ''}
   `;
   return fontStyles;
 };

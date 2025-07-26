@@ -475,41 +475,41 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
         <h2 className="mb-2 font-medium">段落</h2>
         <div className="card bg-base-100 border-base-200 border shadow">
           <div className="divide-base-200 divide-y">
-            <NumberInput
-              label="段落间距 (em)"
-              value={paragraphMargin}
+        <NumberInput
+          label="段落间距 (em)"
+          value={paragraphMargin}
               onChange={setParagraphMargin}
-              min={0}
+          min={0}
               max={4}
               step={0.2}
-            />
-            <NumberInput
-              label="行高"
-              value={lineHeight}
+        />
+        <NumberInput
+          label="行高"
+          value={lineHeight}
               onChange={setLineHeight}
               min={1.0}
               max={3.0}
-              step={0.1}
-            />
-            <NumberInput
-              label="字间距 (px)"
-              value={wordSpacing}
+          step={0.1}
+        />
+        <NumberInput
+          label="字间距 (px)"
+          value={wordSpacing}
               onChange={setWordSpacing}
               min={-4}
               max={8}
-              step={0.5}
-            />
-            <NumberInput
-              label="字母间距 (px)"
-              value={letterSpacing}
+          step={0.5}
+        />
+        <NumberInput
+          label="字母间距 (px)"
+          value={letterSpacing}
               onChange={setLetterSpacing}
-              min={-2}
+          min={-2}
               max={4}
               step={0.5}
-            />
-            <NumberInput
-              label="首行缩进 (em)"
-              value={textIndent}
+        />
+        <NumberInput
+          label="首行缩进 (em)"
+          value={textIndent}
               onChange={setTextIndent}
               min={-2}
               max={4}
@@ -527,23 +527,23 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
             )}
             <div className="config-item">
               <span>两端对齐</span>
-              <input
-                type="checkbox"
+          <input
+            type="checkbox"
                 className="toggle"
-                checked={fullJustification}
+            checked={fullJustification}
                 onChange={() => setFullJustification(!fullJustification)}
               />
-            </div>
+        </div>
             <div className="config-item">
               <span>自动断词</span>
-              <input
-                type="checkbox"
+          <input
+            type="checkbox"
                 className="toggle"
-                checked={hyphenation}
+            checked={hyphenation}
                 onChange={() => setHyphenation(!hyphenation)}
               />
             </div>
-          </div>
+        </div>
         </div>
       </div>
 
@@ -552,97 +552,97 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
         <h2 className="mb-2 font-medium">页面</h2>
         <div className="card bg-base-100 border-base-200 border shadow">
           <div className="divide-base-200 divide-y">
-            <NumberInput
+          <NumberInput
               label="上边距 (px)"
               value={showHeader && !isVertical ? marginTopPx : compactMarginTopPx}
-              onChange={(value) => {
+            onChange={(value) => {
                 if (showHeader && !isVertical) {
-                  setMarginTopPx(value);
-                } else {
-                  setCompactMarginTopPx(value);
-                }
-              }}
-              min={0}
-              max={88}
-              step={4}
-            />
-            <NumberInput
+                setMarginTopPx(value);
+              } else {
+                setCompactMarginTopPx(value);
+              }
+            }}
+            min={0}
+            max={88}
+            step={4}
+          />
+          <NumberInput
               label="下边距 (px)"
               value={showFooter && !isVertical ? marginBottomPx : compactMarginBottomPx}
-              onChange={(value) => {
+            onChange={(value) => {
                 if (showFooter && !isVertical) {
-                  setMarginBottomPx(value);
-                } else {
-                  setCompactMarginBottomPx(value);
-                }
-              }}
-              min={0}
-              max={88}
-              step={4}
-            />
-            <NumberInput
+                setMarginBottomPx(value);
+              } else {
+                setCompactMarginBottomPx(value);
+              }
+            }}
+            min={0}
+            max={88}
+            step={4}
+          />
+          <NumberInput
               label="左边距 (px)"
               value={showFooter && isVertical ? marginLeftPx : compactMarginLeftPx}
-              onChange={(value) => {
+            onChange={(value) => {
                 if (showFooter && isVertical) {
-                  setMarginLeftPx(value);
-                } else {
-                  setCompactMarginLeftPx(value);
-                }
-              }}
-              min={0}
-              max={88}
-              step={4}
-            />
-            <NumberInput
+                setMarginLeftPx(value);
+              } else {
+                setCompactMarginLeftPx(value);
+              }
+            }}
+            min={0}
+            max={88}
+            step={4}
+          />
+          <NumberInput
               label="右边距 (px)"
-              value={showHeader && isVertical ? marginRightPx : compactMarginRightPx}
-              onChange={(value) => {
-                if (showHeader && isVertical) {
-                  setMarginRightPx(value);
-                } else {
-                  setCompactMarginRightPx(value);
-                }
-              }}
-              min={0}
-              max={88}
-              step={4}
-            />
-            <NumberInput
-              label="列间距 (%)"
-              value={gapPercent}
+            value={showHeader && isVertical ? marginRightPx : compactMarginRightPx}
+            onChange={(value) => {
+              if (showHeader && isVertical) {
+                setMarginRightPx(value);
+              } else {
+                setCompactMarginRightPx(value);
+              }
+            }}
+            min={0}
+            max={88}
+            step={4}
+          />
+        <NumberInput
+          label="列间距 (%)"
+          value={gapPercent}
               onChange={setGapPercent}
-              min={0}
-              max={30}
-              step={1}
-            />
-            <NumberInput
-              label="最大列数"
-              value={maxColumnCount}
+          min={0}
+          max={30}
+          step={1}
+        />
+        <NumberInput
+          label="最大列数"
+          value={maxColumnCount}
               onChange={setMaxColumnCount}
-              min={1}
-              max={4}
-              step={1}
-            />
-            <NumberInput
-              label={isVertical ? '最大列高度' : '最大列宽度'}
-              value={maxInlineSize}
+          min={1}
+          max={4}
+          step={1}
+        />
+        <NumberInput
+          label={isVertical ? '最大列高度' : '最大列宽度'}
+          value={maxInlineSize}
               onChange={setMaxInlineSize}
               disabled={maxColumnCount === 1 || currentSettings.scrolled}
-              min={400}
-              max={9999}
-              step={100}
-            />
-            <NumberInput
-              label={isVertical ? '最大列宽度' : '最大列高度'}
-              value={maxBlockSize}
+          min={400}
+          max={9999}
+          step={100}
+        />
+        <NumberInput
+          label={isVertical ? '最大列宽度' : '最大列高度'}
+          value={maxBlockSize}
               onChange={setMaxBlockSize}
               disabled={maxColumnCount === 1 || currentSettings.scrolled}
-              min={400}
-              max={9999}
-              step={100}
-            />
-          </div>
+          min={400}
+          max={9999}
+          step={100}
+        />
+      </div>
         </div>
       </div>
 
@@ -653,26 +653,26 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
           <div className="divide-base-200 divide-y">
             <div className="config-item">
               <span>显示页眉</span>
-              <input
-                type="checkbox"
+            <input
+              type="checkbox"
                 className="toggle"
-                checked={showHeader}
+              checked={showHeader}
                 onChange={() => setShowHeader(!showHeader)}
               />
-            </div>
+          </div>
             <div className="config-item">
               <span>显示页脚</span>
-              <input
-                type="checkbox"
+            <input
+              type="checkbox"
                 className="toggle"
-                checked={showFooter}
+              checked={showFooter}
                 onChange={() => setShowFooter(!showFooter)}
               />
-            </div>
+          </div>
             <div className="config-item">
               <span>显示剩余时间</span>
-              <input
-                type="checkbox"
+            <input
+              type="checkbox"
                 className="toggle"
                 checked={showRemainingTime}
                 disabled={!showFooter}
@@ -685,11 +685,11 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
                   }
                 }}
               />
-            </div>
+          </div>
             <div className="config-item">
               <span>显示剩余页数</span>
-              <input
-                type="checkbox"
+            <input
+              type="checkbox"
                 className="toggle"
                 checked={showRemainingPages}
                 disabled={!showFooter}
@@ -702,21 +702,21 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
                   }
                 }}
               />
-            </div>
+          </div>
             <div className="config-item">
               <span>显示页码</span>
-              <input
-                type="checkbox"
+            <input
+              type="checkbox"
                 className="toggle"
                 checked={showPageNumber}
                 disabled={!showFooter}
                 onChange={() => setShowPageNumber(!showPageNumber)}
               />
-            </div>
+          </div>
             <div className="config-item">
               <span>滚动模式下也显示</span>
-              <input
-                type="checkbox"
+            <input
+              type="checkbox"
                 className="toggle"
                 checked={showBarsOnScroll}
                 onChange={() => setShowBarsOnScroll(!showBarsOnScroll)}

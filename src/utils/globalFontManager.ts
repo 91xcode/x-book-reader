@@ -83,10 +83,10 @@ const generateIframeFontStyles = (settings: ViewSettings): string => {
     sansSerifFont = 'Roboto',
     monospaceFont = 'Consolas',
     defaultFont = 'Serif',
-    defaultCJKFont = 'LXGW WenKai',
+    defaultCJKFont = 'LXGW WenKai', // 使用本地字体
     defaultFontSize = 16,
     fontWeight = 400,
-    overrideFont = true
+    overrideFont = false // 与readest保持一致的默认值
   } = settings;
 
   const fontFamily = defaultFont.toLowerCase() === 'serif' 

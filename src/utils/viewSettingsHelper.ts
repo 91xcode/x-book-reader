@@ -1,7 +1,7 @@
 import { ViewSettings } from '@/types/book';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useReaderStore } from '@/store/readerStore';
-import { getStyles } from '@/utils/style';
+import { getCompleteStyles } from '@/utils/style';
 
 /**
  * 视图设置同步助手
@@ -26,10 +26,11 @@ export const useViewSettingsSync = () => {
 
     setViewSettings(bookKey, updatedSettings);
     
-    // 应用样式
+    // 应用样式 - 使用getCompleteStyles
     const view = getView(bookKey);
     if (view?.renderer?.setStyles) {
-      view.renderer.setStyles(getStyles(updatedSettings));
+      console.log('🎨 应用全局设置到书籍:', bookKey, updatedSettings);
+      view.renderer.setStyles(getCompleteStyles(updatedSettings));
     }
   };
 
@@ -38,18 +39,19 @@ export const useViewSettingsSync = () => {
    */
   const initializeBookSettings = (bookKey: string, defaultSettings?: Partial<ViewSettings>) => {
     const existingSettings = getViewSettings(bookKey);
-    
-    if (!existingSettings) {
-      const baseSettings = isFontLayoutSettingsGlobal 
-        ? settings.globalViewSettings 
-        : { ...settings.globalViewSettings, ...defaultSettings };
-        
-      setViewSettings(bookKey, baseSettings as ViewSettings);
+    if (existingSettings) return; // 已经初始化
+
+    const settingsToUse = isFontLayoutSettingsGlobal && settings.globalViewSettings
+      ? { ...defaultSettings, ...settings.globalViewSettings }
+      : defaultSettings;
+
+    if (settingsToUse) {
+      setViewSettings(bookKey, settingsToUse as ViewSettings);
     }
   };
 
   /**
-   * 保存设置到适当的位置（全局或书籍特定）并立即应用样式
+   * 保存单个视图设置并立即应用样式
    */
   const saveViewSetting = (
     bookKey: string, 
@@ -59,21 +61,44 @@ export const useViewSettingsSync = () => {
     applyStyles = true
   ) => {
     const currentSettings = getViewSettings(bookKey);
-    if (!currentSettings) return;
+    if (!currentSettings) {
+      console.warn(`⚠️ 未找到书籍设置: ${bookKey}`);
+      return;
+    }
 
     // 检查值是否真的改变了
-    if (currentSettings[key] === value) return;
+    if (currentSettings[key] === value) {
+      console.log(`📝 设置值未变化，跳过: ${key} = ${value}`);
+      return;
+    }
 
     const updatedSettings = { ...currentSettings, [key]: value };
-    setViewSettings(bookKey, updatedSettings);
+    
+    // 特别记录字体大小变化
+    if (key === 'defaultFontSize') {
+      console.log(`🔤 字体大小变化: ${currentSettings[key]} → ${value}px`);
+    }
+    
+    console.log(`🎨 保存视图设置: ${key} = ${value}`, {
+      旧值: currentSettings[key],
+      新值: value,
+      书籍: bookKey
+    });
 
-    // 立即应用样式
+    // 🔥 关键修复：像readest一样立即应用样式
     if (applyStyles) {
       const view = getView(bookKey);
       if (view?.renderer?.setStyles) {
-        view.renderer.setStyles(getStyles(updatedSettings));
+        const styles = getCompleteStyles(updatedSettings);
+        view.renderer.setStyles(styles);
+        console.log('🎯 立即应用样式（readest方式）');
+      } else {
+        console.warn('⚠️ 未找到view或renderer，无法应用样式');
       }
     }
+
+    // 更新store
+    setViewSettings(bookKey, updatedSettings);
 
     // 如果启用全局设置且未跳过全局更新，则同时更新全局设置
     if (isFontLayoutSettingsGlobal && !skipGlobal) {
@@ -83,7 +108,6 @@ export const useViewSettingsSync = () => {
 
     // TODO: 保存到持久化存储
     // 这里应该调用类似 saveConfig 和 saveSettings 的函数
-    console.log(`Setting ${String(key)} = ${value} for book ${bookKey}`);
   };
 
   return {

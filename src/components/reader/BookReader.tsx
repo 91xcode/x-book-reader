@@ -1,9 +1,7 @@
 import clsx from 'clsx';
 import React from 'react';
-
-import { Book } from '@/types/book';
-import { BookDoc } from '@/libs/document';
-import { BookConfig } from '@/types/book';
+import { useReaderStore } from '../../store/readerStore';
+import { Book, BookDoc, BookConfig } from '../../types/book';
 
 interface Insets {
   top: number;
@@ -32,32 +30,25 @@ const BookReader: React.FC<BookReaderProps> = ({
   isSidebarVisible,
   onToggleSidebar,
 }) => {
-  // 简化的配置
+  // 使用readerStore中的实际viewSettings，而不是硬编码
+  const { getViewSettings } = useReaderStore();
+  const bookKey = `${book.hash}-primary`; // 生成book key
+  const viewSettings = getViewSettings(bookKey);
+
+  // 如果viewSettings还没有初始化，显示加载状态
+  if (!viewSettings) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="loading loading-spinner loading-lg"></div>
+        <span className="ml-2">加载字体设置中...</span>
+      </div>
+    );
+  }
+
+  // 使用实际的viewSettings构建config
   const config: BookConfig = {
     location: null,
-    viewSettings: {
-      theme: 'light',
-      defaultFontSize: 16,
-      lineHeight: 1.6,
-      fontFamily: 'serif',
-      marginTopPx: 48,
-      marginBottomPx: 48,
-      marginLeftPx: 48,
-      marginRightPx: 48,
-      gapPercent: 3.33,
-      maxColumnCount: 2,
-      maxInlineSize: 720,
-      maxBlockSize: 1440,
-      overrideColor: false,
-      invertImgColorInDark: false,
-      scrolled: false,
-      animated: true,
-      writingMode: 'auto',
-      allowScript: false,
-      showHeader: true,
-      showFooter: true,
-      doubleBorder: false
-    }
+    viewSettings
   };
 
   // 内容边距 - 参考 readest 项目

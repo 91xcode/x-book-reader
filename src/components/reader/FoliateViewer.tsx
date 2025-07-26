@@ -74,12 +74,12 @@ const FoliateViewer: React.FC<{
   const getDocTransformHandler = ({ width, height }: { width: number; height: number }) => {
     return (event: Event) => {
       const { detail } = event as CustomEvent;
-      console.log('Document transform', { width, height, detail });
-      
-      // Basic transform - can be enhanced with actual transformation logic
       detail.data = Promise.resolve(detail.data)
         .then((data) => {
-          return data; // For now, return data as-is
+          const viewSettings = getViewSettings(bookKey);
+          if (viewSettings && detail.type === 'text/css')
+            return data; // 让CSS保持原样，我们用setStyles处理
+          return data;
         })
         .catch((e) => {
           console.error(`Failed to load ${detail.name}:`, e);
@@ -88,29 +88,20 @@ const FoliateViewer: React.FC<{
     };
   };
 
+  // 🔥 关键修复：文档加载处理器
   const docLoadHandler = (event: Event) => {
-    const { detail } = event as CustomEvent;
-    console.log('doc index loaded:', detail.index);
-    if (detail.doc) {
-      const currentViewSettings = getViewSettings(bookKey)!;
-      
-      // Apply basic styles to the document
+    const detail = (event as CustomEvent).detail;
+    console.log('📄 文档加载完成:', detail.index);
+    
+    if (detail.doc && viewSettings) {
+      // 基础处理：确保脚本执行权限
       if (detail.isScript) {
-        detail.allowScript = currentViewSettings?.allowScript ?? false;
+        detail.allowScript = viewSettings.allowScript ?? false;
       }
-
-      // Apply layout styles using the new method
-      applyFixedlayoutStyles(detail.doc, currentViewSettings);
-
-      // Add basic event listeners to the document
-      if (!detail.doc.isEventListenersAdded) {
-        detail.doc.isEventListenersAdded = true;
-        detail.doc.addEventListener('keydown', (e: KeyboardEvent) => {
-          console.log('Document keydown:', e.key);
-        });
-        detail.doc.addEventListener('click', (e: MouseEvent) => {
-          console.log('Document click:', e.target);
-        });
+      
+      // 预分页布局的特殊处理
+      if (bookDoc.rendition?.layout === 'pre-paginated') {
+        applyFixedlayoutStyles(detail.doc, viewSettings);
       }
     }
   };
@@ -327,26 +318,29 @@ const FoliateViewer: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookKey, bookDoc]);
 
-  // 当视图设置改变时更新样式 (debounced to prevent loops)
+  // 当主题和颜色设置改变时更新样式 (采用readest方式)
   useEffect(() => {
-    if (!viewRef.current || !viewRef.current.renderer || !viewSettings) return;
+    if (!viewRef.current || !viewRef.current.renderer || !viewSettings) {
+      console.log('📖 FoliateViewer: 跳过样式更新', {
+        hasView: !!viewRef.current,
+        hasRenderer: !!viewRef.current?.renderer,
+        hasSettings: !!viewSettings
+      });
+      return;
+    }
     
-    const timeoutId = setTimeout(() => {
-      if (viewRef.current && viewRef.current.renderer && viewSettings) {
-        console.log('📖 FoliateViewer: 更新字体样式', {
-          defaultCJKFont: viewSettings.defaultCJKFont,
-          serifFont: viewSettings.serifFont,
-          sansSerifFont: viewSettings.sansSerifFont,
-          monospaceFont: viewSettings.monospaceFont
-        });
-        const styles = getCompleteStyles(viewSettings);
-        console.log('📖 生成的样式长度:', styles.length);
-        viewRef.current.renderer.setStyles?.(styles);
-      }
-    }, 150);
+    console.log('🎨 FoliateViewer: 主题/颜色变化，重新应用样式');
+    const styles = getCompleteStyles(viewSettings);
+    viewRef.current.renderer.setStyles?.(styles);
+    console.log('✅ FoliateViewer: 主题样式已应用到iframe');
     
-    return () => clearTimeout(timeoutId);
-  }, [viewSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    // 🔥 采用readest的精简依赖：只监听主题和颜色变化
+    viewSettings?.theme,
+    viewSettings?.overrideColor,
+    viewSettings?.invertImgColorInDark,
+  ]);
 
   // 当insets改变时更新边距和间距 (debounced)
   useEffect(() => {

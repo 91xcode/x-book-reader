@@ -90,13 +90,11 @@ export const useReaderStore = create<ReaderState>()(
       },
     }));
     
-    // Apply styles immediately after setting (debounced to prevent infinite loops)
-    const timeoutId = setTimeout(() => {
-      get().applyViewStyles(bookKey);
-    }, 50);
-    
-    // Store timeout to allow cleanup if needed
-    (globalThis as any).__styleApplyTimeout = timeoutId;
+    console.log('📚 Store: 更新viewSettings', {
+      bookKey,
+      fontSize: settings.defaultFontSize,
+      overrideFont: settings.overrideFont
+    });
   },
 
   getViewSettings: (bookKey: string) => {
@@ -152,11 +150,25 @@ export const useReaderStore = create<ReaderState>()(
     if (!view || !settings) return;
     
     try {
-      // Apply styles - will be handled by view events or direct CSS injection
+      // Apply styles - 关键修复：实际应用样式到iframe
       const styles = getCompleteStyles(settings);
       
-      // Store styles for later application when docs are loaded
-      (view as any)._pendingStyles = styles;
+      console.log('🎨 Store: 应用样式到iframe', {
+        bookKey,
+        stylesLength: styles.length,
+        fontSize: settings.defaultFontSize,
+        overrideFont: settings.overrideFont
+      });
+      
+      // 实际应用样式到iframe
+      if (view.renderer?.setStyles) {
+        view.renderer.setStyles(styles);
+        console.log('✅ Store: 样式已成功应用到iframe');
+      } else {
+        // Store styles for later application when docs are loaded
+        (view as any)._pendingStyles = styles;
+        console.log('📝 Store: 样式已暂存，等待iframe准备就绪');
+      }
       
       // Apply layout properties to renderer
       if (view.renderer) {
