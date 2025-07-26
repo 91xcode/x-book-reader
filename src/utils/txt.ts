@@ -1,493 +1,402 @@
-import JSZip from 'jszip'
+import { getBaseFilename } from './book';
 
-/**
- * TXT转EPUB转换器
- * 完整实现 - 将TXT文件转换为标准EPUB格式
- */
+interface Metadata {
+  bookTitle: string;
+  author: string;
+  language: string;
+  identifier: string;
+}
+
+interface Chapter {
+  title: string;
+  content: string;
+}
+
+interface Txt2EpubOptions {
+  file: File;
+  author?: string;
+  language?: string;
+}
+
+interface ExtractChapterOptions {
+  linesBetweenSegments: number;
+  paragraphsPerChapter?: number;
+}
+
+interface ConversionResult {
+  file: File;
+  bookTitle: string;
+  chapterCount: number;
+  language: string;
+}
+
+const zipWriteOptions = {
+  lastAccessDate: new Date(0),
+  lastModDate: new Date(0),
+};
+
+const escapeXml = (str: string) => {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+};
+
+// 简化的MD5计算函数
+const partialMD5 = async (file: File): Promise<string> => {
+  const chunk = file.slice(0, Math.min(1024 * 1024, file.size)); // 1MB或文件大小
+  const buffer = await chunk.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+};
+
 export class TxtToEpubConverter {
-  private static readonly CHAPTER_PATTERNS = [
-    /^第[一二三四五六七八九十百千万\d]+章[\s\S]*$/i,
-    /^Chapter\s*\d+[\s\S]*$/i,
-    /^CHAPTER\s*\d+[\s\S]*$/i,
-    /^第\d+章[\s\S]*$/i,
-    /^序章|序言|前言|楔子|引言/i,
-    /^尾声|后记|结语|番外/i,
-    /^卷[一二三四五六七八九十\d]+[\s\S]*$/i,
-    /^Volume\s*\d+[\s\S]*$/i,
-    /^VOLUME\s*\d+[\s\S]*$/i,
-  ]
+  public async convert(options: Txt2EpubOptions): Promise<ConversionResult> {
+    const { file: txtFile, author: providedAuthor, language: providedLanguage } = options;
 
-  private static readonly ENCODING_PATTERNS = {
-    'utf-8': [0xEF, 0xBB, 0xBF],
-    'utf-16le': [0xFF, 0xFE],
-    'utf-16be': [0xFE, 0xFF],
-  }
+    const fileContent = await txtFile.arrayBuffer();
+    const detectedEncoding = this.detectEncoding(fileContent) || 'utf-8';
+    const decoder = new TextDecoder(detectedEncoding);
+    const txtContent = decoder.decode(fileContent).trim();
 
-  async convert({ file }: { file: File }): Promise<{ file: File }> {
-    try {
-      // 检测文本编码并读取内容
-      const { text, encoding } = await this.readTextWithEncoding(file)
-      
-      // 从文件名提取标题和可能的作者
-      const { title, author } = this.extractMetadataFromFilename(file.name)
+    const bookTitle = this.extractBookTitle(getBaseFilename(txtFile.name));
+    const fileName = `${bookTitle}.epub`;
 
-      // 检测和分割章节
-      const chapters = this.detectAndSplitChapters(text, title)
+    const fileHeader = txtContent.slice(0, 1024);
+    const authorMatch =
+      fileHeader.match(/[【\[]?作者[】\]]?[:：\s]\s*(.+)\r?\n/) ||
+      fileHeader.match(/[【\[]?\s*(.+)\s+著\s*[】\]]?\r?\n/);
+    const author = authorMatch ? authorMatch[1]!.trim() : providedAuthor || '';
+    const language = providedLanguage || this.detectLanguage(fileHeader);
+    const identifier = await partialMD5(txtFile);
+    const metadata = { bookTitle, author, language, identifier };
 
-      // 生成完整的EPUB文件
-      const epubBlob = await this.generateEpubFile(title, author, chapters, encoding)
+    let chapters: Chapter[] = [];
+    for (let i = 4; i >= 3; i--) {
+      chapters = this.extractChapters(txtContent, metadata, {
+        linesBetweenSegments: i,
+      });
 
-      // 创建新的EPUB文件对象
-      const epubFile = new File([epubBlob], `${title}.epub`, { 
-        type: 'application/epub+zip',
-        lastModified: Date.now() 
-      })
-
-      return { file: epubFile }
-    } catch (error) {
-      console.error('TXT转EPUB失败:', error)
-      throw new Error(`TXT转EPUB失败: ${error instanceof Error ? error.message : '未知错误'}`)
-    }
-  }
-
-  /**
-   * 检测文本编码并读取内容
-   */
-  private async readTextWithEncoding(file: File): Promise<{ text: string; encoding: string }> {
-    const buffer = await file.arrayBuffer()
-    const encoding = this.detectEncoding(buffer)
-    
-    try {
-      // 尝试使用检测到的编码解码
-      const decoder = new TextDecoder(encoding)
-      const text = decoder.decode(buffer)
-      return { text, encoding }
-    } catch (error) {
-      console.warn(`编码 ${encoding} 解码失败，尝试使用 UTF-8`)
-      // 回退到UTF-8
-      const decoder = new TextDecoder('utf-8')
-      const text = decoder.decode(buffer)
-      return { text, encoding: 'utf-8' }
-    }
-  }
-
-  /**
-   * 检测文本编码（增强版）
-   */
-  private detectEncoding(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer)
-
-    // 检测BOM
-    for (const [encoding, pattern] of Object.entries(TxtToEpubConverter.ENCODING_PATTERNS)) {
-      if (bytes.length >= pattern.length) {
-        const match = pattern.every((byte, index) => bytes[index] === byte)
-        if (match) return encoding
+      if (chapters.length === 0) {
+        throw new Error('No chapters detected.');
+      } else if (chapters.length > 1) {
+        break;
       }
     }
-
-    // 检测中文编码（简化版）
-    const sample = bytes.slice(0, Math.min(1024, bytes.length))
-    
-    // 检测UTF-8模式
-    let utf8Score = 0
-    for (let i = 0; i < sample.length; i++) {
-      const byte = sample[i]
-      if (byte >= 0x80) {
-        // 多字节UTF-8序列
-        let continuationBytes = 0
-        if ((byte & 0xE0) === 0xC0) continuationBytes = 1
-        else if ((byte & 0xF0) === 0xE0) continuationBytes = 2
-        else if ((byte & 0xF8) === 0xF0) continuationBytes = 3
-        
-        if (continuationBytes > 0) {
-          let valid = true
-          for (let j = 1; j <= continuationBytes && i + j < sample.length; j++) {
-            if ((sample[i + j] & 0xC0) !== 0x80) {
-              valid = false
-              break
-            }
-          }
-          if (valid) {
-            utf8Score += continuationBytes + 1
-            i += continuationBytes
-          }
-        }
-      }
+    if (chapters.length === 1) {
+      chapters = this.extractChapters(txtContent, metadata, {
+        linesBetweenSegments: 4,
+        paragraphsPerChapter: 100,
+      });
     }
 
-    // 如果UTF-8分数足够高，认为是UTF-8
-    if (utf8Score > sample.length * 0.1) {
-      return 'utf-8'
-    }
-
-    // 默认使用UTF-8
-    return 'utf-8'
+    const blob = await this.createEpub(chapters, metadata);
+    return {
+      file: new File([blob], fileName),
+      bookTitle,
+      chapterCount: chapters.length,
+      language,
+    };
   }
 
-  /**
-   * 从文件名提取元数据
-   */
-  private extractMetadataFromFilename(filename: string): { title: string; author: string } {
-    const nameWithoutExt = filename.replace(/\.(txt|TXT)$/, '')
-    
-    // 尝试匹配 "作者 - 书名" 或 "书名 - 作者" 格式
-    const dashMatch = nameWithoutExt.match(/^(.+?)\s*[-—–]\s*(.+)$/)
-    if (dashMatch) {
-      const [, part1, part2] = dashMatch
-      // 简单启发式：较短的可能是作者，较长的可能是标题
-      if (part1.length < part2.length && part1.length < 20) {
-        return { title: part2.trim(), author: part1.trim() }
+  private extractChapters(
+    txtContent: string,
+    metadata: Metadata,
+    option: ExtractChapterOptions,
+  ): Chapter[] {
+    const { language } = metadata;
+    const { linesBetweenSegments, paragraphsPerChapter } = option;
+    const segmentRegex = new RegExp(`(?:\\r?\\n){${linesBetweenSegments},}|-{8,}\r?\n`);
+    let chapterRegex: RegExp;
+    if (language === 'zh') {
+      chapterRegex = new RegExp(
+        String.raw`(?:^|\n|\s)` +
+          '(' +
+          [
+            String.raw`第[零〇一二三四五六七八九十0-9][零〇一二三四五六七八九十百千万0-9]*(?:[章卷节回讲篇封])(?:[：:、 　\(\)0-9]*[^\n-]{0,24})(?!\S)`,
+            String.raw`(?:^|\n|\s|《[^》]+》)[一二三四五六七八九十][零〇一二三四五六七八九十百千万]*(?:[：: 　][^\n-]{0,24})(?!\S)`,
+            String.raw`(?:楔子|前言|引言|序言|序章|总论|概论)(?:[：: 　][^\n-]{0,24})?(?!\S)`,
+          ].join('|') +
+          ')',
+        'gu',
+      );
       } else {
-        return { title: part1.trim(), author: part2.trim() }
+      chapterRegex =
+        /(?:^|\n|\s)(?:(Chapter|Part)\s+(\d+|[IVXLCDM]+)(?:[:.\-–—]?\s+[^\n]*)?|(?:Prologue|Epilogue|Introduction|Foreword)(?:[:.\-–—]?\s+[^\n]*)?)(?=\s|$)/gi;
+    }
+
+    const formatSegment = (segment: string): string => {
+      segment = escapeXml(segment);
+      return segment
+        .replace(/-{8,}|_{8,}/g, '\n')
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter((line) => line)
+        .join('</p><p>');
+    };
+
+    const joinAroundUndefined = (arr: (string | undefined)[]) =>
+      arr.reduce<string[]>((acc, curr, i, src) => {
+        if (
+          curr === undefined &&
+          i > 0 &&
+          i < src.length - 1 &&
+          src[i - 1] !== undefined &&
+          src[i + 1] !== undefined
+        ) {
+          acc[acc.length - 1] += src[i + 1]!;
+          return acc;
+        }
+        if (curr !== undefined && (i === 0 || src[i - 1] !== undefined)) {
+          acc.push(curr);
+        }
+        return acc;
+      }, []);
+
+    const chapters: Chapter[] = [];
+    const segments = txtContent.split(segmentRegex);
+    for (const segment of segments) {
+      const trimmedSegment = segment.replace(/<!--.*?-->/g, '').trim();
+      if (!trimmedSegment) continue;
+
+      if (paragraphsPerChapter && paragraphsPerChapter > 0) {
+        const paragraphs = trimmedSegment.split(/\n+/);
+        const totalParagraphs = paragraphs.length;
+        for (let i = 0; i < totalParagraphs; i += paragraphsPerChapter) {
+          const chunks = paragraphs.slice(i, i + paragraphsPerChapter);
+          const formattedSegment = formatSegment(chunks.join('\n'));
+          const title = `${chapters.length + 1}`;
+          const content = `<h2>${title}</h2><p>${formattedSegment}</p>`;
+          chapters.push({ title, content });
+        }
+        continue;
       }
-    }
 
-    // 尝试匹配作者名模式（例如：[作者名]书名）
-    const authorBracketMatch = nameWithoutExt.match(/^[\[【](.+?)[\]】]\s*(.+)$/)
-    if (authorBracketMatch) {
-      const [, author, title] = authorBracketMatch
-      return { title: title.trim(), author: author.trim() }
-    }
+      const segmentChapters = [];
+      const matches = joinAroundUndefined(trimmedSegment.split(chapterRegex));
+      for (let j = 1; j < matches.length; j += 2) {
+        const title = matches[j]?.trim() || '';
+        const content = matches[j + 1]?.trim() || '';
 
-    // 默认情况：文件名作为标题
-    return { title: nameWithoutExt.trim(), author: '未知作者' }
-  }
-
-  /**
-   * 增强的章节检测和分割
-   */
-  private detectAndSplitChapters(text: string, defaultTitle: string): Array<{ title: string; content: string; id: string }> {
-    const lines = text.split(/\r?\n/)
-    const chapters: Array<{ title: string; content: string; id: string }> = []
-    let currentChapter: { title: string; content: string; id: string } | null = null
-    let chapterCount = 0
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim()
-      
-      // 检测章节标题
-      const isChapterTitle = this.isChapterTitle(line)
-      
-      if (isChapterTitle && line.length < 100) { // 章节标题通常不会太长
-        // 保存上一章节
-        if (currentChapter && currentChapter.content.trim()) {
-          chapters.push(currentChapter)
+        let isVolume = false;
+        if (language === 'zh') {
+          isVolume = /第[零〇一二三四五六七八九十百千万0-9]+卷/.test(title);
+        } else {
+          isVolume = /\b(Part|Volume|Book)\b/i.test(title);
         }
-        
-        // 开始新章节
-        chapterCount++
-        currentChapter = {
-          title: line || `第${chapterCount}章`,
-          content: '',
-          id: `chapter-${chapterCount}`
-        }
-      } else if (currentChapter) {
-        // 添加内容到当前章节
-        currentChapter.content += lines[i] + '\n'
-      } else {
-        // 如果还没有章节，创建默认章节
-        if (!currentChapter) {
-          currentChapter = {
-            title: defaultTitle,
-            content: '',
-            id: 'chapter-1'
-          }
-        }
-        currentChapter.content += lines[i] + '\n'
+
+        const headTitle = isVolume ? `<h1>${title}</h1>` : `<h2>${title}</h2>`;
+        const formattedSegment = formatSegment(content);
+        segmentChapters.push({
+          title: escapeXml(title),
+          content: `${headTitle}<p>${formattedSegment}</p>`,
+        });
       }
+
+      if (matches[0] && matches[0].trim()) {
+        const initialContent = matches[0].trim();
+        const firstLine = initialContent.split('\n')[0]!.trim();
+        const segmentTitle =
+          (firstLine.length > 16 ? initialContent.split(/[\n\s\p{P}]/u)[0]!.trim() : firstLine) ||
+          initialContent.slice(0, 16);
+        const formattedSegment = formatSegment(initialContent);
+        segmentChapters.unshift({
+          title: escapeXml(segmentTitle),
+          content: `<h3></h3><p>${formattedSegment}</p>`,
+        });
+      }
+      chapters.push(...segmentChapters);
     }
 
-    // 添加最后一个章节
-    if (currentChapter && currentChapter.content.trim()) {
-      chapters.push(currentChapter)
-    }
-
-    // 如果没有检测到章节，创建单个章节
-    if (chapters.length === 0) {
-      chapters.push({
-        title: defaultTitle,
-        content: text,
-        id: 'chapter-1'
-      })
-    }
-
-    return chapters
+    return chapters;
   }
 
-  /**
-   * 检测是否为章节标题
-   */
-  private isChapterTitle(line: string): boolean {
-    if (!line || line.length < 2) return false
-    
-    return TxtToEpubConverter.CHAPTER_PATTERNS.some(pattern => pattern.test(line))
-  }
+  private async createEpub(chapters: Chapter[], metadata: Metadata): Promise<Blob> {
+    const JSZip = (await import('jszip')).default;
+    const { bookTitle, author, language, identifier } = metadata;
 
-  /**
-   * 生成完整的EPUB文件
-   */
-  private async generateEpubFile(
-    title: string, 
-    author: string, 
-    chapters: Array<{ title: string; content: string; id: string }>,
-    encoding: string
-  ): Promise<Blob> {
-    const zip = new JSZip()
+    const zip = new JSZip();
     
-    // EPUB文件必需的文件结构
-    
-    // 1. mimetype文件
-    zip.file('mimetype', 'application/epub+zip')
-    
-    // 2. META-INF目录
-    const metaInf = zip.folder('META-INF')!
-    metaInf.file('container.xml', this.generateContainerXml())
-    
-    // 3. OEBPS目录（内容目录）
-    const oebps = zip.folder('OEBPS')!
-    
-    // 4. 生成content.opf（包文件）
-    oebps.file('content.opf', this.generateContentOpf(title, author, chapters))
-    
-    // 5. 生成toc.ncx（目录文件）
-    oebps.file('toc.ncx', this.generateTocNcx(title, author, chapters))
-    
-    // 6. 生成样式文件
-    oebps.file('styles.css', this.generateStylesCss())
-    
-    // 7. 生成章节HTML文件
-    for (const chapter of chapters) {
-      const htmlContent = this.generateChapterHtml(chapter, title)
-      oebps.file(`${chapter.id}.xhtml`, htmlContent)
-    }
-    
-    // 生成EPUB文件
-    return await zip.generateAsync({ 
-      type: 'blob',
-      mimeType: 'application/epub+zip',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 }
-    })
-  }
+    // Add mimetype
+    zip.file('mimetype', 'application/epub+zip');
 
-  /**
-   * 生成container.xml
-   */
-  private generateContainerXml(): string {
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+    // Add META-INF/container.xml
+    const containerXml = `<?xml version="1.0" encoding="UTF-8"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
   <rootfiles>
-    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>`
-  }
+</container>`;
 
-  /**
-   * 生成content.opf
-   */
-  private generateContentOpf(title: string, author: string, chapters: Array<{ title: string; id: string }>): string {
-    const bookId = `book-${Date.now()}`
-    const now = new Date().toISOString()
-    
-    const manifest = chapters.map(chapter => 
-      `<item id="${chapter.id}" href="${chapter.id}.xhtml" media-type="application/xhtml+xml"/>`
-    ).join('\n    ')
-    
-    const spine = chapters.map(chapter => 
-      `<itemref idref="${chapter.id}"/>`
-    ).join('\n    ')
+    zip.file('META-INF/container.xml', containerXml);
 
-    return `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="2.0">
-  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
-    <dc:identifier id="bookid">${bookId}</dc:identifier>
-    <dc:title>${this.escapeXml(title)}</dc:title>
-    <dc:creator opf:role="aut">${this.escapeXml(author)}</dc:creator>
-    <dc:language>zh-CN</dc:language>
-    <dc:date>${now}</dc:date>
-    <meta name="generator" content="new-x-project TXT to EPUB Converter"/>
-  </metadata>
-  <manifest>
-    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-    <item id="styles" href="styles.css" media-type="text/css"/>
-    ${manifest}
-  </manifest>
-  <spine toc="ncx">
-    ${spine}
-  </spine>
-</package>`
-  }
-
-  /**
-   * 生成toc.ncx
-   */
-  private generateTocNcx(title: string, author: string, chapters: Array<{ title: string; id: string }>): string {
-    const navPoints = chapters.map((chapter, index) => 
-      `<navPoint id="${chapter.id}" playOrder="${index + 1}">
+    // Create navigation points for TOC
+    const navPoints = chapters
+      .map((chapter, index) => {
+        const id = `chapter${index + 1}`;
+        const playOrder = index + 1;
+        return `
+        <navPoint id="navPoint-${id}" playOrder="${playOrder}">
       <navLabel>
-        <text>${this.escapeXml(chapter.title)}</text>
+            <text>${chapter.title}</text>
       </navLabel>
-      <content src="${chapter.id}.xhtml"/>
-    </navPoint>`
-    ).join('\n    ')
+          <content src="./OEBPS/${id}.xhtml" />
+        </navPoint>`;
+      })
+      .join('\n');
 
-    return `<?xml version="1.0" encoding="UTF-8"?>
+    // Add NCX file (table of contents)
+    const tocNcx = `<?xml version="1.0" encoding="UTF-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
   <head>
-    <meta name="dtb:uid" content="book-${Date.now()}"/>
-    <meta name="dtb:depth" content="1"/>
-    <meta name="dtb:totalPageCount" content="0"/>
-    <meta name="dtb:maxPageNumber" content="0"/>
+    <meta name="dtb:uid" content="book-id" />
+    <meta name="dtb:depth" content="1" />
+    <meta name="dtb:totalPageCount" content="0" />
+    <meta name="dtb:maxPageNumber" content="0" />
   </head>
   <docTitle>
-    <text>${this.escapeXml(title)}</text>
+    <text>${escapeXml(bookTitle)}</text>
   </docTitle>
   <docAuthor>
-    <text>${this.escapeXml(author)}</text>
+    <text>${escapeXml(author)}</text>
   </docAuthor>
   <navMap>
     ${navPoints}
   </navMap>
-</ncx>`
-  }
+</ncx>`;
 
-  /**
-   * 生成CSS样式
-   */
-  private generateStylesCss(): string {
-    return `
-body {
-  font-family: "宋体", "SimSun", "Times New Roman", serif;
-  line-height: 1.8;
-  margin: 2em;
-  font-size: 16px;
-  color: #333;
-}
+    zip.file('toc.ncx', tocNcx);
 
-h1 {
-  text-align: center;
-  margin: 2em 0 1em 0;
-  font-size: 1.5em;
-  font-weight: bold;
-  color: #000;
-  border-bottom: 1px solid #ccc;
-  padding-bottom: 0.5em;
-}
+    // Create manifest and spine items
+    const manifest = chapters
+      .map(
+        (_, index) => `
+      <item id="chap${index + 1}" href="OEBPS/chapter${index + 1}.xhtml" media-type="application/xhtml+xml"/>`,
+      )
+      .join('\n');
 
-p {
-  margin: 1em 0;
-  text-indent: 2em;
-  text-align: justify;
-}
+    const spine = chapters
+      .map(
+        (_, index) => `
+      <itemref idref="chap${index + 1}"/>`,
+      )
+      .join('\n');
 
-.chapter {
-  page-break-before: always;
-  margin-bottom: 2em;
-}
+    // Add CSS stylesheet
+    const css = `
+      body { line-height: 1.6; font-size: 1em; font-family: 'Arial', sans-serif; text-align: justify; }
+      p { text-indent: 2em; margin: 0; }
+    `;
 
-.chapter:first-child {
-  page-break-before: auto;
-}
+    zip.file('style.css', css);
 
-/* 对话处理 */
-p:has(")、")::before,
-p:has(""、")::before {
-  content: "";
-  margin-left: -2em;
-}
-
-/* 空行处理 */
-.empty-line {
-  height: 1em;
-}
-`
-  }
-
-  /**
-   * 生成章节HTML
-   */
-  private generateChapterHtml(chapter: { title: string; content: string; id: string }, bookTitle: string): string {
-    const formattedContent = this.formatChapterContent(chapter.content)
-    
-    return `<?xml version="1.0" encoding="UTF-8"?>
+    // Add chapter files
+    for (let i = 0; i < chapters.length; i++) {
+      const chapter = chapters[i]!;
+      const chapterContent = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-  <title>${this.escapeXml(chapter.title)} - ${this.escapeXml(bookTitle)}</title>
-  <link rel="stylesheet" type="text/css" href="styles.css"/>
+    <title>${chapter.title}</title>
+    <link rel="stylesheet" type="text/css" href="../style.css"/>
 </head>
-<body>
-  <div class="chapter" id="${chapter.id}">
-    <h1>${this.escapeXml(chapter.title)}</h1>
-    ${formattedContent}
-  </div>
-</body>
-</html>`
+  <body>${chapter.content}</body>
+</html>`;
+
+      zip.file(`OEBPS/chapter${i + 1}.xhtml`, chapterContent);
+    }
+
+    const tocManifest = `<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`;
+
+    // Add content.opf file
+    const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="book-id" version="2.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>${escapeXml(bookTitle)}</dc:title>
+    <dc:language>${language}</dc:language>
+    <dc:creator>${escapeXml(author)}</dc:creator>
+    <dc:identifier id="book-id">${identifier}</dc:identifier>
+  </metadata>
+  <manifest>
+    ${manifest}
+    ${tocManifest}
+  </manifest>
+  <spine toc="ncx">
+    ${spine}
+  </spine>
+</package>`;
+
+    zip.file('content.opf', contentOpf);
+
+    return await zip.generateAsync({ type: 'blob' });
   }
 
-  /**
-   * 格式化章节内容
-   */
-  private formatChapterContent(content: string): string {
-    return content
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .map(line => {
-        if (line.length === 0) {
-          return '<div class="empty-line"></div>'
-        }
-        return `<p>${this.escapeXml(line)}</p>`
-      })
-      .join('\n    ')
+  private detectEncoding(buffer: ArrayBuffer): string | undefined {
+    try {
+      new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+      return 'utf-8';
+    } catch {
+      // If UTF-8 decoding fails, try to detect other encodings
+    }
+
+    const headerBytes = new Uint8Array(buffer.slice(0, 4));
+
+    if (headerBytes[0] === 0xff && headerBytes[1] === 0xfe) {
+      return 'utf-16le';
+    }
+
+    if (headerBytes[0] === 0xfe && headerBytes[1] === 0xff) {
+      return 'utf-16be';
+    }
+
+    if (headerBytes[0] === 0xef && headerBytes[1] === 0xbb && headerBytes[2] === 0xbf) {
+      return 'utf-8';
+    }
+
+    // Analyze a sample of the content to guess between common East Asian encodings
+    const sample = new Uint8Array(buffer.slice(0, Math.min(1024, buffer.byteLength)));
+    let highByteCount = 0;
+
+    for (let i = 0; i < sample.length; i++) {
+      if (sample[i]! >= 0x80) {
+        highByteCount++;
+      }
+    }
+
+    const highByteRatio = highByteCount / sample.length;
+    if (highByteRatio > 0.3) {
+      return 'gbk';
+    }
+
+    return 'utf-8';
   }
 
-  /**
-   * XML转义
-   */
-  private escapeXml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;')
-  }
-}
+  private detectLanguage(fileHeader: string): string {
+    const sample = fileHeader;
+    let chineseCount = 0;
+    for (let i = 0; i < sample.length; i++) {
+      const code = sample.charCodeAt(i);
+      if (
+        (code >= 0x4e00 && code <= 0x9fff) ||
+        (code >= 0x3400 && code <= 0x4dbf) ||
+        (code >= 0x20000 && code <= 0x2a6df)
+      ) {
+        chineseCount++;
+      }
+    }
+    if (chineseCount / sample.length > 0.05) {
+      return 'zh';
+    }
 
-/**
- * 工具函数：格式化标题
- */
-export const formatTitle = (title: string | undefined): string => {
-  if (!title) return '未命名书籍'
-  return title.trim().replace(/[<>:"/\\|?*]/g, '_')
-}
+    return 'en';
+  }
 
-/**
- * 工具函数：格式化作者
- */
-export const formatAuthors = (author: any): string => {
-  if (typeof author === 'string') {
-    return author.trim()
+  private extractBookTitle(filename: string): string {
+    const match = filename.match(/《([^》]+)》/);
+    return match ? match[1]! : filename.split('.')[0]!;
   }
-  if (Array.isArray(author)) {
-    return author.map(a => typeof a === 'string' ? a : a.name || '').join(', ')
-  }
-  if (typeof author === 'object' && author !== null) {
-    return author.name || '未知作者'
-  }
-  return '未知作者'
-}
-
-/**
- * 工具函数：获取主要语言
- */
-export const getPrimaryLanguage = (language: any): string => {
-  if (typeof language === 'string') {
-    return language
-  }
-  if (Array.isArray(language) && language.length > 0) {
-    return language[0]
-  }
-  return 'zh-CN'
 } 

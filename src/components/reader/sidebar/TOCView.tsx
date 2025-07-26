@@ -1,74 +1,79 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { OverlayScrollbarsComponent } from 'overlayscrollbars-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FixedSizeList as VirtualList } from 'react-window';
+
+import { useOverlayScrollbars } from 'overlayscrollbars-react';
+import 'overlayscrollbars/overlayscrollbars.css';
 import { TOCItem } from '@/types/book';
 import { useReaderStore } from '@/store/readerStore';
+import { findParentPath } from '@/utils/toc';
 import { eventDispatcher } from '@/utils/event';
-import TOCItemView from './TOCItem';
+import { getContentMd5 } from '@/utils/misc';
+import { FlatTOCItem, StaticListRow, VirtualListRow } from './TOCItem';
 
-interface FlatTOCItem {
-  item: TOCItem;
-  level: number;
-}
+const useFlattenedTOC = (toc: TOCItem[], expandedItems: Set<string>) => {
+  return useMemo(() => {
+    const flattenTOC = (items: TOCItem[], depth = 0): FlatTOCItem[] => {
+      const result: FlatTOCItem[] = [];
+      items.forEach((item, index) => {
+        const isExpanded = expandedItems.has(item.href || '');
+        result.push({ item, depth, index, isExpanded });
+        if (item.subitems && isExpanded) {
+          result.push(...flattenTOC(item.subitems, depth + 1));
+        }
+      });
+      return result;
+    };
+
+    return flattenTOC(toc);
+  }, [toc, expandedItems]);
+};
 
 const TOCView: React.FC<{
   bookKey: string;
   toc: TOCItem[];
 }> = ({ bookKey, toc }) => {
-  const { getView, getProgress } = useReaderStore();
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [containerHeight, setContainerHeight] = useState(400);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const staticListRef = useRef<HTMLDivElement>(null);
-  const vitualListRef = useRef<any>(null);
-
+  const { getView, getProgress, getViewSettings } = useReaderStore();
+  const viewSettings = getViewSettings(bookKey);
   const progress = getProgress(bookKey);
 
-  // 展开所有父级项目
-  const useFlattenedTOC = (toc: TOCItem[], expandedItems: Set<string>): FlatTOCItem[] => {
-    const flattened: FlatTOCItem[] = [];
-    
-    const flatten = (items: TOCItem[], level: number = 0) => {
-      items.forEach((item) => {
-        flattened.push({ item, level });
-        
-        if (item.subitems && item.subitems.length > 0) {
-          const isExpanded = expandedItems.has(item.href || '');
-          if (isExpanded) {
-            flatten(item.subitems, level + 1);
-          }
-        }
-      });
-    };
-    
-    flatten(toc);
-    return flattened;
-  };
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [containerHeight, setContainerHeight] = useState(400);
 
-  // 查找父级路径
-  const findParentPath = (toc: TOCItem[], targetHref: string): TOCItem[] => {
-    const path: TOCItem[] = [];
-    
-    const search = (items: TOCItem[]): boolean => {
-      for (const item of items) {
-        path.push(item);
-        
-        if (item.href === targetHref) {
-          return true;
-        }
-        
-        if (item.subitems && search(item.subitems)) {
-          return true;
-        }
-        
-        path.pop();
-      }
-      
-      return false;
-    };
-    
-    search(toc);
-    return path;
-  };
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const listOuterRef = useRef<HTMLDivElement | null>(null);
+  const vitualListRef = useRef<VirtualList | null>(null);
+  const staticListRef = useRef<HTMLDivElement | null>(null);
+
+  const [initialize] = useOverlayScrollbars({
+    defer: true,
+    options: {
+      scrollbars: {
+        autoHide: 'scroll',
+      },
+      showNativeOverlaidScrollbars: false,
+    },
+    events: {
+      initialized(osInstance) {
+        const { viewport } = osInstance.elements();
+        viewport.style.overflowX = `var(--os-viewport-overflow-x)`;
+        viewport.style.overflowY = `var(--os-viewport-overflow-y)`;
+      },
+    },
+  });
+
+  useEffect(() => {
+    const { current: root } = containerRef;
+    const { current: virtualOuter } = listOuterRef;
+
+    if (root && virtualOuter) {
+      initialize({
+        target: root,
+        elements: {
+          viewport: virtualOuter,
+        },
+      });
+    }
+  }, [initialize]);
 
   useEffect(() => {
     const updateHeight = () => {
@@ -82,10 +87,8 @@ const TOCView: React.FC<{
         }
       }
     };
-    
     updateHeight();
     window.addEventListener('resize', updateHeight);
-    
     let resizeObserver: ResizeObserver | null = null;
     if (containerRef.current) {
       const parentContainer = containerRef.current.closest('.scroll-container');
@@ -149,7 +152,8 @@ const TOCView: React.FC<{
     }
 
     if (staticListRef.current) {
-      const activeItem = staticListRef.current?.querySelector(`[data-href="${activeHref}"]`);
+      const hrefMd5 = activeHref ? getContentMd5(activeHref) : '';
+      const activeItem = staticListRef.current?.querySelector(`[data-href="${hrefMd5}"]`);
       if (activeItem) {
         const rect = activeItem.getBoundingClientRect();
         const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
@@ -177,58 +181,59 @@ const TOCView: React.FC<{
     [flatItems, virtualItemSize, bookKey, activeHref, handleToggleExpand, handleItemClick],
   );
 
-  // 自动展开到当前活动项目
   useEffect(() => {
-    if (activeHref && toc.length > 0) {
-      expandParents(toc, activeHref);
+    if (!progress) return;
+
+    const { sectionHref: currentHref } = progress;
+    if (currentHref) {
+      expandParents(toc, currentHref);
     }
-  }, [activeHref, toc, expandParents]);
+  }, [toc, progress, bookKey, expandParents]);
 
-  // 滚动到活动项目
   useEffect(() => {
-    scrollToActiveItem();
-  }, [scrollToActiveItem]);
+    if (flatItems.length > 0) {
+      setTimeout(scrollToActiveItem, 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flatItems, scrollToActiveItem]);
 
-  if (!toc || toc.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <div className="text-base-content/60 mb-4">
-          <div className="w-16 h-16 mx-auto mb-4 bg-base-300 rounded-lg flex items-center justify-center">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium mb-2">无目录信息</h3>
-          <p className="text-sm">该书籍暂无目录结构</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div ref={containerRef} className="toc-view h-full">
-      <OverlayScrollbarsComponent
-        className="h-full"
-        options={{
-          scrollbars: { autoHide: 'scroll' },
-          showNativeOverlaidScrollbars: false
-        }}
-        defer
+  return flatItems.length > 256 ? (
+    <div
+      className='virtual-list rounded pt-2'
+      data-overlayscrollbars-initialize=''
+      ref={containerRef}
+    >
+      <VirtualList
+        ref={vitualListRef}
+        outerRef={listOuterRef}
+        width='100%'
+        height={containerHeight}
+        itemCount={flatItems.length}
+        itemSize={virtualItemSize}
+        itemData={virtualListData}
+        overscanCount={20}
+        initialScrollOffset={
+          activeItemIndex >= 0
+            ? Math.max(0, activeItemIndex * virtualItemSize - containerHeight / 2)
+            : undefined
+        }
       >
-        <div ref={staticListRef} className="px-4 py-2">
-          {flatItems.map((flatItem, index) => (
-            <TOCItemView
-              key={`${flatItem.item.href}-${index}`}
-              flatItem={flatItem}
-              isActive={flatItem.item.href === activeHref}
-              onToggleExpand={handleToggleExpand}
-              onItemClick={handleItemClick}
-            />
-          ))}
-        </div>
-      </OverlayScrollbarsComponent>
+        {VirtualListRow}
+      </VirtualList>
+    </div>
+  ) : (
+    <div className='static-list rounded pt-2' ref={staticListRef}>
+      {flatItems.map((flatItem, index) => (
+        <StaticListRow
+          key={`static-row-${index}`}
+          bookKey={bookKey}
+          flatItem={flatItem}
+          activeHref={activeHref}
+          onToggleExpand={handleToggleExpand}
+          onItemClick={handleItemClick}
+        />
+      ))}
     </div>
   );
 };
-
 export default TOCView; 

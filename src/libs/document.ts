@@ -1,7 +1,38 @@
 import { BookFormat, BookMetadata, BookDoc } from '@/types/book'
 
-// 为foliate-js提供Polyfills（如果需要的话）
-// 这些是新的JavaScript功能，在较老的环境中可能需要polyfill
+// Polyfills for foliate-js
+if (!(Object as any).groupBy) {
+  (Object as any).groupBy = (iterable: any, callbackfn: any) => {
+    const obj = Object.create(null);
+    let i = 0;
+    for (const value of iterable) {
+      const key = callbackfn(value, i++);
+      if (key in obj) {
+        obj[key].push(value);
+      } else {
+        obj[key] = [value];
+      }
+    }
+    return obj;
+  };
+}
+
+if (!(Map as any).groupBy) {
+  (Map as any).groupBy = (iterable: any, callbackfn: any) => {
+    const map = new Map();
+    let i = 0;
+    for (const value of iterable) {
+      const key = callbackfn(value, i++);
+      const list = map.get(key);
+      if (list) {
+        list.push(value);
+      } else {
+        map.set(key, [value]);
+      }
+    }
+    return map;
+  };
+}
 
 export type DocumentFile = File
 
@@ -25,6 +56,35 @@ export class DocumentLoader {
     this.file = file
   }
 
+  private async makeZipLoader() {
+    // 使用JSZip作为替代
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+    const zipContent = await zip.loadAsync(this.file);
+    
+    const entries = Object.keys(zipContent.files).map(filename => ({
+      filename,
+      ...zipContent.files[filename]
+    }));
+
+    const loadText = (name: string) => {
+      const file = zipContent.files[name];
+      return file ? file.async('text') : null;
+    };
+
+    const loadBlob = (name: string, type?: string) => {
+      const file = zipContent.files[name];
+      return file ? file.async('blob') : null;
+    };
+
+    const getSize = (name: string) => {
+      const file = zipContent.files[name];
+      return file ? (file as any).uncompressedSize ?? 0 : 0;
+    };
+
+    return { entries, loadText, loadBlob, getSize, sha1: undefined };
+  }
+
   private async isZip(): Promise<boolean> {
     const arr = new Uint8Array(await this.file.slice(0, 4).arrayBuffer())
     return arr[0] === 0x50 && arr[1] === 0x4b && arr[2] === 0x03 && arr[3] === 0x04
@@ -37,291 +97,102 @@ export class DocumentLoader {
     )
   }
 
-  private isTXT(): boolean {
-    return (
-      this.file.type === 'text/plain' || 
-      this.file.name.endsWith('.txt') ||
-      this.file.name.endsWith('.TXT')
-    )
-  }
-
-  private isEPUB(): boolean {
-    return (
-      this.file.type === 'application/epub+zip' || 
-      this.file.name.endsWith('.epub') ||
-      this.file.name.endsWith('.EPUB')
-    )
-  }
-
   private isCBZ(): boolean {
     return (
       this.file.type === 'application/vnd.comicbook+zip' || 
-      this.file.name.endsWith('.cbz') ||
-      this.file.name.endsWith('.CBZ')
+      this.file.name.endsWith(`.${EXTS.CBZ}`)
     )
   }
 
   private isFB2(): boolean {
     return (
       this.file.type === 'application/x-fictionbook+xml' || 
-      this.file.name.endsWith('.fb2') ||
-      this.file.name.endsWith('.FB2')
+      this.file.name.endsWith(`.${EXTS.FB2}`)
     )
   }
 
-  private isMOBI(): boolean {
+  private isFBZ(): boolean {
     return (
-      this.file.name.endsWith('.mobi') ||
-      this.file.name.endsWith('.MOBI') ||
-      this.file.name.endsWith('.azw3') ||
-      this.file.name.endsWith('.AZW3')
+      this.file.type === 'application/x-zip-compressed-fb2' ||
+      this.file.name.endsWith('.fb2.zip') ||
+      this.file.name.endsWith(`.${EXTS.FBZ}`)
     )
   }
 
   public async open(): Promise<{ book: BookDoc; format: BookFormat }> {
+    let book = null;
+    let format: BookFormat = 'EPUB';
+    
     if (!this.file.size) {
-      throw new Error('文件为空')
+      throw new Error('File is empty');
     }
-
-    let book: BookDoc
-    let format: BookFormat
 
     try {
-      if (this.isTXT()) {
-        // 处理TXT文件 - 创建简单的元数据
-        const text = await this.file.text()
-        book = await this.createTXTBook(text)
-        format = 'TXT'
-      } else if (await this.isPDF()) {
-        // PDF格式处理（目前简化实现）
-        book = await this.createPDFBook()
-        format = 'PDF'
-      } else if (await this.isZip()) {
-        if (this.isEPUB()) {
-          book = await this.createEPUBBook()
-          format = 'EPUB'
-        } else if (this.isCBZ()) {
-          book = await this.createCBZBook()
-          format = 'CBZ'
+      if (await this.isZip()) {
+        const loader = await this.makeZipLoader();
+        const { entries } = loader;
+
+        if (this.isCBZ()) {
+          const { makeComicBook } = await import('foliate-js/comic-book.js');
+          book = makeComicBook(loader, this.file);
+          format = 'CBZ';
+        } else if (this.isFBZ()) {
+          const entry = entries.find((entry: any) => entry.filename.endsWith(`.${EXTS.FB2}`));
+          const blob = await loader.loadBlob((entry ?? entries[0]).filename);
+          const { makeFB2 } = await import('foliate-js/fb2.js');
+          book = await makeFB2(blob);
+          format = 'FBZ';
         } else {
-          throw new Error('不支持的ZIP格式')
+          const { EPUB } = await import('foliate-js/epub.js');
+          book = await new EPUB(loader).init();
+          format = 'EPUB';
         }
+      } else if (await this.isPDF()) {
+        const { makePDF } = await import('foliate-js/pdf.js');
+        book = await makePDF(this.file);
+        format = 'PDF';
+      } else if (await (await import('foliate-js/mobi.js')).isMOBI(this.file)) {
+        const fflate = await import('foliate-js/vendor/fflate.js');
+        const { MOBI } = await import('foliate-js/mobi.js');
+        book = await new MOBI({ unzlib: fflate.unzlibSync }).open(this.file);
+        format = 'MOBI';
       } else if (this.isFB2()) {
-        book = await this.createFB2Book()
-        format = 'FB2'
-      } else if (this.isMOBI()) {
-        book = await this.createMOBIBook()
-        format = this.file.name.toLowerCase().endsWith('.azw3') ? 'AZW3' : 'MOBI'
+        const { makeFB2 } = await import('foliate-js/fb2.js');
+        book = await makeFB2(this.file);
+        format = 'FB2';
+      } else if (this.file.name.toLowerCase().endsWith('.txt')) {
+        // 处理TXT文件：转换为EPUB然后使用foliate-js处理
+        const { TxtToEpubConverter } = await import('../utils/txt');
+        const converter = new TxtToEpubConverter();
+        const { file: epubFile } = await converter.convert({ file: this.file });
+        
+        // 使用foliate-js的EPUB处理器处理转换后的文件
+        const loader = await this.makeZipLoader.call({ file: epubFile });
+        const { EPUB } = await import('foliate-js/epub.js');
+        book = await new EPUB(loader).init();
+        format = 'EPUB'; // 转换后是EPUB格式
       } else {
-        throw new Error('不支持的文件格式')
+        throw new Error('Unsupported file format');
       }
 
-      return { book, format }
+      return { book, format } as { book: BookDoc; format: BookFormat };
     } catch (error) {
-      console.error('解析书籍失败:', error)
-      throw new Error(`解析书籍失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      console.error('Failed to parse book:', error);
+      throw new Error(`Failed to parse book: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  private async createTXTBook(text: string): Promise<BookDoc> {
-    // 从文件名提取标题
-    const title = this.file.name.replace(/\.(txt|TXT)$/, '')
-    
-    // 简单的章节检测 - 查找以"第X章"、"Chapter"等开头的行
-    const lines = text.split('\n')
-    const chapters: any[] = []
-    let currentChapter = 0
 
-    lines.forEach((line, index) => {
-      if (line.match(/^(第[一二三四五六七八九十\d]+章|Chapter\s*\d+|CHAPTER\s*\d+)/)) {
-        chapters.push({
-          id: currentChapter++,
-          label: line.trim(),
-          href: `#chapter-${currentChapter}`,
-          location: { current: index, total: lines.length }
-        })
-      }
-    })
 
-    // 如果没有检测到章节，创建一个默认章节
-    if (chapters.length === 0) {
-      chapters.push({
-        id: 0,
-        label: title,
-        href: '#chapter-0',
-        location: { current: 0, total: lines.length }
-      })
-    }
 
-    return {
-      metadata: {
-        title: title,
-        author: '未知作者',
-        language: 'zh-CN',
-        description: `从TXT文件导入: ${this.file.name}`
-      },
-      dir: 'ltr',
-      toc: chapters,
-      sections: [{
-        id: 'main',
-        cfi: '',
-        size: text.length,
-        linear: 'yes'
-      }],
-      transformTarget: new EventTarget(),
-      splitTOCHref: (href: string) => [href, 0],
-      getCover: async () => null
-    }
-  }
 
-  private async createPDFBook(): Promise<BookDoc> {
-    const title = this.file.name.replace(/\.(pdf|PDF)$/, '')
-    
-    return {
-      metadata: {
-        title: title,
-        author: '未知作者',
-        language: 'zh-CN',
-        description: `从PDF文件导入: ${this.file.name}`
-      },
-      dir: 'ltr',
-      toc: [{
-        id: 0,
-        label: title,
-        href: '#page-1'
-      }],
-      sections: [{
-        id: 'main',
-        cfi: '',
-        size: this.file.size,
-        linear: 'yes'
-      }],
-      transformTarget: new EventTarget(),
-      splitTOCHref: (href: string) => [href, 0],
-      getCover: async () => null
-    }
-  }
 
-  private async createEPUBBook(): Promise<BookDoc> {
-    // 简化的EPUB处理 - 实际项目中应该使用foliate-js
-    const title = this.file.name.replace(/\.(epub|EPUB)$/, '')
-    
-    return {
-      metadata: {
-        title: title,
-        author: '未知作者',
-        language: 'zh-CN',
-        description: `从EPUB文件导入: ${this.file.name}`
-      },
-      dir: 'ltr',
-      toc: [{
-        id: 0,
-        label: title,
-        href: '#chapter-1'
-      }],
-      sections: [{
-        id: 'main',
-        cfi: '',
-        size: this.file.size,
-        linear: 'yes'
-      }],
-      transformTarget: new EventTarget(),
-      splitTOCHref: (href: string) => [href, 0],
-      getCover: async () => null
-    }
-  }
 
-  private async createCBZBook(): Promise<BookDoc> {
-    const title = this.file.name.replace(/\.(cbz|CBZ)$/, '')
-    
-    return {
-      metadata: {
-        title: title,
-        author: '未知作者',
-        language: 'zh-CN',
-        description: `从CBZ文件导入: ${this.file.name}`
-      },
-      dir: 'ltr',
-      toc: [{
-        id: 0,
-        label: title,
-        href: '#page-1'
-      }],
-      sections: [{
-        id: 'main',
-        cfi: '',
-        size: this.file.size,
-        linear: 'yes'
-      }],
-      transformTarget: new EventTarget(),
-      splitTOCHref: (href: string) => [href, 0],
-      getCover: async () => null
-    }
-  }
 
-  private async createFB2Book(): Promise<BookDoc> {
-    const title = this.file.name.replace(/\.(fb2|FB2)$/, '')
-    
-    return {
-      metadata: {
-        title: title,
-        author: '未知作者',
-        language: 'zh-CN',
-        description: `从FB2文件导入: ${this.file.name}`
-      },
-      dir: 'ltr',
-      toc: [{
-        id: 0,
-        label: title,
-        href: '#chapter-1'
-      }],
-      sections: [{
-        id: 'main',
-        cfi: '',
-        size: this.file.size,
-        linear: 'yes'
-      }],
-      transformTarget: new EventTarget(),
-      splitTOCHref: (href: string) => [href, 0],
-      getCover: async () => null
-    }
-  }
 
-  private async createMOBIBook(): Promise<BookDoc> {
-    const title = this.file.name.replace(/\.(mobi|MOBI|azw3|AZW3)$/, '')
-    
-    return {
-      metadata: {
-        title: title,
-        author: '未知作者',
-        language: 'zh-CN',
-        description: `从${this.file.name.split('.').pop()?.toUpperCase()}文件导入: ${this.file.name}`
-      },
-      dir: 'ltr',
-      toc: [{
-        id: 0,
-        label: title,
-        href: '#chapter-1'
-      }],
-      sections: [{
-        id: 'main',
-        cfi: '',
-        size: this.file.size,
-        linear: 'yes'
-      }],
-      transformTarget: new EventTarget(),
-      splitTOCHref: (href: string) => [href, 0],
-      getCover: async () => null
-    }
-  }
+
+
+
 }
 
-// 工具函数：获取文件名（不含扩展名）
-export const getBaseFilename = (filename: string): string => {
-  return filename.replace(/\.[^/.]+$/, '')
-}
-
-// 工具函数：获取文件名（含扩展名）
-export const getFilename = (path: string): string => {
-  return path.split('/').pop() || path
-} 
+ 

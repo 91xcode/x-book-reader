@@ -1,107 +1,176 @@
-import React from 'react';
-import { MdKeyboardArrowDown, MdKeyboardArrowRight } from 'react-icons/md';
-import { TOCItem } from '@/types/book';
 import clsx from 'clsx';
+import React, { useCallback } from 'react';
+import { ListChildComponentProps } from 'react-window';
+import { TOCItem } from '@/types/book';
+import { getContentMd5 } from '@/utils/misc';
 
-interface FlatTOCItem {
+const createExpanderIcon = (isExpanded: boolean) => {
+  return (
+    <svg
+      viewBox='0 0 8 10'
+      width='8'
+      height='10'
+      className={clsx(
+        'text-base-content transform transition-transform',
+        isExpanded ? 'rotate-90' : 'rotate-0',
+      )}
+      style={{ transformOrigin: 'center' }}
+      fill='currentColor'
+    >
+      <polygon points='0 0, 8 5, 0 10' />
+    </svg>
+  );
+};
+
+export interface FlatTOCItem {
   item: TOCItem;
-  level: number;
+  depth: number;
+  index: number;
+  isExpanded?: boolean;
 }
 
-interface TOCItemViewProps {
+const TOCItemView = React.memo<{
+  bookKey: string;
   flatItem: FlatTOCItem;
+  itemSize?: number;
   isActive: boolean;
+  onToggleExpand: (item: TOCItem) => void;
+  onItemClick: (item: TOCItem) => void;
+}>(({ flatItem, itemSize, isActive, onToggleExpand, onItemClick }) => {
+  const { item, depth } = flatItem;
+
+  const handleToggleExpand = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onToggleExpand(item);
+    },
+    [item, onToggleExpand],
+  );
+
+  const handleClickItem = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      onItemClick(item);
+    },
+    [item, onItemClick],
+  );
+
+  return (
+    <div
+      role='treeitem'
+      tabIndex={-1}
+      onClick={item.href ? handleClickItem : undefined}
+      aria-expanded={flatItem.isExpanded ? 'true' : 'false'}
+      aria-selected={isActive ? 'true' : 'false'}
+      data-href={item.href ? getContentMd5(item.href) : undefined}
+      className={clsx(
+        'flex w-full cursor-pointer items-center rounded-md py-4 sm:py-2',
+        isActive
+          ? 'sm:bg-base-300/85 sm:hover:bg-base-300 sm:text-base-content text-blue-500'
+          : 'sm:hover:bg-base-300/85',
+      )}
+      style={{
+        height: itemSize ? `${itemSize}px` : 'auto',
+        paddingInlineStart: `${(depth + 1) * 12}px`,
+      }}
+    >
+      {item.subitems && (
+        <div
+          onClick={handleToggleExpand}
+          className='inline-block cursor-pointer'
+          style={{
+            padding: '12px',
+            margin: '-12px',
+          }}
+        >
+          {createExpanderIcon(flatItem.isExpanded || false)}
+        </div>
+      )}
+      <div
+        className='ms-2 truncate text-ellipsis'
+        style={{
+          maxWidth: 'calc(100% - 24px)',
+          whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {item.label}
+      </div>
+      {item.location && (
+        <div className='text-base-content/50 ms-auto ps-1 text-xs sm:pe-1'>
+          {item.location.current + 1}
+        </div>
+      )}
+    </div>
+  );
+});
+
+TOCItemView.displayName = 'TOCItemView';
+
+interface ListRowProps {
+  bookKey: string;
+  flatItem: FlatTOCItem;
+  itemSize?: number;
+  activeHref: string | null;
   onToggleExpand: (item: TOCItem) => void;
   onItemClick: (item: TOCItem) => void;
 }
 
-const TOCItemView: React.FC<TOCItemViewProps> = ({
+export const StaticListRow: React.FC<ListRowProps> = ({
+  bookKey,
   flatItem,
-  isActive,
+  itemSize,
+  activeHref,
   onToggleExpand,
   onItemClick,
 }) => {
-  const { item, level } = flatItem;
-  const hasSubitems = item.subitems && item.subitems.length > 0;
-  const isExpanded = hasSubitems;
-
-  const handleToggleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (hasSubitems) {
-      onToggleExpand(item);
-    }
-  };
-
-  const handleItemClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    onItemClick(item);
-  };
+  const isActive = activeHref === flatItem.item.href;
 
   return (
     <div
       className={clsx(
-        'toc-item group relative cursor-pointer transition-colors duration-150',
-        isActive && 'bg-primary/10 border-r-2 border-primary',
-        'hover:bg-base-200',
+        'border-base-300 w-full border-b sm:border-none',
+        'pe-4 ps-2 pt-[1px] sm:pe-2',
       )}
-      data-href={item.href}
-      data-level={level}
-      onClick={handleItemClick}
     >
-      <div
-        className={clsx(
-          'flex items-center py-2 px-1 text-sm leading-relaxed',
-          level > 0 && 'ml-4',
-          level > 1 && 'ml-8',
-          level > 2 && 'ml-12',
-        )}
-        style={{
-          paddingLeft: `${level * 16 + 8}px`,
-        }}
-      >
-        {/* 展开/收起按钮 */}
-        {hasSubitems ? (
-          <button
-            className="flex-shrink-0 mr-2 p-0.5 rounded hover:bg-base-300 transition-colors"
-            onClick={handleToggleClick}
-            aria-label={isExpanded ? '收起' : '展开'}
-          >
-            {isExpanded ? (
-              <MdKeyboardArrowDown className="w-4 h-4 text-base-content/70" />
-            ) : (
-              <MdKeyboardArrowRight className="w-4 h-4 text-base-content/70" />
-            )}
-          </button>
-        ) : (
-          <div className="w-6 h-6 flex-shrink-0" />
-        )}
+      <TOCItemView
+        bookKey={bookKey}
+        flatItem={flatItem}
+        itemSize={itemSize}
+        isActive={isActive}
+        onToggleExpand={onToggleExpand}
+        onItemClick={onItemClick}
+      />
+    </div>
+  );
+};
 
-        {/* 标题 */}
-        <div
-          className={clsx(
-            'flex-1 min-w-0',
-            isActive ? 'text-primary font-medium' : 'text-base-content/90',
-            'group-hover:text-base-content',
-          )}
-        >
-          <div
-            className="truncate"
-            title={item.label}
-            dangerouslySetInnerHTML={{ __html: item.label || '未命名章节' }}
-          />
-        </div>
+export const VirtualListRow: React.FC<
+  ListChildComponentProps & {
+    data: {
+      bookKey: string;
+      flatItems: FlatTOCItem[];
+      itemSize: number;
+      activeHref: string | null;
+      onToggleExpand: (item: TOCItem) => void;
+      onItemClick: (item: TOCItem) => void;
+    };
+  }
+> = ({ index, style, data }) => {
+  const { flatItems, bookKey, activeHref, itemSize, onToggleExpand, onItemClick } = data;
+  const flatItem = flatItems[index];
 
-        {/* 活动指示器 */}
-        {isActive && (
-          <div className="flex-shrink-0 ml-2">
-            <div className="w-2 h-2 bg-primary rounded-full" />
-          </div>
-        )}
-      </div>
-
-      {/* 键盘焦点指示器 */}
-      <div className="absolute inset-0 pointer-events-none border-2 border-transparent focus-within:border-primary/50 rounded" />
+  return (
+    <div style={style}>
+      <StaticListRow
+        bookKey={bookKey}
+        flatItem={flatItem}
+        itemSize={itemSize - 1}
+        activeHref={activeHref}
+        onToggleExpand={onToggleExpand}
+        onItemClick={onItemClick}
+      />
     </div>
   );
 };

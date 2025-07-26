@@ -82,6 +82,7 @@ export interface BookDoc {
   dir: string;
   transformTarget?: EventTarget;
   splitTOCHref(href: string): Array<string | number>;
+  resolveHref(href: string): { index: number; anchor: ((doc: Document) => Element | number) | (() => number) };
   getCover(): Promise<Blob | null>;
 }
 
@@ -91,6 +92,8 @@ export interface SectionItem {
   size: number;
   linear: string;
   location?: Location;
+  load?: () => Promise<string>;
+  unload?: () => void;
 }
 
 export interface TOCItem {

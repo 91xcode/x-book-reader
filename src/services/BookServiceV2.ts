@@ -4,8 +4,11 @@
  * 参考readest项目的设计模式
  */
 
-import { Book, BookFormat } from '@/types/book';
+import { Book, BookFormat, BookDoc } from '@/types/book';
 import { getAppService } from './environment';
+import { DocumentLoader } from '@/libs/document';
+import { TxtToEpubConverter } from '@/utils/txt';
+import { getBaseFilename, formatTitle, formatAuthors, getPrimaryLanguage } from '@/utils/book';
 
 export interface BookImportOptions {
   overwrite?: boolean;
@@ -51,12 +54,39 @@ export class BookServiceV2 {
       onStatusChange?.('正在分析文件...');
       onProgress?.(10);
 
-      // 生成书籍哈希（简化实现）
-      const hash = await this.generateBookHash(file);
+      let processedFile = file;
+      let originalFilename = file.name;
+      let loadedBook: BookDoc;
+      let format: BookFormat;
+
+      // 按照Readest的流程：如果是TXT文件，先转换为EPUB
+      if (originalFilename.toLowerCase().endsWith('.txt')) {
+        onStatusChange?.('正在转换TXT文件为EPUB...');
+        onProgress?.(25);
+        
+        const txt2epub = new TxtToEpubConverter();
+        const result = await txt2epub.convert({ file });
+        processedFile = result.file;
+        console.log('📝 BookService: TXT文件已转换为EPUB');
+      }
+
+      onStatusChange?.('正在解析书籍内容...');
+      onProgress?.(40);
+
+      // 使用DocumentLoader解析书籍（按照Readest的流程）
+      ({ book: loadedBook, format } = await new DocumentLoader(processedFile).open());
+      
+      // 如果书籍没有标题，使用文件名
+      if (!loadedBook.metadata.title) {
+        loadedBook.metadata.title = getBaseFilename(originalFilename);
+      }
+
+      // 生成书籍哈希（使用处理后的文件）
+      const hash = await this.generateBookHash(processedFile);
       console.log('🔑 BookService: 书籍哈希:', hash.substring(0, 8) + '...');
 
       onStatusChange?.('正在检查文件是否已存在...');
-      onProgress?.(20);
+      onProgress?.(50);
 
       // 获取环境感知的应用服务
       const appService = await getAppService();
@@ -70,46 +100,39 @@ export class BookServiceV2 {
         const existingBook = existingBooks.find(book => book.hash === hash);
         
         if (existingBook) {
+          // 更新现有书籍的时间戳
+          existingBook.deletedAt = null;
+          existingBook.createdAt = Date.now();
+          existingBook.updatedAt = Date.now();
+          this.updateBook(existingBook);
           return { success: true, book: existingBook };
         }
       }
 
-      onStatusChange?.('正在解析书籍内容...');
-      onProgress?.(40);
-
-      // 解析书籍（简化实现）
-      const bookData = await this.parseBookFile(file);
-
       onStatusChange?.('正在保存书籍文件...');
-      onProgress?.(60);
+      onProgress?.(70);
 
-      // 保存书籍文件到存储（使用环境感知的文件系统）
-      await appService.importBookFile(hash, file);
+      // 保存处理后的文件到存储（按照Readest的流程，保存转换后的EPUB）
+      await appService.importBookFile(hash, processedFile);
 
       onStatusChange?.('正在生成书籍信息...');
       onProgress?.(80);
 
-      // 创建书籍对象
+      // 创建书籍对象（按照Readest的格式）
       const book: Book = {
         hash,
-        title: bookData.title || file.name.replace(/\.[^/.]+$/, ''),
-        author: bookData.author || '未知作者',
-        description: bookData.description || '',
-        primaryLanguage: bookData.language || 'zh-CN',
-        format: this.detectBookFormat(file),
+        format, // 使用DocumentLoader检测到的格式
+        title: formatTitle(loadedBook.metadata.title || ''),
+        sourceTitle: formatTitle(loadedBook.metadata.title || ''),
+        author: formatAuthors(loadedBook.metadata.author || ''),
+        primaryLanguage: getPrimaryLanguage(loadedBook.metadata.language) || 'zh-CN',
         createdAt: Date.now(),
+        uploadedAt: null,
+        deletedAt: null,
+        downloadedAt: Date.now(),
         updatedAt: Date.now(),
         readingStatus: 'unread' as const,
-        metadata: {
-          title: bookData.title,
-          author: bookData.author,
-          description: bookData.description,
-          language: bookData.language,
-          publisher: bookData.publisher,
-          published: bookData.published,
-          series: bookData.series,
-          identifier: bookData.isbn
-        }
+        metadata: loadedBook.metadata
       };
 
       onStatusChange?.('正在保存书籍信息...');
@@ -119,8 +142,13 @@ export class BookServiceV2 {
       this.saveBookToStorage(book);
 
       // 生成并保存封面
-      if (bookData.cover) {
-        await this.saveBookCover(hash, bookData.cover);
+      try {
+        const cover = await loadedBook.getCover();
+        if (cover) {
+          await this.saveBookCover(hash, cover);
+        }
+      } catch (error) {
+        console.warn('⚠️ BookService: 获取封面失败:', error);
       }
 
       onStatusChange?.('导入完成！');
@@ -263,7 +291,7 @@ export class BookServiceV2 {
   // 私有方法
 
   /**
-   * 检测书籍格式
+   * 检测书籍格式（备用方法，主要使用 DocumentLoader 检测）
    */
   private detectBookFormat(file: File): BookFormat {
     const extension = file.name.split('.').pop()?.toLowerCase();
@@ -274,13 +302,15 @@ export class BookServiceV2 {
       case 'pdf':
         return 'PDF';
       case 'txt':
-        return 'TXT';
+        return 'EPUB'; // TXT文件转换后为EPUB格式
       case 'mobi':
         return 'MOBI';
       case 'azw3':
         return 'AZW3';
       case 'fb2':
         return 'FB2';
+      case 'fbz':
+        return 'FBZ';
       case 'cbz':
         return 'CBZ';
       default:
@@ -298,26 +328,7 @@ export class BookServiceV2 {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
-  /**
-   * 解析书籍文件（简化实现）
-   */
-  private async parseBookFile(file: File): Promise<any> {
-    // 简化的书籍解析，返回基础信息
-    const fileName = file.name.replace(/\.[^/.]+$/, '');
-    
-    return {
-      title: fileName,
-      author: '未知作者',
-      description: '',
-      language: 'zh-CN',
-      publisher: '',
-      published: '',
-      series: '',
-      isbn: '',
-      cover: null,
-      spine: []
-    };
-  }
+
 
   /**
    * 从本地存储获取书籍列表
