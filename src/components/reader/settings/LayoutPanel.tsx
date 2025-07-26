@@ -363,15 +363,32 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
 
   return (
     <div className="my-4 w-full space-y-6">
-      {/* 覆盖版面布局 */}
-      <div className="flex items-center justify-between">
-        <h2 className="font-medium">覆盖版面布局</h2>
-        <input
-          type="checkbox"
-          className="toggle"
-          checked={overrideLayout}
-          onChange={() => setOverrideLayout(!overrideLayout)}
-        />
+      {/* 覆盖版面布局 - 关键开关 */}
+      <div className={`p-4 rounded-lg border-2 transition-all ${
+        overrideLayout 
+          ? 'border-primary bg-primary/10' 
+          : 'border-warning bg-warning/10'
+      }`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <h2 className="font-medium">覆盖版面布局</h2>
+            {!overrideLayout && (
+              <span className="badge badge-warning badge-sm">重要</span>
+            )}
+          </div>
+          <input
+            type="checkbox"
+            className="toggle toggle-primary"
+            checked={overrideLayout}
+            onChange={() => setOverrideLayout(!overrideLayout)}
+          />
+        </div>
+        <p className="text-sm opacity-70">
+          {overrideLayout 
+            ? "✅ 已启用：所有布局设置将强制覆盖电子书原始样式"
+            : "⚠️ 未启用：布局设置可能被电子书原始样式覆盖，如首行缩进不生效时请启用此选项"
+          }
+        </p>
       </div>
 
       {/* 排版模式 */}
@@ -498,6 +515,16 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
               max={4}
               step={1}
             />
+            
+            {/* 首行缩进提示 */}
+            {!overrideLayout && textIndent > 0 && (
+              <div className="config-item bg-warning/20 border border-warning/30 rounded">
+                <div className="flex items-center gap-2">
+                  <span className="text-warning">⚠️</span>
+                  <span className="text-sm">首行缩进可能不生效？请启用上方的"覆盖版面布局"</span>
+                </div>
+              </div>
+            )}
             <div className="config-item">
               <span>两端对齐</span>
               <input

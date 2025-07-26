@@ -148,13 +148,13 @@ export const DEFAULT_BOOK_STYLE: BookStyle = {
   lineHeight: 1.6,
   wordSpacing: 0,
   letterSpacing: 0,
-  textIndent: 0,
+  textIndent: 0, // 恢复基础默认值为0，CJK环境通过DEFAULT_CJK_VIEW_SETTINGS设置为2
   fullJustification: true,
   hyphenation: true,
   invertImgColorInDark: false,
   theme: 'light',
   overrideFont: false,
-  overrideLayout: false,
+  overrideLayout: false, // 恢复基础默认值为false，与readest保持一致
   overrideColor: false,
   codeHighlighting: false,
   codeLanguage: 'auto-detect',

@@ -106,12 +106,41 @@ export const useReaderStore = create<ReaderState>()(
   initializeViewSettings: (bookKey: string) => {
     const currentSettings = get().viewSettings[bookKey];
     if (!currentSettings) {
+      // 获取全局设置 - 直接从DEFAULT_VIEW_SETTINGS构建，避免循环依赖
+      const globalViewSettings = {}; // 暂时为空对象，后续可以通过参数传入
+      
+      // 与readest完全一致的合并逻辑
+      const isCJKEnv = () => {
+        if (typeof window === 'undefined') return false;
+        const lang = navigator.language || 'en';
+        return ['zh', 'ja', 'ko'].some(l => lang.startsWith(l));
+      };
+      
+      const mergedSettings = {
+        ...DEFAULT_VIEW_SETTINGS,
+        ...(isCJKEnv() ? { fullJustification: true, textIndent: 2 } : {}), // CJK环境特殊处理
+        ...globalViewSettings
+      };
+      
+      console.log('🔧 初始化viewSettings:', {
+        isCJK: isCJKEnv(),
+        textIndent: mergedSettings.textIndent,
+        overrideLayout: mergedSettings.overrideLayout,
+        fullSettings: mergedSettings
+      });
+      
       set((state) => ({
         viewSettings: {
           ...state.viewSettings,
-          [bookKey]: { ...DEFAULT_VIEW_SETTINGS },
+          [bookKey]: mergedSettings,
         },
       }));
+      
+      // 立即应用样式
+      const view = get().views[bookKey];
+      if (view?.renderer?.setStyles) {
+        view.renderer.setStyles(getCompleteStyles(mergedSettings));
+      }
     }
   },
 
