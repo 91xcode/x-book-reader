@@ -22,42 +22,69 @@ const FontDropdown: React.FC<DropdownProps> = ({
   const selectedOption = allOptions.find((option) => option.option === selected) ?? allOptions[0]!;
 
   return (
-    <div className='dropdown dropdown-top'>
+    <div className='dropdown dropdown-top font-dropdown'>
       <button
         tabIndex={0}
-        className='btn btn-sm flex items-center px-[10px] font-normal normal-case sm:px-[20px]'
+        className='btn btn-sm flex items-center px-[10px] font-normal normal-case sm:px-[20px] bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50'
         onClick={(e) => e.currentTarget.focus()}
       >
         <div className='flex items-center gap-x-1'>
           <span
-            className='text-ellipsis'
+            className='text-ellipsis font-medium'
             style={{
               fontFamily: onGetFontFamily(selectedOption.option, family ?? ''),
             }}
           >
             {selectedOption.label || selectedOption.option}
           </span>
-          <FiChevronUp size={16} />
+          <FiChevronUp size={16} className='text-gray-600 dark:text-gray-400' />
         </div>
       </button>
       <ul
         tabIndex={0}
-        className='dropdown-content bgcolor-base-200 no-triangle menu rounded-box absolute z-[1] mt-4 shadow right-[-32px] w-[46vw] !px-0 sm:right-0 sm:w-44'
+        className={clsx(
+          'dropdown-content no-triangle menu rounded-lg',
+          'absolute z-[1] mt-2 shadow-xl border',
+          'right-[-32px] w-[50vw] !px-0 sm:right-0 sm:w-52',
+          'max-h-60 overflow-y-auto',
+          'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600',
+          'backdrop-blur-sm',
+          'flex flex-col'
+        )}
+        style={{
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          minWidth: '200px'
+        }}
       >
         {options.map((option) => (
           <li
             key={option.option}
-            className='px-1 sm:px-2'
+            className={clsx(
+              'font-dropdown-item transition-colors duration-150 cursor-pointer',
+              'w-full block',
+              selected === option.option 
+                ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50' 
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+            )}
             onClick={() => onSelect(option.option)}
+            tabIndex={0}
           >
-            <div className='flex w-full items-center overflow-hidden !px-0 text-sm'>
-              <span style={{ minWidth: '16px' }}>
-                {selected === option.option && (
-                  <MdCheck className='text-base-content' size={16} />
+            <div className='flex w-full items-center justify-between px-3 py-2 text-sm min-h-[40px]'>
+              <span 
+                className={clsx(
+                  'flex-1 font-option-text text-left',
+                  selected === option.option
+                    ? 'text-blue-700 dark:text-blue-300 font-semibold'
+                    : 'text-gray-900 dark:text-gray-100 font-medium'
                 )}
-              </span>
-              <span style={{ fontFamily: onGetFontFamily(option.option, family ?? '') }}>
+                style={{ fontFamily: onGetFontFamily(option.option, family ?? '') }}
+              >
                 {option.label || option.option}
+              </span>
+              <span className='flex items-center justify-center w-4 h-4 ml-2 flex-shrink-0'>
+                {selected === option.option && (
+                  <MdCheck className='text-blue-600 dark:text-blue-400 drop-shadow-sm' size={16} />
+                )}
               </span>
             </div>
           </li>

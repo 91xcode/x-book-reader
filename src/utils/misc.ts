@@ -48,4 +48,13 @@ export const makeSafeFilename = (filename: string, replacement = '_'): string =>
   }
 
   return safeName;
+};
+
+// CJK 环境检测（来自 readest 项目）
+export const detectCJKEnvironment = () => {
+  const browserLanguage = navigator.language || '';
+  const uiLanguage = (typeof localStorage !== 'undefined' && localStorage?.getItem('i18nextLng')) || '';
+  const isCJKUI = ['zh', 'ja', 'ko'].some((lang) => uiLanguage.startsWith(lang));
+  const isCJKLocale = ['zh', 'ja', 'ko'].some((lang) => browserLanguage.startsWith(lang));
+  return isCJKLocale || isCJKUI;
 }; 

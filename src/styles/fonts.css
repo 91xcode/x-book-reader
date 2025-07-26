@@ -1,0 +1,152 @@
+/* 本地字体配置 - 优先本地字体，CDN回退 */
+
+/* Roboto 字体族 - 本地文件 (WOFF2格式，加载快) */
+@font-face {
+  font-family: 'Roboto';
+  src: url('/fonts/roboto/Roboto-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('/fonts/roboto/Roboto-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bitter 字体族 - 本地文件 (TTF变体字体) */
+@font-face {
+  font-family: 'Bitter';
+  src: url('/fonts/bitter/Bitter-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block; /* 使用block确保TTF字体优先显示 */
+}
+
+/* 为Bitter添加具体字重的回退定义 */
+@font-face {
+  font-family: 'Bitter';
+  src: url('/fonts/bitter/Bitter-Variable.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Bitter';
+  src: url('/fonts/bitter/Bitter-Variable.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+/* LXGW WenKai 字体族 - 本地文件 (TTF格式) */
+@font-face {
+  font-family: 'LXGW WenKai GB Screen';
+  src: url('/fonts/lxgw/LXGWWenKai-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block; /* 使用block确保中文字体优先显示 */
+  unicode-range: U+4E00-9FFF; /* 限制为中文字符范围 */
+}
+
+@font-face {
+  font-family: 'LXGW WenKai GB Screen';
+  src: url('/fonts/lxgw/LXGWWenKai-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: block;
+  unicode-range: U+4E00-9FFF; /* 限制为中文字符范围 */
+}
+
+/* LXGW WenKai 别名定义 - 增加兼容性 */
+@font-face {
+  font-family: 'LXGWWenKai-Regular';
+  src: url('/fonts/lxgw/LXGWWenKai-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+/* CSS字体变量 - 基于readest项目 */
+:root {
+  /* 衬线字体栈 - 本地优先 */
+  --font-serif: 'Bitter', 'Times New Roman', 'Georgia', serif;
+  
+  /* 无衬线字体栈 - 本地优先 */
+  --font-sans-serif: 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
+  
+  /* 等宽字体栈 */
+  --font-monospace: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  
+  /* 中文字体栈 - 本地LXGW优先 */
+  --font-cjk: 'LXGW WenKai GB Screen', 'LXGWWenKai-Regular', 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif;
+  
+  /* 回退字体栈 */
+  --font-fallback: 'MiSans L3', system-ui, -apple-system, sans-serif;
+}
+
+/* 字体加载状态辅助类 */
+.font-roboto {
+  font-family: var(--font-sans-serif);
+}
+
+.font-bitter {
+  font-family: var(--font-serif);
+}
+
+.font-monospace {
+  font-family: var(--font-monospace);
+}
+
+.font-cjk, .font-lxgw {
+  font-family: var(--font-cjk);
+}
+
+/* 字体测试类 - 用于调试 */
+.test-bitter {
+  font-family: 'Bitter', serif !important;
+}
+
+.test-lxgw {
+  font-family: 'LXGW WenKai GB Screen', 'LXGWWenKai-Regular', sans-serif !important;
+}
+
+/* 智能字体应用 */
+body {
+  font-family: var(--font-sans-serif);
+}
+
+/* 中文内容优化 */
+[lang="zh"], [lang="zh-CN"], [lang="zh-TW"] {
+  font-family: var(--font-cjk), var(--font-sans-serif);
+}
+
+/* 代码字体 */
+code, pre, .code {
+  font-family: var(--font-monospace);
+}
+
+/* 强制字体应用 - 调试用 */
+.force-bitter {
+  font-family: 'Bitter' !important;
+  font-weight: 400 !important;
+}
+
+.force-lxgw {
+  font-family: 'LXGW WenKai GB Screen' !important;
+  font-weight: 400 !important;
+}
+
+/* 字体加载优化 */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+} 

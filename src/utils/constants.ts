@@ -43,10 +43,71 @@ export const DEFAULT_READSETTINGS: ReadSettings = {
   customThemes: [],
 };
 
-// 默认视图设置
+// 字体常量配置 - 与readest项目一致
+
+// 字体分类
+export const SERIF_FONTS = [
+  'Bitter',
+  'Literata',
+  'Merriweather', 
+  'Vollkorn',
+  'Georgia',
+  'Times New Roman',
+];
+
+export const SANS_SERIF_FONTS = [
+  'Roboto', 
+  'Noto Sans',
+  'Open Sans',
+  'Helvetica'
+];
+
+export const MONOSPACE_FONTS = [
+  'Fira Code',
+  'Lucida Console',
+  'Consolas', 
+  'Courier New'
+];
+
+export const CJK_SERIF_FONTS = [
+  'LXGW WenKai GB Screen',
+  'LXGW WenKai TC',
+  'GuanKiapTsingKhai-T',
+  'Source Han Serif CN VF',
+  'Huiwen-mincho',
+  'KingHwa_OldSong',
+];
+
+export const CJK_SANS_SERIF_FONTS = [
+  'Noto Sans SC',
+  'Noto Sans TC'
+];
+
+export const FALLBACK_FONTS = ['MiSans L3'];
+
+// 默认字体配置 - 与readest项目完全一致
+export const DEFAULT_BOOK_FONT = {
+  serifFont: 'Bitter',
+  sansSerifFont: 'Roboto',
+  monospaceFont: 'Consolas',
+  defaultFont: 'Serif',
+  defaultCJKFont: 'LXGW WenKai GB Screen',
+  defaultFontSize: 16,
+  minimumFontSize: 8,
+  fontWeight: 400,
+};
+
+// 默认视图设置 - 集成字体配置
 export const DEFAULT_VIEW_SETTINGS: ViewSettings = {
   theme: 'light',
-  defaultFontSize: 16,
+  overrideColor: false,
+  invertImgColorInDark: false,
+  
+  // 字体设置（来自DEFAULT_BOOK_FONT）
+  ...DEFAULT_BOOK_FONT,
+  overrideFont: false,
+  
+  // 布局设置
   lineHeight: 1.6,
   fontFamily: 'default',
   marginTopPx: 48,
@@ -57,8 +118,6 @@ export const DEFAULT_VIEW_SETTINGS: ViewSettings = {
   maxColumnCount: 2,
   maxInlineSize: 720,
   maxBlockSize: 1440,
-  overrideColor: false,
-  invertImgColorInDark: false,
   scrolled: false,
   animated: true,
   writingMode: 'auto',
@@ -66,6 +125,19 @@ export const DEFAULT_VIEW_SETTINGS: ViewSettings = {
   showHeader: true,
   showFooter: true,
   doubleBorder: false,
+  continuousScroll: false,
+  disableClick: false,
+  swapClickArea: false,
+  volumeKeysToFlip: false,
+  scrollingOverlap: 0,
+  showBarsOnScroll: false,
+  translationEnabled: false,
+  translationProvider: 'google',
+  translateTargetLang: 'en',
+  showTranslateSource: false,
+  uiLanguage: 'zh-CN',
+  codeHighlighting: false,
+  codeLanguage: 'auto-detect',
 };
 
 export const SUPPORTED_FORMATS = ['epub', 'pdf', 'txt', 'mobi', 'azw3', 'fb2', 'cbz'] as const;

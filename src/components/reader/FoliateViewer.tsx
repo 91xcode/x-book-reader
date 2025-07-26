@@ -7,6 +7,7 @@ import { useFoliateEvents } from '../../hooks/useFoliateEvents';
 import { useProgressSync } from '../../hooks/useProgressSync';
 import { useProgressAutoSave } from '../../hooks/useProgressAutoSave';
 import { getStyles } from '@/utils/style';
+import { DEFAULT_VIEW_SETTINGS } from '@/utils/constants';
 
 declare global {
   interface Window {
@@ -169,30 +170,8 @@ const FoliateViewer: React.FC<{
         // 如果没有视图设置，使用默认设置
         if (!currentViewSettings) {
           console.warn('No view settings found for book:', bookKey);
-          const defaultSettings: ViewSettings = {
-            theme: 'light',
-            defaultFontSize: 16,
-            lineHeight: 1.6,
-            fontFamily: 'serif',
-            marginTopPx: 48,
-            marginBottomPx: 48,
-            marginLeftPx: 48,
-            marginRightPx: 48,
-            gapPercent: 3.33,
-            maxColumnCount: 2,
-            maxInlineSize: 720,
-            maxBlockSize: 1440,
-            overrideColor: false,
-            invertImgColorInDark: false,
-            scrolled: false,
-            animated: true,
-            writingMode: 'auto',
-            allowScript: false,
-            showHeader: true,
-            showFooter: true,
-            doubleBorder: false
-          };
-          setViewSettings(bookKey, defaultSettings);
+          // 使用完整的默认设置，包含所有字体配置
+          setViewSettings(bookKey, DEFAULT_VIEW_SETTINGS);
         }
         
         const finalViewSettings = getViewSettings(bookKey) || currentViewSettings!;

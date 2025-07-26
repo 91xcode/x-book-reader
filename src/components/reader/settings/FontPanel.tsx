@@ -1,7 +1,6 @@
-import clsx from 'clsx';
-import React, { useEffect, useState } from 'react';
-
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useReaderStore } from '@/store/readerStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import NumberInput from './NumberInput';
 import FontDropdown from './FontDropdown';
 
@@ -10,20 +9,78 @@ interface FontPanelProps {
   onRegisterReset: (resetFn: () => void) => void;
 }
 
-const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
-  const { getView, getViewSettings, setViewSettings } = useReaderStore();
-  const viewSettings = getViewSettings(bookKey);
-  const view = getView(bookKey);
+// Font constants - simplified for demo
+const CJK_FONTS = ['霞鹜文楷', '微软雅黑', 'PingFang SC', '宋体', '黑体', '楷体', 'Hiragino Sans GB'];
+const SERIF_FONTS = ['Georgia', 'Times New Roman', 'Book Antiqua', 'Palatino'];
+const SANS_SERIF_FONTS = ['Arial', 'Helvetica', 'Tahoma', 'Verdana', 'Trebuchet MS'];
+const MONOSPACE_FONTS = ['Courier New', 'Consolas', 'Monaco', 'Menlo'];
 
-  const [defaultFontSize, setDefaultFontSize] = useState(viewSettings?.defaultFontSize || 16);
-  const [minFontSize, setMinFontSize] = useState(viewSettings?.minimumFontSize || 8);
-  const [fontWeight, setFontWeight] = useState(viewSettings?.fontWeight || 400);
-  const [defaultFont, setDefaultFont] = useState(viewSettings?.defaultFont || 'Serif');
-  const [defaultCJKFont, setDefaultCJKFont] = useState(viewSettings?.defaultCJKFont || '霞鹜文楷');
-  const [serifFont, setSerifFont] = useState(viewSettings?.serifFont || 'Times New Roman');
-  const [sansSerifFont, setSansSerifFont] = useState(viewSettings?.sansSerifFont || 'Arial');
-  const [monospaceFont, setMonospaceFont] = useState(viewSettings?.monospaceFont || 'Courier New');
-  const [overrideFont, setOverrideFont] = useState(viewSettings?.overrideFont || false);
+// 字体名称映射：界面显示名称 -> CSS字体名称
+const FONT_NAME_MAP: Record<string, string> = {
+  '霞鹜文楷': 'LXGW WenKai GB Screen',
+  '微软雅黑': 'Microsoft YaHei',
+  '宋体': 'SimSun',
+  '黑体': 'SimHei',
+  '楷体': 'KaiTi',
+};
+
+// 反向映射：CSS字体名称 -> 界面显示名称
+const REVERSE_FONT_NAME_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(FONT_NAME_MAP).map(([display, css]) => [css, display])
+);
+
+interface FontFaceProps {
+  className?: string;
+  family: string;
+  label: string;
+  options: string[];
+  selected: string;
+  onSelect: (option: string) => void;
+}
+
+const handleFontFaceFont = (option: string, family: string) => {
+  // 如果是中文字体名称，使用映射后的英文名称
+  const fontName = FONT_NAME_MAP[option] || option;
+  return `'${fontName}', ${family}`;
+};
+
+const FontFace = ({
+  className,
+  family,
+  label,
+  options,
+  selected,
+  onSelect,
+}: FontFaceProps) => {
+  return (
+    <div className={className}>
+      <span className='min-w-10'>{label}</span>
+      <FontDropdown
+        family={family}
+        options={options.map((option) => ({ option, label: option }))}
+        selected={selected}
+        onSelect={onSelect}
+        onGetFontFamily={handleFontFaceFont}
+      />
+    </div>
+  );
+};
+
+const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
+  const { getViewSettings, setViewSettings } = useReaderStore();
+  const viewSettings = getViewSettings(bookKey);
+  const isInitialized = useRef(false);
+
+  // Font state
+  const [overrideFont, setOverrideFont] = useState(viewSettings?.overrideFont ?? true);
+  const [defaultFontSize, setDefaultFontSize] = useState(viewSettings?.defaultFontSize ?? 16);
+  const [minFontSize, setMinFontSize] = useState(viewSettings?.minimumFontSize ?? 8);
+  const [fontWeight, setFontWeight] = useState(viewSettings?.fontWeight ?? 400);
+  const [defaultFont, setDefaultFont] = useState(viewSettings?.defaultFont ?? 'Serif');
+  const [defaultCJKFont, setDefaultCJKFont] = useState(viewSettings?.defaultCJKFont ?? 'LXGW WenKai GB Screen');
+  const [serifFont, setSerifFont] = useState(viewSettings?.serifFont ?? 'Georgia');
+  const [sansSerifFont, setSansSerifFont] = useState(viewSettings?.sansSerifFont ?? 'Arial');
+  const [monospaceFont, setMonospaceFont] = useState(viewSettings?.monospaceFont ?? 'Courier New');
 
   const fontFamilyOptions = [
     {
@@ -31,210 +88,119 @@ const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
       label: '衬线字体',
     },
     {
-      option: 'Sans-serif',
+      option: 'Sans-serif', 
       label: '无衬线字体',
     },
   ];
 
-  const cjkFontOptions = [
-    {
-      option: '霞鹜文楷',
-      label: '霞鹜文楷',
-    },
-    {
-      option: 'LXGW WenKai',
-      label: 'LXGW WenKai',
-    },
-    {
-      option: 'Noto Sans CJK SC',
-      label: 'Noto Sans CJK SC',
-    },
-  ];
-
-  const serifFontOptions = [
-    {
-      option: 'Times New Roman',
-      label: 'Times New Roman',
-    },
-    {
-      option: 'Georgia',
-      label: 'Georgia',
-    },
-    {
-      option: 'Palatino',
-      label: 'Palatino',
-    },
-  ];
-
-  const sansSerifFontOptions = [
-    {
-      option: 'Arial',
-      label: 'Arial',
-    },
-    {
-      option: 'Helvetica',
-      label: 'Helvetica',
-    },
-    {
-      option: 'Verdana',
-      label: 'Verdana',
-    },
-  ];
-
-  const monospaceFontOptions = [
-    {
-      option: 'Courier New',
-      label: 'Courier New',
-    },
-    {
-      option: 'Consolas',
-      label: 'Consolas',
-    },
-    {
-      option: 'Monaco',
-      label: 'Monaco',
-    },
-  ];
-
   const resetToDefaults = () => {
+    setOverrideFont(true);
     setDefaultFontSize(16);
     setMinFontSize(8);
     setFontWeight(400);
     setDefaultFont('Serif');
-    setDefaultCJKFont('霞鹜文楷');
-    setSerifFont('Times New Roman');
+    setDefaultCJKFont('LXGW WenKai GB Screen');
+    setSerifFont('Georgia');
     setSansSerifFont('Arial');
     setMonospaceFont('Courier New');
-    setOverrideFont(false);
   };
 
   useEffect(() => {
     onRegisterReset(resetToDefaults);
+    // Mark as initialized after first render
+    isInitialized.current = true;
   }, [onRegisterReset]);
 
-  useEffect(() => {
-    if (viewSettings && viewSettings.defaultFontSize !== defaultFontSize) {
-      const updatedSettings = { ...viewSettings, defaultFontSize };
+  // Update view settings when font values change
+  const updateViewSettings = useCallback((newSettings: Partial<any>) => {
+    // Don't update during initial render
+    if (!isInitialized.current) return;
+    
+    const currentSettings = getViewSettings(bookKey);
+    if (currentSettings) {
+      const updatedSettings = {
+        ...currentSettings,
+        ...newSettings,
+      };
       setViewSettings(bookKey, updatedSettings);
-      
-      // 应用字体大小到视图
-      if (view?.renderer) {
-        const fontStyles = `
-          html, body {
-            font-size: ${defaultFontSize}px !important;
-          }
-        `;
-        view.renderer.setStyles?.(fontStyles);
-      }
     }
-  }, [defaultFontSize, viewSettings, bookKey, setViewSettings, view]);
+  }, [bookKey, getViewSettings, setViewSettings]);
+
+  // Individual useEffects for each setting
+  useEffect(() => {
+    updateViewSettings({ overrideFont });
+  }, [overrideFont, updateViewSettings]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.minimumFontSize !== minFontSize) {
-      const updatedSettings = { ...viewSettings, minimumFontSize: minFontSize };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [minFontSize, viewSettings, bookKey, setViewSettings]);
+    updateViewSettings({ defaultFontSize });
+  }, [defaultFontSize, updateViewSettings]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.fontWeight !== fontWeight) {
-      const updatedSettings = { ...viewSettings, fontWeight };
-      setViewSettings(bookKey, updatedSettings);
-      
-      // 应用字重到视图
-      if (view?.renderer) {
-        const fontWeightStyle = `
-          html, body {
-            font-weight: ${fontWeight} !important;
-          }
-        `;
-        view.renderer.setStyles?.(fontWeightStyle);
-      }
-    }
-  }, [fontWeight, viewSettings, bookKey, setViewSettings, view]);
+    updateViewSettings({ minimumFontSize: minFontSize });
+  }, [minFontSize, updateViewSettings]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.defaultFont !== defaultFont) {
-      const updatedSettings = { ...viewSettings, defaultFont };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [defaultFont, viewSettings, bookKey, setViewSettings]);
+    updateViewSettings({ fontWeight });
+  }, [fontWeight, updateViewSettings]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.defaultCJKFont !== defaultCJKFont) {
-      const updatedSettings = { ...viewSettings, defaultCJKFont };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [defaultCJKFont, viewSettings, bookKey, setViewSettings]);
+    updateViewSettings({ defaultFont });
+  }, [defaultFont, updateViewSettings]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.serifFont !== serifFont) {
-      const updatedSettings = { ...viewSettings, serifFont };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [serifFont, viewSettings, bookKey, setViewSettings]);
+    updateViewSettings({ defaultCJKFont });
+  }, [defaultCJKFont, updateViewSettings]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.sansSerifFont !== sansSerifFont) {
-      const updatedSettings = { ...viewSettings, sansSerifFont };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [sansSerifFont, viewSettings, bookKey, setViewSettings]);
+    updateViewSettings({ serifFont });
+  }, [serifFont, updateViewSettings]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.monospaceFont !== monospaceFont) {
-      const updatedSettings = { ...viewSettings, monospaceFont };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [monospaceFont, viewSettings, bookKey, setViewSettings]);
+    updateViewSettings({ sansSerifFont });
+  }, [sansSerifFont, updateViewSettings]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.overrideFont !== overrideFont) {
-      const updatedSettings = { ...viewSettings, overrideFont };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [overrideFont, viewSettings, bookKey, setViewSettings]);
+    updateViewSettings({ monospaceFont });
+  }, [monospaceFont, updateViewSettings]);
 
   const handleFontFamilyFont = (option: string) => {
     switch (option) {
       case 'Serif':
-        return 'serif';
+        return `'${serifFont}', serif`;
       case 'Sans-serif':
-        return 'sans-serif';
+        return `'${sansSerifFont}', sans-serif`;
+      case 'Monospace':
+        return `'${monospaceFont}', monospace`;
       default:
         return 'serif';
     }
   };
 
-  const handleFontFaceFont = (option: string, family: string) => {
-    return `'${option}', ${family}`;
-  };
-
   return (
-    <div className="my-4 w-full space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">覆盖书籍字体</h2>
+    <div className='my-4 w-full space-y-6'>
+      <div className='flex items-center justify-between'>
+        <h2 className=''>覆盖书籍字体</h2>
         <input
-          type="checkbox"
-          className="toggle"
+          type='checkbox'
+          className='toggle'
           checked={overrideFont}
           onChange={() => setOverrideFont(!overrideFont)}
         />
       </div>
 
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">字号</h2>
-        <div className="card border-base-200 bg-base-100 border shadow">
-          <div className="divide-base-200 divide-y">
+      <div className='w-full'>
+        <h2 className='mb-2 font-medium'>字号</h2>
+        <div className='card border-base-200 bg-base-100 border shadow'>
+          <div className='divide-base-200 divide-y'>
             <NumberInput
-              label="默认字号"
+              label='默认字号'
               value={defaultFontSize}
               onChange={setDefaultFontSize}
               min={minFontSize}
               max={120}
             />
             <NumberInput
-              label="最小字号"
+              label='最小字号'
               value={minFontSize}
               onChange={setMinFontSize}
               min={1}
@@ -244,12 +210,12 @@ const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
         </div>
       </div>
 
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">字重</h2>
-        <div className="card border-base-200 bg-base-100 border shadow">
-          <div className="divide-base-200 divide-y">
+      <div className='w-full'>
+        <h2 className='mb-2 font-medium'>字重</h2>
+        <div className='card border-base-200 bg-base-100 border shadow'>
+          <div className='divide-base-200 divide-y'>
             <NumberInput
-              label="字重"
+              label='字重'
               value={fontWeight}
               onChange={setFontWeight}
               min={100}
@@ -260,12 +226,12 @@ const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
         </div>
       </div>
 
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">字族</h2>
-        <div className="card border-base-200 bg-base-100 border shadow">
-          <div className="divide-base-200 divide-y">
-            <div className="config-item flex items-center justify-between p-4">
-              <span>默认字体</span>
+      <div className='w-full'>
+        <h2 className='mb-2 font-medium'>字族</h2>
+        <div className='card border-base-200 bg-base-100 border shadow'>
+          <div className='divide-base-200 divide-y'>
+            <div className='config-item'>
+              <span className=''>默认字体</span>
               <FontDropdown
                 options={fontFamilyOptions}
                 selected={defaultFont}
@@ -273,53 +239,51 @@ const FontPanel: React.FC<FontPanelProps> = ({ bookKey, onRegisterReset }) => {
                 onGetFontFamily={handleFontFamilyFont}
               />
             </div>
-            <div className="config-item flex items-center justify-between p-4">
-              <span>中文字体</span>
-              <FontDropdown
-                options={cjkFontOptions}
-                selected={defaultCJKFont}
-                onSelect={setDefaultCJKFont}
-                onGetFontFamily={(option) => option}
-              />
-            </div>
+
+            <FontFace
+              className='config-item'
+              family='serif'
+              label='中文字体'
+              options={CJK_FONTS}
+              selected={REVERSE_FONT_NAME_MAP[defaultCJKFont] || defaultCJKFont}
+              onSelect={(option) => {
+                // 保存映射后的字体名称到state
+                const fontName = FONT_NAME_MAP[option] || option;
+                setDefaultCJKFont(fontName);
+              }}
+            />
           </div>
         </div>
       </div>
 
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">字体</h2>
-        <div className="card border-base-200 bg-base-100 border shadow">
-          <div className="divide-base-200 divide-y">
-            <div className="config-item flex items-center justify-between p-4">
-              <span>衬线字体</span>
-              <FontDropdown
-                family="serif"
-                options={serifFontOptions}
-                selected={serifFont}
-                onSelect={setSerifFont}
-                onGetFontFamily={handleFontFaceFont}
-              />
-            </div>
-            <div className="config-item flex items-center justify-between p-4">
-              <span>无衬线字体</span>
-              <FontDropdown
-                family="sans-serif"
-                options={sansSerifFontOptions}
-                selected={sansSerifFont}
-                onSelect={setSansSerifFont}
-                onGetFontFamily={handleFontFaceFont}
-              />
-            </div>
-            <div className="config-item flex items-center justify-between p-4">
-              <span>等宽字体</span>
-              <FontDropdown
-                family="monospace"
-                options={monospaceFontOptions}
-                selected={monospaceFont}
-                onSelect={setMonospaceFont}
-                onGetFontFamily={handleFontFaceFont}
-              />
-            </div>
+      <div className='w-full'>
+        <h2 className='mb-2 font-medium'>字体</h2>
+        <div className='card border-base-200 bg-base-100 border shadow'>
+          <div className='divide-base-200 divide-y'>
+            <FontFace
+              className='config-item'
+              family='serif'
+              label='衬线字体'
+              options={SERIF_FONTS}
+              selected={serifFont}
+              onSelect={setSerifFont}
+            />
+            <FontFace
+              className='config-item'
+              family='sans-serif'
+              label='无衬线字体'
+              options={SANS_SERIF_FONTS}
+              selected={sansSerifFont}
+              onSelect={setSansSerifFont}
+            />
+            <FontFace
+              className='config-item'
+              family='monospace'
+              label='等宽字体'
+              options={MONOSPACE_FONTS}
+              selected={monospaceFont}
+              onSelect={setMonospaceFont}
+            />
           </div>
         </div>
       </div>
