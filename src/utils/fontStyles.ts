@@ -1,51 +1,32 @@
-// 字体样式系统 - 基于readest项目设计
+// 字体样式系统 - 完全基于readest项目实现
 
 import { ViewSettings } from '@/types/book';
 
-// 常量定义 - 使用本地字体
-const SERIF_FONTS = [
-  'Bitter',
-  'Times New Roman',
-  'Georgia',
-  'serif'
-];
+// 字体栈定义 - 与readest保持一致
+const SERIF_FONTS = ['Bitter', 'Literata', 'Merriweather', 'Vollkorn', 'Times New Roman', 'Georgia'];
+const SANS_SERIF_FONTS = ['Roboto', 'Noto Sans', 'Open Sans', 'Helvetica Neue', 'Arial'];
+const MONOSPACE_FONTS = ['Fira Code', 'Consolas', 'Monaco', 'Courier New'];
 
-const SANS_SERIF_FONTS = [
-  'Roboto',
-  'Arial',
-  'Helvetica',
-  'sans-serif'
-];
-
-const MONOSPACE_FONTS = [
-  'Fira Code',
-  'Consolas',
-  'Monaco',
-  'Courier New',
-  'monospace'
-];
-
+// 🎯 CJK字体定义 - 包含所有CDN字体（包括分片字体）
 const CJK_SERIF_FONTS = [
-  'LXGW WenKai',
-  'SimSun',
-  'Microsoft YaHei',
-  'PingFang SC',
-  'Source Han Serif SC',
-  'Noto Serif CJK SC'
+  'LXGW WenKai',        // ✅ 单文件字体 - 立即可用
+  'Huiwen-mincho',      // 分片字体 - 渲染时可用
+  'KingHwaOldSong',     // 分片字体 - 渲染时可用
+  'Noto Serif CJK',     // 分片字体 - 渲染时可用
+  'GuanKiapTsingKhai',  // ✅ 分片字体 - 渲染时可用
 ];
 
 const CJK_SANS_SERIF_FONTS = [
-  'LXGW WenKai',
-  'Microsoft YaHei',
-  'PingFang SC',
-  'SimHei',
-  'Source Han Sans SC',
-  'Noto Sans CJK SC'
+  'LXGW WenKai',        // ✅ 单文件字体 - 立即可用
+  'Huiwen-mincho',      // 分片字体 - 渲染时可用
+  'KingHwaOldSong',     // 分片字体 - 渲染时可用
+  'Noto Serif CJK',     // 分片字体 - 渲染时可用
+  'GuanKiapTsingKhai',  // ✅ 分片字体 - 渲染时可用
 ];
 
-const FALLBACK_FONTS = ['serif', 'sans-serif'];
+const FALLBACK_FONTS = ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI'];
 
-// 平台检测（简化版）
+// 平台检测
 const getOSPlatform = () => {
   if (typeof window === 'undefined') return 'unknown';
   const userAgent = window.navigator.userAgent.toLowerCase();
@@ -57,13 +38,8 @@ const getOSPlatform = () => {
   return 'unknown';
 };
 
-const isMobile = () => {
-  const platform = getOSPlatform();
-  return ['ios', 'android'].includes(platform);
-};
-
 /**
- * 生成字体样式CSS - 采用readest的字体处理策略
+ * 🎯 完全复制readest的字体样式生成逻辑
  */
 export const getFontStyles = (
   serif: string,
@@ -76,104 +52,115 @@ export const getFontStyles = (
   fontWeight: number,
   overrideFont: boolean,
 ): string => {
-  // 构建字体数组
-  const serifFonts = [serif, ...SERIF_FONTS.filter(f => f !== serif)];
-  const sansSerifFonts = [sansSerif, ...SANS_SERIF_FONTS.filter(f => f !== sansSerif)];
-  const monospaceFonts = [monospace, ...MONOSPACE_FONTS.filter(f => f !== monospace)];
-  
-  // 移动端字体缩放
-  const fontScale = isMobile() ? 1.25 : 1;
-  const scaledFontSize = fontSize * fontScale;
-  
-  // 组合字体栈 - 参考readest的策略
-  const lastSerifFonts = ['Georgia', 'Times New Roman'];
-  const finalSerifFonts = [
-    serif,
-    ...SERIF_FONTS.filter(f => f !== serif && f !== defaultCJKFont && !lastSerifFonts.includes(f)),
-    ...(defaultCJKFont !== serif ? [defaultCJKFont] : []),
-    ...CJK_SERIF_FONTS.filter(f => f !== serif && f !== defaultCJKFont),
-    ...lastSerifFonts.filter(f => SERIF_FONTS.includes(f) && !lastSerifFonts.includes(defaultCJKFont)),
-    ...FALLBACK_FONTS,
-  ];
-  
-  const finalSansSerifFonts = [
-    sansSerif,
-    ...SANS_SERIF_FONTS.filter(f => f !== sansSerif && f !== defaultCJKFont),
-    ...(defaultCJKFont !== sansSerif ? [defaultCJKFont] : []),
-    ...CJK_SANS_SERIF_FONTS.filter(f => f !== sansSerif && f !== defaultCJKFont),
-    ...FALLBACK_FONTS,
-  ];
-  
-  console.log('🎨 字体切换 (readest策略):', {
+  console.log('🎨 字体栈构建 (readest逻辑):', {
     defaultFont,
     defaultCJKFont,
-    scaledFontSize,
-    overrideFont
+    serif,
+    sansSerif,
   });
+
+  // 🔥 完全复制readest的字体栈构建逻辑
+  const lastSerifFonts = ['Georgia', 'Times New Roman'];
   
-  // 采用readest的字体样式策略
+  // 🎯 关键修改：只把当前选择的CJK字体放在最前面
+  const serifFonts = defaultCJKFont && defaultCJKFont !== serif
+    ? [
+        defaultCJKFont,  // 🔥 只有当前选择的CJK字体放在最前面
+        serif,
+        ...SERIF_FONTS.filter(
+          (font) => font !== serif && font !== defaultCJKFont && !lastSerifFonts.includes(font),
+        ),
+        ...CJK_SERIF_FONTS.filter((font) => font !== serif && font !== defaultCJKFont),
+        ...lastSerifFonts.filter(
+          (font) => SERIF_FONTS.includes(font) && !lastSerifFonts.includes(defaultCJKFont),
+        ),
+        ...FALLBACK_FONTS,
+      ]
+    : [
+        serif,
+        ...SERIF_FONTS.filter(
+          (font) => font !== serif && font !== defaultCJKFont && !lastSerifFonts.includes(font),
+        ),
+        ...(defaultCJKFont !== serif ? [defaultCJKFont] : []),
+        ...CJK_SERIF_FONTS.filter((font) => font !== serif && font !== defaultCJKFont),
+        ...lastSerifFonts.filter(
+          (font) => SERIF_FONTS.includes(font) && !lastSerifFonts.includes(defaultCJKFont),
+        ),
+        ...FALLBACK_FONTS,
+      ];
+
+  const sansSerifFonts = defaultCJKFont && defaultCJKFont !== sansSerif
+    ? [
+        defaultCJKFont,  // 🔥 只有当前选择的CJK字体放在最前面
+        sansSerif,
+        ...SANS_SERIF_FONTS.filter((font) => font !== sansSerif && font !== defaultCJKFont),
+        ...CJK_SANS_SERIF_FONTS.filter((font) => font !== sansSerif && font !== defaultCJKFont),
+        ...FALLBACK_FONTS,
+      ]
+    : [
+        sansSerif,
+        ...SANS_SERIF_FONTS.filter((font) => font !== sansSerif && font !== defaultCJKFont),
+        ...(defaultCJKFont !== sansSerif ? [defaultCJKFont] : []),
+        ...CJK_SANS_SERIF_FONTS.filter((font) => font !== sansSerif && font !== defaultCJKFont),
+        ...FALLBACK_FONTS,
+      ];
+
+  const monospaceFonts = [
+    monospace,
+    ...MONOSPACE_FONTS.filter((font) => font !== monospace),
+    ...FALLBACK_FONTS,
+  ];
+
+  console.log('🎨 字体栈结果 (只有选中CJK字体优先):', {
+    serifFonts: serifFonts.slice(0, 5),
+    sansSerifFonts: sansSerifFonts.slice(0, 5),
+    defaultCJKFont,
+  });
+
   const fontStyles = `
     html {
-      --serif: ${finalSerifFonts.map(f => `"${f}"`).join(', ')}, serif;
-      --sans-serif: ${finalSansSerifFonts.map(f => `"${f}"`).join(', ')}, sans-serif;
-      --monospace: ${monospaceFonts.map(f => `"${f}"`).join(', ')}, monospace;
+      --serif: ${serifFonts.map((font) => `"${font}"`).join(', ')}, serif;
+      --sans-serif: ${sansSerifFonts.map((font) => `"${font}"`).join(', ')}, sans-serif;
+      --monospace: ${monospaceFonts.map((font) => `"${font}"`).join(', ')}, monospace;
     }
-    
-    /* 基础字体设置 - 关键：字体大小总是强制设置 */
     html, body {
       font-family: var(${defaultFont.toLowerCase() === 'serif' ? '--serif' : '--sans-serif'}) ${overrideFont ? '!important' : ''};
-      font-size: ${scaledFontSize}px !important;
+      font-size: ${fontSize}px !important;
       font-weight: ${fontWeight};
       -webkit-text-size-adjust: none;
       text-size-adjust: none;
     }
-    
-    /* 🔥 增强优先级：强制字体大小应用到所有元素 */
-    html *, body *, p, div, span, h1, h2, h3, h4, h5, h6, article, section, main, li, td, th {
-      font-size: inherit !important;
+    font[size="1"] {
+      font-size: ${minFontSize}px;
     }
-    
-    /* 🔥 特定字体大小覆盖 */
-    p, div:not([class*="icon"]):not([class*="svg"]), span:not([class*="icon"]) {
-      font-size: ${scaledFontSize}px !important;
-      line-height: inherit !important;
+    font[size="2"] {
+      font-size: ${minFontSize * 1.5}px;
     }
-    
-    /* 标题相对大小 */
-    h1 { font-size: ${scaledFontSize * 2}px !important; }
-    h2 { font-size: ${scaledFontSize * 1.5}px !important; }
-    h3 { font-size: ${scaledFontSize * 1.3}px !important; }
-    h4 { font-size: ${scaledFontSize * 1.1}px !important; }
-    h5 { font-size: ${scaledFontSize}px !important; }
-    h6 { font-size: ${scaledFontSize * 0.9}px !important; }
-    
-    /* 字体大小规则 */
-    font[size="1"] { font-size: ${minFontSize}px !important; }
-    font[size="2"] { font-size: ${minFontSize * 1.5}px !important; }
-    font[size="3"] { font-size: ${scaledFontSize}px !important; }
-    font[size="4"] { font-size: ${scaledFontSize * 1.2}px !important; }
-    font[size="5"] { font-size: ${scaledFontSize * 1.5}px !important; }
-    font[size="6"] { font-size: ${scaledFontSize * 2}px !important; }
-    font[size="7"] { font-size: ${scaledFontSize * 3}px !important; }
-    
-    /* 覆盖常见的内联样式 */
-    [style*="font-size: 16px"], [style*="font-size:16px"],
-    [style*="font-size: 14px"], [style*="font-size:14px"],
-    [style*="font-size: 12px"], [style*="font-size:12px"],
-    [style*="font-size: 18px"], [style*="font-size:18px"] {
-      font-size: ${scaledFontSize}px !important;
+    font[size="3"] {
+      font-size: ${fontSize}px;
     }
-    
-    /* readest策略：子元素字体继承 */
+    font[size="4"] {
+      font-size: ${fontSize * 1.2}px;
+    }
+    font[size="5"] {
+      font-size: ${fontSize * 1.5}px;
+    }
+    font[size="6"] {
+      font-size: ${fontSize * 2}px;
+    }
+    font[size="7"] {
+      font-size: ${fontSize * 3}px;
+    }
+    /* hardcoded inline font size */
+    [style*="font-size: 16px"], [style*="font-size:16px"] {
+      font-size: 1rem !important;
+    }
     body * {
       ${overrideFont ? 'font-family: revert !important;' : ''}
     }
     
-    /* 等宽字体 */
-    code, pre, .code, tt, kbd, samp {
-      font-family: var(--monospace) !important;
-    }
   `;
+  
   return fontStyles;
 };
 
@@ -203,6 +190,79 @@ export const applyFontStyles = (viewSettings: ViewSettings) => {
   styleElement.id = styleId;
   styleElement.textContent = fontStyles;
   document.head.appendChild(styleElement);
+};
+
+/**
+ * 🎯 生成主页面字体样式 - 使用readest的字体栈逻辑
+ */
+export const getMainPageFontStyles = (viewSettings: ViewSettings): string => {
+  const {
+    serifFont = 'Bitter',
+    sansSerifFont = 'Roboto', 
+    monospaceFont = 'Consolas',
+    defaultFont = 'Serif',
+    defaultCJKFont = 'LXGW WenKai',
+    overrideFont = false
+  } = viewSettings;
+
+  // 🔥 使用与getFontStyles完全相同的字体栈构建逻辑
+  const lastSerifFonts = ['Georgia', 'Times New Roman'];
+  const serifFonts = [
+    serifFont,
+    ...SERIF_FONTS.filter(
+      (font) => font !== serifFont && font !== defaultCJKFont && !lastSerifFonts.includes(font),
+    ),
+    ...(defaultCJKFont !== serifFont ? [defaultCJKFont] : []),
+    ...CJK_SERIF_FONTS.filter((font) => font !== serifFont && font !== defaultCJKFont),
+    ...lastSerifFonts.filter(
+      (font) => SERIF_FONTS.includes(font) && !lastSerifFonts.includes(defaultCJKFont),
+    ),
+    ...FALLBACK_FONTS,
+  ];
+  
+  const sansSerifFonts = [
+    sansSerifFont,
+    ...SANS_SERIF_FONTS.filter((font) => font !== sansSerifFont && font !== defaultCJKFont),
+    ...(defaultCJKFont !== sansSerifFont ? [defaultCJKFont] : []),
+    ...CJK_SANS_SERIF_FONTS.filter((font) => font !== sansSerifFont && font !== defaultCJKFont),
+    ...FALLBACK_FONTS,
+  ];
+
+  const monospaceFonts = [monospaceFont, ...MONOSPACE_FONTS.filter((font) => font !== monospaceFont)];
+
+  // 生成主页面CSS变量
+  const mainFontFamily = defaultFont.toLowerCase() === 'serif' 
+    ? serifFonts.map(font => `"${font}"`).join(', ') + ', serif'
+    : sansSerifFonts.map(font => `"${font}"`).join(', ') + ', sans-serif';
+
+  return `
+    :root {
+      --main-serif: ${serifFonts.map((font) => `"${font}"`).join(', ')}, serif;
+      --main-sans-serif: ${sansSerifFonts.map((font) => `"${font}"`).join(', ')}, sans-serif;
+      --main-monospace: ${monospaceFonts.map((font) => `"${font}"`).join(', ')}, monospace;
+      --main-font-family: ${mainFontFamily};
+    }
+    
+    /* 应用统一字体到主页面元素 */
+    body, html {
+      font-family: var(--main-font-family) ${overrideFont ? '!important' : ''};
+    }
+    
+    /* 侧边栏和导航元素 */
+    aside, nav, .sidebar, [class*="sidebar"], .toc, [class*="toc"] {
+      font-family: var(--main-font-family) ${overrideFont ? '!important' : ''};
+    }
+    
+    /* 所有文本元素 */
+    p, div, span, h1, h2, h3, h4, h5, h6, li, td, th {
+      font-family: inherit ${overrideFont ? '!important' : ''};
+    }
+    
+    /* 特别针对中文内容 */
+    [lang*="zh"], [lang*="ja"], [lang*="ko"], .cjk {
+      font-family: "${defaultCJKFont}", var(--main-font-family) ${overrideFont ? '!important' : ''};
+    }
+  `;
 };
 
 // 移除字体样式

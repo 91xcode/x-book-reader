@@ -22,19 +22,22 @@ const SidebarContent: React.FC<{
   const { getViewSettings } = useReaderStore();
   const viewSettings = getViewSettings(sideBarBookKey);
   
-  // 根据用户设置生成字体类名
+  // 🔍 调试：SidebarContent bookKey追踪  
+  useEffect(() => {
+    console.log('🔍 SidebarContent: 使用bookKey:', sideBarBookKey);
+  }, [sideBarBookKey]);
+  
+  // 🎯 统一字体栈：根据用户设置生成CSS类名，与iframe保持一致
   const getFontClass = () => {
-    if (!viewSettings) return 'font-sans';
+    if (!viewSettings?.overrideFont) return 'font-sans';
     
-    const { defaultFont, defaultCJKFont, overrideFont } = viewSettings;
+    const { defaultFont } = viewSettings;
     
-    if (!overrideFont) return 'font-sans';
-    
-    // 根据defaultFont设置选择字体族
+    // 使用统一的字体栈CSS类名
     if (defaultFont === 'Serif') {
-      return ''; // 使用CSS变量中的衬线字体
+      return 'font-serif-unified'; // 使用与iframe相同的衬线字体栈
     } else {
-      return ''; // 使用CSS变量中的无衬线字体
+      return 'font-sans-unified'; // 使用与iframe相同的无衬线字体栈
     }
   };
 
@@ -48,11 +51,8 @@ const SidebarContent: React.FC<{
     setActiveTab(tab);
   };
 
-  // 应用用户字体设置的内联样式
+  // 🎯 应用字体设置的内联样式（仅大小和字重，字体族通过CSS类名统一管理）
   const fontStyle = viewSettings?.overrideFont ? {
-    fontFamily: viewSettings.defaultFont === 'Serif' 
-      ? `"${viewSettings.serifFont || 'Bitter'}", "${viewSettings.defaultCJKFont || 'LXGW WenKai'}", serif`
-      : `"${viewSettings.sansSerifFont || 'Roboto'}", "${viewSettings.defaultCJKFont || 'LXGW WenKai'}", sans-serif`,
     fontSize: `${viewSettings.defaultFontSize || 16}px`,
     fontWeight: viewSettings.fontWeight || 400
   } : {};
@@ -63,7 +63,7 @@ const SidebarContent: React.FC<{
         className={clsx(
           'sidebar-content flex h-full min-h-0 flex-grow flex-col shadow-inner',
           'text-base font-normal sm:text-sm',
-          getFontClass()
+          getFontClass() // 🎯 使用统一的字体栈CSS类名
         )}
         style={fontStyle}
       >

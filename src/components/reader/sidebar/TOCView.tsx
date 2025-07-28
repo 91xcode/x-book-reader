@@ -126,10 +126,67 @@ const TOCView: React.FC<{
   }, []);
 
   const handleItemClick = useCallback(
-    (item: TOCItem) => {
-      eventDispatcher.dispatch('navigate', { bookKey, href: item.href });
-      if (item.href) {
-        getView(bookKey)?.goTo(item.href);
+    async (item: TOCItem) => {
+      console.group('🔍 TOC点击调试');
+      console.log('点击的章节:', {
+        label: item.label,
+        href: item.href,
+        bookKey: bookKey
+      });
+      
+      try {
+        // 1. 检查事件分发
+        console.log('📤 分发导航事件...');
+        await eventDispatcher.dispatch('navigate', { bookKey, href: item.href });
+        console.log('✅ 导航事件分发成功');
+        
+        // 2. 检查视图获取
+        const view = getView(bookKey);
+        console.log('📖 获取视图:', {
+          view: view ? '✅ 已找到视图' : '❌ 视图为null',
+          bookKey: bookKey,
+          viewType: view ? (view.constructor.name || 'Unknown') : 'N/A'
+        });
+        
+        if (item.href) {
+          if (view) {
+            // 3. 检查goTo方法
+            console.log('🧭 调用goTo方法...');
+            console.log('目标href:', item.href);
+            
+            if (typeof view.goTo === 'function') {
+              try {
+                await view.goTo(item.href);
+                console.log('✅ goTo方法调用成功');
+              } catch (goToError) {
+                console.error('❌ goTo方法执行失败:', goToError);
+              }
+            } else {
+              console.error('❌ view.goTo 不是一个函数:', typeof view.goTo);
+            }
+          } else {
+            console.error('❌ 无法获取视图 - 可能的原因:');
+            console.error('1. bookKey不匹配');
+            console.error('2. 视图还未初始化');
+            console.error('3. 视图初始化失败');
+            
+            // 调试store状态 - 使用当前组件的store访问方式
+            console.log('🔍 当前bookKey:', bookKey);
+            console.log('🔍 尝试重新获取视图...');
+            // 短暂延迟后重试
+            setTimeout(() => {
+              const retryView = getView(bookKey);
+              console.log('🔍 重试结果:', retryView ? '找到视图' : '仍然为null');
+            }, 100);
+          }
+        } else {
+          console.warn('⚠️ 章节没有href');
+        }
+        
+      } catch (error) {
+        console.error('❌ TOC点击处理失败:', error);
+      } finally {
+        console.groupEnd();
       }
     },
     [bookKey, getView],

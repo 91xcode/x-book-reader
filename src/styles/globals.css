@@ -107,10 +107,13 @@ body {
   }
 }
 
-/* Config item styles from readest */
+/* 🎯 readest风格的配置项样式 */
 .config-item {
-  @apply flex h-14 items-center justify-between p-4;
-  @apply hover:bg-base-100/50;
+  @apply flex items-center justify-between p-4;
+}
+
+.config-item:hover {
+  @apply bg-gray-50 dark:bg-gray-800;
 }
 
 .config-item-top {

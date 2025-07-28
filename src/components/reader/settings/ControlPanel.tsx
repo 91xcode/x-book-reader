@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
-
 import { useReaderStore } from '@/store/readerStore';
+import { useViewSettingsSync } from '@/utils/viewSettingsHelper';
+import { getCompleteStyles } from '@/utils/style';
+import { getMaxInlineSize } from '@/utils/config';
+import { useTranslation } from '@/hooks/useTranslation';
 import NumberInput from './NumberInput';
 
 interface ControlPanelProps {
@@ -9,9 +12,10 @@ interface ControlPanelProps {
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({ bookKey, onRegisterReset }) => {
-  const { getView, getViewSettings, setViewSettings } = useReaderStore();
+  const _ = useTranslation()._;
+  const { getView, getViewSettings } = useReaderStore();
+  const { saveViewSettings } = useViewSettingsSync();
   const viewSettings = getViewSettings(bookKey);
-  const view = getView(bookKey);
 
   const [isScrolledMode, setScrolledMode] = useState(viewSettings?.scrolled ?? false);
   const [isContinuousScroll, setIsContinuousScroll] = useState(viewSettings?.continuousScroll ?? false);
@@ -22,7 +26,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ bookKey, onRegisterReset })
   const [animated, setAnimated] = useState(viewSettings?.animated ?? true);
   const [allowScript, setAllowScript] = useState(viewSettings?.allowScript ?? false);
 
-  const resetToDefaults = () => {
+  const handleReset = () => {
     setScrolledMode(false);
     setIsContinuousScroll(false);
     setScrollingOverlap(0);
@@ -34,151 +38,179 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ bookKey, onRegisterReset })
   };
 
   useEffect(() => {
-    onRegisterReset(resetToDefaults);
-  }, [onRegisterReset]);
+    onRegisterReset(handleReset);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 🎯 readest风格：滚动模式的特殊处理逻辑
+  useEffect(() => {
+    if (isScrolledMode === viewSettings?.scrolled || !viewSettings) return;
+    
+    console.log('🔄 滚动模式切换:', {
+      bookKey,
+      isScrolledMode,
+      viewExists: !!getView(bookKey),
+      rendererExists: !!getView(bookKey)?.renderer
+    });
+    
+    saveViewSettings(bookKey, 'scrolled', isScrolledMode);
+    const view = getView(bookKey);
+    if (view?.renderer) {
+      view.renderer.setAttribute('flow', isScrolledMode ? 'scrolled' : 'paginated');
+      view.renderer.setAttribute(
+        'max-inline-size',
+        `${getMaxInlineSize(viewSettings)}px`,
+      );
+      view.renderer.setStyles?.(getCompleteStyles(viewSettings));
+      console.log('✅ 滚动模式已应用:', isScrolledMode ? '滚动模式' : '分页模式');
+    } else {
+      console.error('❌ 未找到view或renderer:', { bookKey, view: !!view });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isScrolledMode]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.scrolled !== isScrolledMode) {
-      const updatedSettings = { ...viewSettings, scrolled: isScrolledMode };
-      setViewSettings(bookKey, updatedSettings);
-      
-      // 应用滚动模式到视图
-      if (view?.renderer) {
-        view.renderer.setAttribute('flow', isScrolledMode ? 'scrolled' : 'paginated');
-      }
-    }
-  }, [isScrolledMode, viewSettings, bookKey, setViewSettings, view]);
+    if (!viewSettings) return;
+    saveViewSettings(bookKey, 'continuousScroll', isContinuousScroll, false, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isContinuousScroll]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.continuousScroll !== isContinuousScroll) {
-      const updatedSettings = { ...viewSettings, continuousScroll: isContinuousScroll };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [isContinuousScroll, viewSettings, bookKey, setViewSettings]);
+    if (scrollingOverlap === viewSettings?.scrollingOverlap || !viewSettings) return;
+    saveViewSettings(bookKey, 'scrollingOverlap', scrollingOverlap, false, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollingOverlap]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.scrollingOverlap !== scrollingOverlap) {
-      const updatedSettings = { ...viewSettings, scrollingOverlap };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [scrollingOverlap, viewSettings, bookKey, setViewSettings]);
+    if (!viewSettings) return;
+    saveViewSettings(bookKey, 'volumeKeysToFlip', volumeKeysToFlip, false, false);
+    // TODO: 可以添加移动端音量键拦截
+    // if (appService?.isMobileApp) {
+    //   if (volumeKeysToFlip) {
+    //     acquireVolumeKeyInterception();
+    //   } else {
+    //     releaseVolumeKeyInterception();
+    //   }
+    // }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volumeKeysToFlip]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.volumeKeysToFlip !== volumeKeysToFlip) {
-      const updatedSettings = { ...viewSettings, volumeKeysToFlip };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [volumeKeysToFlip, viewSettings, bookKey, setViewSettings]);
+    if (!viewSettings) return;
+    saveViewSettings(bookKey, 'disableClick', isDisableClick, false, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDisableClick]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.disableClick !== isDisableClick) {
-      const updatedSettings = { ...viewSettings, disableClick: isDisableClick };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [isDisableClick, viewSettings, bookKey, setViewSettings]);
+    if (!viewSettings) return;
+    saveViewSettings(bookKey, 'swapClickArea', swapClickArea, false, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [swapClickArea]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.swapClickArea !== swapClickArea) {
-      const updatedSettings = { ...viewSettings, swapClickArea };
-      setViewSettings(bookKey, updatedSettings);
+    if (!viewSettings) return;
+    saveViewSettings(bookKey, 'animated', animated, false, false);
+    if (animated) {
+      getView(bookKey)?.renderer.setAttribute('animated', '');
+    } else {
+      getView(bookKey)?.renderer.removeAttribute('animated');
     }
-  }, [swapClickArea, viewSettings, bookKey, setViewSettings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animated]);
 
   useEffect(() => {
-    if (viewSettings && viewSettings.animated !== animated) {
-      const updatedSettings = { ...viewSettings, animated };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [animated, viewSettings, bookKey, setViewSettings]);
-
-  useEffect(() => {
-    if (viewSettings && viewSettings.allowScript !== allowScript) {
-      const updatedSettings = { ...viewSettings, allowScript };
-      setViewSettings(bookKey, updatedSettings);
-    }
-  }, [allowScript, viewSettings, bookKey, setViewSettings]);
+    if (viewSettings?.allowScript === allowScript || !viewSettings) return;
+    saveViewSettings(bookKey, 'allowScript', allowScript, true, false);
+    // TODO: 可以添加重新加载逻辑
+    // saveAndReload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowScript]);
 
   return (
-    <div className="my-4 w-full space-y-6">
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">阅读模式</h2>
-        <div className="card border-base-200 bg-base-100 border shadow">
-          <div className="divide-base-200 divide-y">
-            <div className="config-item flex items-center justify-between p-4">
-              <span>滚动模式</span>
+    <div className='my-4 w-full space-y-6'>
+      {/* 🎯 滚动设置区域 - readest风格 */}
+      <div className='w-full'>
+        <h2 className='mb-2 font-medium'>{_('Scroll')}</h2>
+        <div className='card border-base-200 bg-base-100 border shadow'>
+          <div className='divide-base-200 divide-y'>
+            <div className='config-item'>
+              <span className=''>{_('Scrolled Mode')}</span>
               <input
-                type="checkbox"
-                className="toggle"
+                type='checkbox'
+                className='toggle'
                 checked={isScrolledMode}
                 onChange={() => setScrolledMode(!isScrolledMode)}
               />
             </div>
-            <div className="config-item flex items-center justify-between p-4">
-              <span>连续滚动</span>
+            <div className='config-item'>
+              <span className=''>{_('Continuous Scroll')}</span>
               <input
-                type="checkbox"
-                className="toggle"
+                type='checkbox'
+                className='toggle'
                 checked={isContinuousScroll}
                 onChange={() => setIsContinuousScroll(!isContinuousScroll)}
-                disabled={!isScrolledMode}
               />
             </div>
             <NumberInput
-              label="滚动重叠"
+              label={_('Overlap Pixels')}
               value={scrollingOverlap}
               onChange={setScrollingOverlap}
+              disabled={!viewSettings?.scrolled}
               min={0}
-              max={100}
-              disabled={!isScrolledMode}
+              max={200}
+              step={10}
             />
           </div>
         </div>
       </div>
 
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">交互控制</h2>
-        <div className="card border-base-200 bg-base-100 border shadow">
-          <div className="divide-base-200 divide-y">
-            <div className="config-item flex items-center justify-between p-4">
-              <span>音量键翻页</span>
+      {/* 🎯 点击设置区域 - readest风格 */}
+      <div className='w-full'>
+        <h2 className='mb-2 font-medium'>{_('Click')}</h2>
+        <div className='card border-base-200 bg-base-100 border shadow'>
+          <div className='divide-base-200 divide-y'>
+            <div className='config-item'>
+              <span className=''>{_('Clicks for Page Flip')}</span>
               <input
-                type="checkbox"
-                className="toggle"
-                checked={volumeKeysToFlip}
-                onChange={() => setVolumeKeysToFlip(!volumeKeysToFlip)}
-              />
-            </div>
-            <div className="config-item flex items-center justify-between p-4">
-              <span>禁用点击</span>
-              <input
-                type="checkbox"
-                className="toggle"
-                checked={isDisableClick}
+                type='checkbox'
+                className='toggle'
+                checked={!isDisableClick}
                 onChange={() => setIsDisableClick(!isDisableClick)}
               />
             </div>
-            <div className="config-item flex items-center justify-between p-4">
-              <span>交换点击区域</span>
+            <div className='config-item'>
+              <span className=''>{_('Swap Clicks Area')}</span>
               <input
-                type="checkbox"
-                className="toggle"
+                type='checkbox'
+                className='toggle'
                 checked={swapClickArea}
+                disabled={isDisableClick}
                 onChange={() => setSwapClickArea(!swapClickArea)}
+              />
+            </div>
+            <div className='config-item'>
+              <span className=''>{_('Volume Keys for Page Flip')}</span>
+              <input
+                type='checkbox'
+                className='toggle'
+                checked={volumeKeysToFlip}
+                onChange={() => setVolumeKeysToFlip(!volumeKeysToFlip)}
               />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">动画</h2>
-        <div className="card border-base-200 bg-base-100 border shadow">
-          <div className="divide-base-200 divide-y">
-            <div className="config-item flex items-center justify-between p-4">
-              <span>启用动画</span>
+      {/* 🎯 动画设置区域 - readest风格 */}
+      <div className='w-full'>
+        <h2 className='mb-2 font-medium'>{_('Animation')}</h2>
+        <div className='card border-base-200 bg-base-100 border shadow'>
+          <div className='divide-base-200 divide-y'>
+            <div className='config-item'>
+              <span className=''>{_('Enable Animation')}</span>
               <input
-                type="checkbox"
-                className="toggle"
+                type='checkbox'
+                className='toggle'
                 checked={animated}
                 onChange={() => setAnimated(!animated)}
               />
@@ -187,15 +219,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ bookKey, onRegisterReset })
         </div>
       </div>
 
-      <div className="w-full">
-        <h2 className="mb-2 font-medium">脚本</h2>
-        <div className="card border-base-200 bg-base-100 border shadow">
-          <div className="divide-base-200 divide-y">
-            <div className="config-item flex items-center justify-between p-4">
-              <span>允许脚本</span>
+      {/* 🎯 脚本设置区域 - readest风格 */}
+      <div className='w-full'>
+        <h2 className='mb-2 font-medium'>{_('Script')}</h2>
+        <div className='card border-base-200 bg-base-100 border shadow'>
+          <div className='divide-base-200 divide-y'>
+            <div className='config-item'>
+              <span className=''>{_('Allow Script')}</span>
               <input
-                type="checkbox"
-                className="toggle"
+                type='checkbox'
+                className='toggle'
                 checked={allowScript}
                 onChange={() => setAllowScript(!allowScript)}
               />

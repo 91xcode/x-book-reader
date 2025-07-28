@@ -85,3 +85,39 @@ export const formatFileSize = (size: number | null): string => {
 export const getPrimaryLanguage = (lang: string | string[] | undefined): string | undefined => {
   return Array.isArray(lang) ? lang[0] : lang
 } 
+
+// 🧭 检测文档的书写方向
+export const getDirection = (doc: Document) => {
+  const htmlElement = doc.documentElement;
+  const bodyElement = doc.body;
+  
+  // 检查HTML元素的方向属性
+  const htmlDir = htmlElement?.getAttribute('dir');
+  const htmlWritingMode = htmlElement?.style.writingMode || 
+                         window.getComputedStyle(htmlElement).writingMode;
+  
+  // 检查body元素的方向属性
+  const bodyDir = bodyElement?.getAttribute('dir');
+  const bodyWritingMode = bodyElement?.style.writingMode || 
+                         window.getComputedStyle(bodyElement).writingMode;
+  
+  // 优先使用body的设置，其次是html的设置
+  const dir = bodyDir || htmlDir;
+  const writingMode = bodyWritingMode || htmlWritingMode;
+  
+  // 检测是否为从右到左
+  const rtl = dir === 'rtl' || 
+              writingMode.includes('vertical-rl') ||
+              htmlElement?.getAttribute('class')?.includes('rtl');
+  
+  // 检测是否为垂直书写
+  const vertical = writingMode.includes('vertical') ||
+                   htmlElement?.getAttribute('class')?.includes('vertical');
+  
+  return {
+    rtl,
+    vertical,
+    dir,
+    writingMode
+  };
+}; 

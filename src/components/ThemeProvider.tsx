@@ -7,16 +7,13 @@ import {
   createLogger,
   type FontLoadResult 
 } from '@/utils/fontDetector'
+import { getMainPageFontStyles } from '@/utils/fontStyles'
 import { 
   loadFontsWithStrategy, 
   removeCDNFonts,
   type FontLoadStrategy 
 } from '@/utils/fontLoader'
-import { 
-  initializeFontOptimization,
-  smartFontPreload 
-} from '@/utils/fontOptimizer'
-import { initializeGlobalFontManager } from '@/utils/globalFontManager'
+// 🗑️ 移除复杂的全局字体管理器，简化为readest模式
 // 在开发环境中导入布局设置测试（会自动运行）
 if (process.env.NODE_ENV === 'development') {
   import('@/utils/layoutSettingsTest')
@@ -29,7 +26,7 @@ interface ThemeProviderProps {
 
 export default function ThemeProvider({ 
   children, 
-  fontStrategy = 'local-first' // 默认本地优先策略
+  fontStrategy = 'cdn-only' // 默认仅使用CDN字体
 }: ThemeProviderProps) {
   const { loadSettings } = useSettingsStore()
   const [fontResults, setFontResults] = useState<FontLoadResult[]>([])
@@ -47,13 +44,13 @@ export default function ThemeProvider({
     
     const initializeCDNFonts = () => {
       try {
-        logger.info('🌐 开始加载 CDN 字体（readest 风格）')
+        logger.info('🌐 开始加载 CDN 字体（使用 fontsapi.zeoseven.com 的5种字体）')
         
-        // 使用与 readest 相同的字体加载策略
+        // 使用 CDN 字体加载策略
         loadFontsWithStrategy(document, fontStrategy, true)
         
         setCdnFontsLoaded(true)
-        logger.info('✅ CDN 字体加载完成 - 包含 LXGW WenKai GB Screen')
+        logger.info('✅ CDN 字体加载完成 - 包含5种 fontsapi.zeoseven.com 中文字体')
         
       } catch (error) {
         logger.error('❌ CDN 字体加载失败', { error })
@@ -76,38 +73,45 @@ export default function ThemeProvider({
     }
   }, [fontStrategy])
 
-  // 字体优化初始化
-  useEffect(() => {
-    // 启动字体优化系统
-    initializeFontOptimization()
-    
-    // 智能字体预加载
-    smartFontPreload()
-    
-    // 初始化全局字体管理器
-    initializeGlobalFontManager()
-  }, [])
+  // 🗑️ 移除复杂的字体优化和全局管理器初始化
 
-  // 简化的字体系统初始化
+  // CDN字体系统初始化（不再检测本地字体）
   useEffect(() => {
     const logger = createLogger()
     
     const initializeFontSystem = async () => {
       try {
-        logger.info('🚀 初始化混合字体系统')
+        logger.info('🚀 初始化 CDN 字体系统')
         
         // 设置字体加载监听器
         setupFontLoadListener(logger)
         
-        // 执行简化的字体检测（会自动等待字体加载完成）
-        const results = await detectAndLogFonts()
-        setFontResults(results)
+        // 🎯 初始化主页面字体样式，确保侧边栏与iframe使用统一字体栈
+        const defaultFontSettings = {
+          serifFont: 'Bitter',
+          sansSerifFont: 'Roboto',
+          monospaceFont: 'Consolas',
+          defaultCJKFont: 'LXGW WenKai' // 🔧 修复：使用正确的zeoseven字体名称
+        } as const
+        
+        const mainPageStyles = getMainPageFontStyles(defaultFontSettings as any)
+        const mainStyleId = 'main-page-font-styles'
+        const existingMainStyle = document.getElementById(mainStyleId)
+        if (existingMainStyle) {
+          existingMainStyle.remove()
+        }
+        
+        const mainStyleElement = document.createElement('style')
+        mainStyleElement.id = mainStyleId
+        mainStyleElement.textContent = mainPageStyles
+        document.head.appendChild(mainStyleElement)
+        logger.info('🎨 主页面字体样式初始化完成')
         
         setFontsLoaded(true)
-        logger.info('✨ 字体系统初始化完成')
+        logger.info('✨ CDN 字体系统初始化完成')
         
       } catch (error) {
-        logger.error('💥 字体系统初始化失败', { error })
+        logger.error('💥 CDN 字体系统初始化失败', { error })
         setFontsLoaded(true) // 即使失败也继续
       }
     }
@@ -115,24 +119,22 @@ export default function ThemeProvider({
     initializeFontSystem()
   }, [])
 
-  // 混合字体系统状态报告
+  // CDN字体系统状态报告
   useEffect(() => {
-    if (fontResults.length === 0 || !cdnFontsLoaded) return
+    if (!cdnFontsLoaded) return
     
     const logger = createLogger()
-    const localLoaded = fontResults.filter(r => r.source === 'local' && r.loaded).length
-    const totalLocal = fontResults.filter(r => r.source === 'local').length
     
-    logger.info('🎯 混合字体系统最终状态', {
-      本地字体状态: `${localLoaded}/${totalLocal} 本地字体可用`,
-      CDN字体状态: fontStrategy !== 'local-only' ? '已加载 readest 风格 CDN 字体' : '未启用',
-      LXGW字体来源: fontStrategy !== 'local-only' ? 'CDN (cn-fontsource-lxgw-wen-kai-gb-screen@1.0.6)' : '本地 TTF 文件',
+    logger.info('🎯 CDN字体系统最终状态', {
+      CDN字体状态: '✅ 已成功加载 fontsapi.zeoseven.com 5种中文字体',
+      中文字体来源: 'CDN (fontsapi.zeoseven.com/292,256,309,285,427)',
+      基础字体来源: 'Google Fonts CDN (Roboto, Bitter, Fira Code等)',
       加载策略: fontStrategy,
-      readest兼容性: fontStrategy !== 'local-only' ? '✅ 完全兼容' : '⚠️ 仅本地字体',
-      用户体验: '字体回退链完整，渲染效果优秀'
+      性能优化: '✅ 纯CDN模式，无本地字体依赖',
+      用户体验: '完全基于CDN的字体系统，快速稳定'
     })
     
-  }, [fontResults, cdnFontsLoaded, fontStrategy])
+  }, [cdnFontsLoaded, fontStrategy])
 
   return (
     <div className={fontsLoaded && cdnFontsLoaded ? 'font-loaded' : 'font-loading'}>

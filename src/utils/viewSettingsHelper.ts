@@ -2,6 +2,8 @@ import { ViewSettings } from '@/types/book';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useReaderStore } from '@/store/readerStore';
 import { getCompleteStyles } from '@/utils/style';
+import { getMainPageFontStyles } from '@/utils/fontStyles';
+import { useCallback } from 'react';
 
 /**
  * 视图设置同步助手
@@ -9,12 +11,12 @@ import { getCompleteStyles } from '@/utils/style';
  */
 export const useViewSettingsSync = () => {
   const { settings, isFontLayoutSettingsGlobal } = useSettingsStore();
-  const { getViewSettings, setViewSettings, getView } = useReaderStore();
+  const { getView, getViewSettings, setViewSettings } = useReaderStore();
 
   /**
    * 将全局设置应用到指定书籍
    */
-  const applyGlobalSettingsToBook = (bookKey: string) => {
+  const applyGlobalSettingsToBook = useCallback((bookKey: string) => {
     const currentSettings = getViewSettings(bookKey);
     if (!currentSettings) return;
 
@@ -32,12 +34,12 @@ export const useViewSettingsSync = () => {
       console.log('🎨 应用全局设置到书籍:', bookKey, updatedSettings);
       view.renderer.setStyles(getCompleteStyles(updatedSettings));
     }
-  };
+  }, [getViewSettings, setViewSettings, getView, settings.globalViewSettings]);
 
   /**
    * 初始化书籍设置（如果启用全局设置，则使用全局设置）
    */
-  const initializeBookSettings = (bookKey: string, defaultSettings?: Partial<ViewSettings>) => {
+  const initializeBookSettings = useCallback((bookKey: string, defaultSettings?: Partial<ViewSettings>) => {
     const existingSettings = getViewSettings(bookKey);
     if (existingSettings) return; // 已经初始化
 
@@ -48,72 +50,48 @@ export const useViewSettingsSync = () => {
     if (settingsToUse) {
       setViewSettings(bookKey, settingsToUse as ViewSettings);
     }
-  };
+  }, [getViewSettings, setViewSettings, isFontLayoutSettingsGlobal, settings.globalViewSettings]);
 
-  /**
-   * 保存单个视图设置并立即应用样式
-   */
-  const saveViewSetting = (
-    bookKey: string, 
-    key: keyof ViewSettings, 
-    value: any, 
+  // 🎯 模仿readest的saveViewSettings - 简洁高效版本
+  const saveViewSettings = useCallback(async <K extends keyof ViewSettings>(
+    bookKey: string,
+    key: K,
+    value: ViewSettings[K],
     skipGlobal = false,
-    applyStyles = true
+    applyStyles = true,
   ) => {
-    const currentSettings = getViewSettings(bookKey);
-    if (!currentSettings) {
-      console.warn(`⚠️ 未找到书籍设置: ${bookKey}`);
+    const viewSettings = getViewSettings(bookKey);
+    if (!viewSettings) {
+      console.warn(`⚠️ 未找到书籍设置: ${bookKey} - 跳过设置 ${key}`);
       return;
     }
 
-    // 检查值是否真的改变了
-    if (currentSettings[key] === value) {
-      console.log(`📝 设置值未变化，跳过: ${key} = ${value}`);
-      return;
-    }
-
-    const updatedSettings = { ...currentSettings, [key]: value };
-    
-    // 特别记录字体大小变化
-    if (key === 'defaultFontSize') {
-      console.log(`🔤 字体大小变化: ${currentSettings[key]} → ${value}px`);
-    }
-    
-    console.log(`🎨 保存视图设置: ${key} = ${value}`, {
-      旧值: currentSettings[key],
-      新值: value,
-      书籍: bookKey
-    });
-
-    // 🔥 关键修复：像readest一样立即应用样式
-    if (applyStyles) {
-      const view = getView(bookKey);
-      if (view?.renderer?.setStyles) {
-        const styles = getCompleteStyles(updatedSettings);
-        view.renderer.setStyles(styles);
-        console.log('🎯 立即应用样式（readest方式）');
-      } else {
-        console.warn('⚠️ 未找到view或renderer，无法应用样式');
+    // 🎯 只在值真正改变时才处理
+    if (viewSettings[key] !== value) {
+      viewSettings[key] = value;
+      
+      // 🎨 立即应用样式到renderer
+      if (applyStyles) {
+        const view = getView(bookKey);
+        view?.renderer?.setStyles?.(getCompleteStyles(viewSettings));
       }
     }
+    
+    setViewSettings(bookKey, viewSettings);
 
-    // 更新store
-    setViewSettings(bookKey, updatedSettings);
-
-    // 如果启用全局设置且未跳过全局更新，则同时更新全局设置
-    if (isFontLayoutSettingsGlobal && !skipGlobal) {
-      const { updateGlobalViewSettings } = useSettingsStore.getState();
-      updateGlobalViewSettings({ [key]: value });
-    }
-
-    // TODO: 保存到持久化存储
-    // 这里应该调用类似 saveConfig 和 saveSettings 的函数
-  };
+    // TODO: 未来可以添加全局设置处理和持久化保存
+    // if (isFontLayoutSettingsGlobal && !skipGlobal) {
+    //   settings.globalViewSettings[key] = value;
+    //   setSettings(settings);
+    // }
+    // await saveConfig(envConfig, bookKey, config, settings);
+    // await saveSettings(envConfig, settings);
+  }, [getView, getViewSettings, setViewSettings]);
 
   return {
     applyGlobalSettingsToBook,
     initializeBookSettings,
-    saveViewSetting,
+    saveViewSettings,
     isFontLayoutSettingsGlobal,
   };
 };

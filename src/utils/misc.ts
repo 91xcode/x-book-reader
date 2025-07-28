@@ -58,3 +58,75 @@ export const detectCJKEnvironment = () => {
   const isCJKLocale = ['zh', 'ja', 'ko'].some((lang) => browserLanguage.startsWith(lang));
   return isCJKLocale || isCJKUI;
 }; 
+
+// 🌐 检测是否为CJK环境
+export const isCJKEnv = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  // 检查浏览器语言设置
+  const userLanguage = navigator.language || (navigator as any).userLanguage;
+  const languages = navigator.languages || [userLanguage];
+  
+  const cjkLanguages = ['zh', 'ja', 'ko', 'zh-CN', 'zh-TW', 'zh-HK', 'ja-JP', 'ko-KR'];
+  
+  return languages.some(lang => 
+    cjkLanguages.some(cjkLang => lang.toLowerCase().startsWith(cjkLang.toLowerCase()))
+  );
+};
+
+// 📚 获取书籍主要语言
+export const getPrimaryLanguage = (language: string | string[] | null | undefined): string => {
+  if (!language) return 'en';
+  if (Array.isArray(language)) return language[0] || 'en';
+  return language;
+};
+
+// 📝 格式化标题
+export const formatTitle = (title: string | undefined): string => {
+  if (!title) return 'Untitled';
+  return title.trim();
+};
+
+// 📄 获取基础文件名（无扩展名）
+export const getBaseFilename = (filename: string): string => {
+  const lastDotIndex = filename.lastIndexOf('.');
+  if (lastDotIndex === -1) return filename;
+  return filename.substring(0, lastDotIndex);
+};
+
+// 🔗 检查是否为有效URL
+export const isValidURL = (str: string): boolean => {
+  try {
+    new URL(str);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// 🎯 节流函数
+export const throttle = <T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): ((...args: Parameters<T>) => void) => {
+  let inThrottle: boolean;
+  return function (this: any, ...args: Parameters<T>) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
+};
+
+// 🔄 防抖函数
+export const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): ((...args: Parameters<T>) => void) => {
+  let timeoutId: NodeJS.Timeout;
+  return function (this: any, ...args: Parameters<T>) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(this, args), delay);
+  };
+}; 

@@ -17,7 +17,7 @@ interface LayoutPanelProps {
 
 const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) => {
   const { getView, getViewSettings, setViewSettings, initializeViewSettings } = useReaderStore();
-  const { saveViewSetting, isFontLayoutSettingsGlobal } = useViewSettingsSync();
+  const { saveViewSettings, isFontLayoutSettingsGlobal } = useViewSettingsSync();
   const { updateGlobalViewSettings } = useSettingsStore();
   const resetViewSettings = useResetViewSettings();
 
@@ -161,56 +161,56 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
   // 文本设置
   useEffect(() => {
     if (!viewSettings) return; // 等待viewSettings初始化完成
-    saveViewSetting(bookKey, 'paragraphMargin', paragraphMargin);
+    saveViewSettings(bookKey, 'paragraphMargin', paragraphMargin);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paragraphMargin, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'lineHeight', lineHeight);
+    saveViewSettings(bookKey, 'lineHeight', lineHeight);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineHeight, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'wordSpacing', wordSpacing);
+    saveViewSettings(bookKey, 'wordSpacing', wordSpacing);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wordSpacing, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'letterSpacing', letterSpacing);
+    saveViewSettings(bookKey, 'letterSpacing', letterSpacing);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [letterSpacing, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'textIndent', textIndent);
+    saveViewSettings(bookKey, 'textIndent', textIndent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [textIndent, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'fullJustification', fullJustification);
+    saveViewSettings(bookKey, 'fullJustification', fullJustification);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullJustification, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'hyphenation', hyphenation);
+    saveViewSettings(bookKey, 'hyphenation', hyphenation);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hyphenation, viewSettings]);
 
   // 布局控制设置
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'overrideLayout', overrideLayout);
+    saveViewSettings(bookKey, 'overrideLayout', overrideLayout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overrideLayout, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings || writingMode === viewSettings.writingMode) return;
-    saveViewSetting(bookKey, 'writingMode', writingMode);
+    saveViewSettings(bookKey, 'writingMode', writingMode);
     // TODO: 处理书籍方向和重新加载逻辑
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [writingMode, viewSettings]);
@@ -218,130 +218,130 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
   // 边框设置
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'doubleBorder', doubleBorder, false, false);
+    saveViewSettings(bookKey, 'doubleBorder', doubleBorder, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doubleBorder, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'borderColor', borderColor, false, false);
+    saveViewSettings(bookKey, 'borderColor', borderColor, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [borderColor, viewSettings]);
 
   // 页边距设置（仿照readest的防重复逻辑）
   useEffect(() => {
     if (!viewSettings || marginTopPx === viewSettings.marginTopPx) return;
-    saveViewSetting(bookKey, 'marginTopPx', marginTopPx, false, false);
+    saveViewSettings(bookKey, 'marginTopPx', marginTopPx, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marginTopPx, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings || marginBottomPx === viewSettings.marginBottomPx) return;
-    saveViewSetting(bookKey, 'marginBottomPx', marginBottomPx, false, false);
+    saveViewSettings(bookKey, 'marginBottomPx', marginBottomPx, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marginBottomPx, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings || marginLeftPx === viewSettings.marginLeftPx) return;
-    saveViewSetting(bookKey, 'marginLeftPx', marginLeftPx, false, false);
+    saveViewSettings(bookKey, 'marginLeftPx', marginLeftPx, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marginLeftPx, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings || marginRightPx === viewSettings.marginRightPx) return;
-    saveViewSetting(bookKey, 'marginRightPx', marginRightPx, false, false);
+    saveViewSettings(bookKey, 'marginRightPx', marginRightPx, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marginRightPx, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings || compactMarginTopPx === viewSettings.compactMarginTopPx) return;
-    saveViewSetting(bookKey, 'compactMarginTopPx', compactMarginTopPx, false, false);
+    saveViewSettings(bookKey, 'compactMarginTopPx', compactMarginTopPx, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compactMarginTopPx, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings || compactMarginBottomPx === viewSettings.compactMarginBottomPx) return;
-    saveViewSetting(bookKey, 'compactMarginBottomPx', compactMarginBottomPx, false, false);
+    saveViewSettings(bookKey, 'compactMarginBottomPx', compactMarginBottomPx, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compactMarginBottomPx, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings || compactMarginLeftPx === viewSettings.compactMarginLeftPx) return;
-    saveViewSetting(bookKey, 'compactMarginLeftPx', compactMarginLeftPx, false, false);
+    saveViewSettings(bookKey, 'compactMarginLeftPx', compactMarginLeftPx, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compactMarginLeftPx, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings || compactMarginRightPx === viewSettings.compactMarginRightPx) return;
-    saveViewSetting(bookKey, 'compactMarginRightPx', compactMarginRightPx, false, false);
+    saveViewSettings(bookKey, 'compactMarginRightPx', compactMarginRightPx, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compactMarginRightPx, viewSettings]);
 
   // 列设置
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'gapPercent', gapPercent, false, false);
+    saveViewSettings(bookKey, 'gapPercent', gapPercent, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gapPercent, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'maxColumnCount', maxColumnCount, false, false);
+    saveViewSettings(bookKey, 'maxColumnCount', maxColumnCount, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maxColumnCount, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'maxInlineSize', maxInlineSize, false, false);
+    saveViewSettings(bookKey, 'maxInlineSize', maxInlineSize, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maxInlineSize, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'maxBlockSize', maxBlockSize, false, false);
+    saveViewSettings(bookKey, 'maxBlockSize', maxBlockSize, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maxBlockSize, viewSettings]);
 
   // 页眉页脚设置
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'showHeader', showHeader, false, false);
+    saveViewSettings(bookKey, 'showHeader', showHeader, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHeader, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'showFooter', showFooter, false, false);
+    saveViewSettings(bookKey, 'showFooter', showFooter, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFooter, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'showBarsOnScroll', showBarsOnScroll, false, false);
+    saveViewSettings(bookKey, 'showBarsOnScroll', showBarsOnScroll, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showBarsOnScroll, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'showRemainingTime', showRemainingTime, false, false);
+    saveViewSettings(bookKey, 'showRemainingTime', showRemainingTime, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showRemainingTime, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'showRemainingPages', showRemainingPages, false, false);
+    saveViewSettings(bookKey, 'showRemainingPages', showRemainingPages, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showRemainingPages, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'showPageNumber', showPageNumber, false, false);
+    saveViewSettings(bookKey, 'showPageNumber', showPageNumber, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showPageNumber, viewSettings]);
 
   useEffect(() => {
     if (!viewSettings) return;
-    saveViewSetting(bookKey, 'screenOrientation', screenOrientation, false, false);
+    saveViewSettings(bookKey, 'screenOrientation', screenOrientation, false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screenOrientation, viewSettings]);
 

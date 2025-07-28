@@ -1,4 +1,4 @@
-import { SectionItem, TOCItem } from '@/types/book';
+import { BookDoc, TOCItem } from '@/types/book';
 
 export const findParentPath = (toc: TOCItem[], href: string): TOCItem[] => {
   for (const item of toc) {
@@ -36,4 +36,44 @@ export const findTocItemBS = (toc: TOCItem[], cfi: string): TOCItem | null => {
   }
 
   return result;
+};
+
+/**
+ * Update table of contents for a book document
+ * @param bookDoc - The book document
+ * @param sortedTOC - Whether to sort the TOC
+ */
+export const updateToc = (bookDoc: BookDoc, sortedTOC = false) => {
+  if (!bookDoc?.toc) return;
+
+  try {
+    // If sorting is requested, sort the TOC items
+    if (sortedTOC && Array.isArray(bookDoc.toc)) {
+      const sortTocRecursively = (items: TOCItem[]): TOCItem[] => {
+        return items
+          .sort((a, b) => {
+            // Sort by title if available
+            const titleA = a.label || a.href || '';
+            const titleB = b.label || b.href || '';
+            return titleA.localeCompare(titleB);
+          })
+          .map(item => ({
+            ...item,
+            subitems: item.subitems ? sortTocRecursively(item.subitems) : undefined,
+          }));
+      };
+
+      bookDoc.toc = sortTocRecursively(bookDoc.toc);
+    }
+
+    // Additional TOC processing can be added here
+    // For example: filtering, validation, etc.
+    
+    console.log('TOC updated successfully', {
+      sorted: sortedTOC,
+      itemCount: Array.isArray(bookDoc.toc) ? bookDoc.toc.length : 0,
+    });
+  } catch (error) {
+    console.error('Failed to update TOC:', error);
+  }
 }; 

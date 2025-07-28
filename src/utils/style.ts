@@ -367,33 +367,39 @@ export const getColorStyles = (
  */
 export const getCompleteStyles = (viewSettings: ViewSettings) => {
   const layoutStyles = getLayoutStyles(
-    viewSettings.overrideLayout,
-    viewSettings.paragraphMargin,
-    viewSettings.lineHeight,
-    viewSettings.wordSpacing,
-    viewSettings.letterSpacing,
-    viewSettings.textIndent,
-    viewSettings.fullJustification,
-    viewSettings.hyphenation,
-    viewSettings.zoomLevel / 100.0,
-    viewSettings.writingMode,
-    viewSettings.vertical,
+    viewSettings.overrideLayout || false,
+    viewSettings.paragraphMargin || 0.5,
+    viewSettings.lineHeight || 1.6,
+    viewSettings.wordSpacing || 0,
+    viewSettings.letterSpacing || 0,
+    viewSettings.textIndent || 1,
+    viewSettings.fullJustification || false,
+    viewSettings.hyphenation || false,
+    (viewSettings.zoomLevel || 100) / 100.0,
+    viewSettings.writingMode || 'auto',
+    viewSettings.vertical || false,
   );
   
   const fontStyles = getFontStyles(
-    viewSettings.serifFont,
-    viewSettings.sansSerifFont,
-    viewSettings.monospaceFont,
-    viewSettings.defaultFont,
-    viewSettings.defaultCJKFont,
-    viewSettings.defaultFontSize,
-    viewSettings.minimumFontSize,
-    viewSettings.fontWeight,
-    viewSettings.overrideFont
+    viewSettings.serifFont || 'Bitter',
+    viewSettings.sansSerifFont || 'Roboto',
+    viewSettings.monospaceFont || 'Consolas',
+    viewSettings.defaultFont || 'Serif',
+    viewSettings.defaultCJKFont || 'LXGW WenKai',
+    viewSettings.defaultFontSize || 16,
+    viewSettings.minimumFontSize || 8,
+    viewSettings.fontWeight || 400,
+    viewSettings.overrideFont || false
   );
-  const colorStyles = getColorStyles(viewSettings.theme, viewSettings.overrideColor, viewSettings.invertImgColorInDark);
-  const translationStyles = getTranslationStyles(viewSettings.showTranslateSource);
-  const userStylesheet = viewSettings.userStylesheet;
+  const colorStyles = getColorStyles(viewSettings.theme || 'light', viewSettings.overrideColor || false, viewSettings.invertImgColorInDark || false);
+  const translationStyles = getTranslationStyles(viewSettings.showTranslateSource || false);
+  const userStylesheet = viewSettings.userStylesheet || '';
+  
+  console.log('🎨 生成完整样式 (包含新字体):', {
+    defaultCJKFont: viewSettings.defaultCJKFont,
+    fontStylesLength: fontStyles.length,
+    包含新字体: fontStyles.includes(viewSettings.defaultCJKFont || '')
+  });
   
   return `${layoutStyles}\n${fontStyles}\n${colorStyles}\n${translationStyles}\n${userStylesheet}`;
 };

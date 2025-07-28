@@ -16,6 +16,7 @@ import FooterBar from './FooterBar';
 interface BookReaderProps {
   book: Book;
   bookDoc: BookDoc;
+  bookKey: string;
   onCloseBook: () => void;
   onOpenSettings: () => void;
   isSidebarVisible: boolean;
@@ -25,14 +26,14 @@ interface BookReaderProps {
 const BookReader: React.FC<BookReaderProps> = ({
   book,
   bookDoc,
+  bookKey,
   onCloseBook,
   onOpenSettings,
   isSidebarVisible,
   onToggleSidebar,
 }) => {
-  // 使用readerStore中的实际viewSettings，而不是硬编码
+  // 🎯 使用传入的bookKey，遵循readest的正确做法
   const { getViewSettings } = useReaderStore();
-  const bookKey = `${book.hash}-primary`; // 生成book key
   const viewSettings = getViewSettings(bookKey);
 
   // 如果viewSettings还没有初始化，显示加载状态
@@ -74,7 +75,7 @@ const BookReader: React.FC<BookReaderProps> = ({
       
       {/* Header Bar - 绝对定位在顶部 */}
       <HeaderBar
-        bookKey={book.hash}
+        bookKey={bookKey}
         bookTitle={book.title}
         isSidebarVisible={isSidebarVisible}
         onToggleSidebar={onToggleSidebar}
@@ -85,7 +86,7 @@ const BookReader: React.FC<BookReaderProps> = ({
       {/* Main Content Area - 不需要额外的 paddingTop */}
       <div className="content-area relative h-full w-full">
         <FoliateViewer
-          bookKey={book.hash}
+          bookKey={bookKey}
           bookDoc={bookDoc}
           config={config}
           contentInsets={contentInsets}
@@ -94,7 +95,7 @@ const BookReader: React.FC<BookReaderProps> = ({
 
       {/* Footer Bar */}
       <FooterBar
-        bookKey={book.hash}
+        bookKey={bookKey}
         bookFormat={book.format}
         isSidebarVisible={isSidebarVisible}
         onToggleSidebar={onToggleSidebar}

@@ -14,13 +14,39 @@ const SideBar: React.FC<{
   onClose: () => void;
   book: Book;
   bookDoc: BookDoc;
-}> = ({ isVisible, onGoToLibrary, onClose, book, bookDoc }) => {
+  bookKey: string; // 🔧 接收完整的bookKey作为props
+}> = ({ isVisible, onGoToLibrary, onClose, book, bookDoc, bookKey }) => {
   const { getView, getViewSettings } = useReaderStore();
   const [isSearchBarVisible, setIsSearchBarVisible] = useState(false);
   const [isPinned, setIsPinned] = useState(true); // 默认固定侧边栏
-  const sideBarBookKey = book.hash;
+  
+  // 🔧 直接使用传入的bookKey，而不是从book.hash生成
+  const sideBarBookKey = bookKey;
 
-  const onNavigateEvent = async () => {
+  // 🔍 调试：侧边栏bookKey追踪
+  useEffect(() => {
+    console.group('🔍 SideBar调试');
+    console.log('传入的book.hash:', book.hash);
+    console.log('传入的完整bookKey:', bookKey);
+    console.log('使用的sideBarBookKey:', sideBarBookKey);
+    console.log('侧边栏是否可见:', isVisible);
+    
+    // 检查这个bookKey对应的视图
+    const view = getView(sideBarBookKey);
+    console.log('侧边栏获取的视图:', view ? '✅ 存在' : '❌ null');
+    
+    if (!view) {
+      console.warn('⚠️ 侧边栏无法获取视图，可能原因：');
+      console.warn('1. FoliateViewer还未完成初始化');
+      console.warn('2. bookKey不匹配');
+      console.warn('预期bookKey格式: hash-uniqueId');
+      console.warn('当前bookKey:', sideBarBookKey);
+    }
+    
+    console.groupEnd();
+  }, [sideBarBookKey, isVisible, getView, book.hash, bookKey]);
+
+  const onNavigateEvent = async (event: CustomEvent) => {
     const pinButton = document.querySelector('.sidebar-pin-btn');
     const isPinButtonHidden = !pinButton || window.getComputedStyle(pinButton).display === 'none';
     if (isPinButtonHidden) {

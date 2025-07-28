@@ -16,10 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* 本地字体预加载 - 提升性能 */}
-        <link rel="preload" href="/fonts/roboto/Roboto-Regular.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
-        <link rel="preload" href="/fonts/bitter/Bitter-Variable.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
-        <link rel="preload" href="/fonts/lxgw/LXGWWenKai-Regular.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        {/* CDN字体预连接 - 提升CDN连接性能 */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fontsapi.zeoseven.com" />
       </head>
       <body>
         <ThemeProvider>

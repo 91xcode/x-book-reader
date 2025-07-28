@@ -1,108 +1,28 @@
-/* 本地字体配置 - 优先本地字体，CDN回退 */
+/* CDN 字体配置 - 优先 CDN 字体，系统字体回退 */
 
-/* Roboto 字体族 - 本地文件 (WOFF2格式，加载快) */
-@font-face {
-  font-family: 'Roboto';
-  src: url('/fonts/roboto/Roboto-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+/* 
+  注意：字体通过 CDN 加载，不再使用本地 @font-face 定义
+  具体字体加载由 fontLoader.ts 中的 loadFontsWithStrategy 函数处理
+  基础字体通过 Google Fonts CDN 加载
+  中文字体通过 fontsapi.zeoseven.com CDN 加载
+*/
 
-@font-face {
-  font-family: 'Roboto';
-  src: url('/fonts/roboto/Roboto-Bold.woff2') format('woff2');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Bitter 字体族 - 本地文件 (TTF变体字体) */
-@font-face {
-  font-family: 'Bitter';
-  src: url('/fonts/bitter/Bitter-Variable.ttf') format('truetype');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: block; /* 使用block确保TTF字体优先显示 */
-}
-
-/* 为Bitter添加具体字重的回退定义 */
-@font-face {
-  font-family: 'Bitter';
-  src: url('/fonts/bitter/Bitter-Variable.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: block;
-}
-
-@font-face {
-  font-family: 'Bitter';
-  src: url('/fonts/bitter/Bitter-Variable.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: block;
-}
-
-/* LXGW WenKai 字体族 - 本地文件 (TTF格式) */
-/* 使用原始字体名称作为主要名称 */
-@font-face {
-  font-family: 'LXGW WenKai';
-  src: url('/fonts/lxgw/LXGWWenKai-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'LXGW WenKai';
-  src: url('/fonts/lxgw/LXGWWenKai-Light.ttf') format('truetype');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* 为兼容性创建GB Screen别名 */
-@font-face {
-  font-family: 'LXGW WenKai GB Screen';
-  src: url('/fonts/lxgw/LXGWWenKai-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'LXGW WenKai GB Screen';
-  src: url('/fonts/lxgw/LXGWWenKai-Light.ttf') format('truetype');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* 其他别名定义 */
-@font-face {
-  font-family: 'LXGWWenKai-Regular';
-  src: url('/fonts/lxgw/LXGWWenKai-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* CSS字体变量 - 基于readest项目 */
+/* CSS字体变量 - CDN优先配置 */
 :root {
-  /* 衬线字体栈 - 本地优先 */
-  --font-serif: 'Bitter', 'Times New Roman', 'Georgia', serif;
+  /* 衬线字体栈 - CDN优先，Google Fonts提供 */
+  --font-serif: 'Bitter', 'Literata', 'Merriweather', 'Vollkorn', 'Times New Roman', 'Georgia', serif;
   
-  /* 无衬线字体栈 - 本地优先 */
-  --font-sans-serif: 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
+  /* 无衬线字体栈 - CDN优先，Google Fonts提供 */
+  --font-sans-serif: 'Roboto', 'Noto Sans', 'Open Sans', 'Helvetica Neue', 'Arial', sans-serif;
   
-  /* 等宽字体栈 */
+  /* 等宽字体栈 - CDN优先，Google Fonts提供 */
   --font-monospace: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
   
-  /* 中文字体栈 - 本地LXGW优先 */
-  --font-cjk: 'LXGW WenKai', 'LXGW WenKai GB Screen', 'LXGWWenKai-Regular', 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif;
+  /* 中文字体栈 - CDN优先，使用fontsapi.zeoseven.com的5种字体 */
+  --font-cjk: 'zeoseven-font-292', 'zeoseven-font-256', 'zeoseven-font-309', 'zeoseven-font-285', 'zeoseven-font-427', 'Noto Sans CJK SC', 'PingFang SC', 'Microsoft YaHei', 'SimHei', sans-serif;
   
-  /* 回退字体栈 */
-  --font-fallback: 'MiSans L3', system-ui, -apple-system, sans-serif;
+  /* 回退字体栈 - 系统字体 */
+  --font-fallback: system-ui, -apple-system, sans-serif;
 }
 
 /* 字体加载状态辅助类 */
@@ -127,8 +47,8 @@
   font-family: 'Bitter', serif !important;
 }
 
-.test-lxgw {
-  font-family: 'LXGW WenKai GB Screen', 'LXGWWenKai-Regular', sans-serif !important;
+.test-zeoseven {
+  font-family: 'zeoseven-font-292', 'zeoseven-font-256', sans-serif !important;
 }
 
 /* 智能字体应用 */

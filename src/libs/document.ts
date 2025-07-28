@@ -34,6 +34,41 @@ if (!(Map as any).groupBy) {
   };
 }
 
+// Utility functions for file handling
+export const getFilename = (fileOrUri: string): string => {
+  if (isValidURL(fileOrUri) || isContentURI(fileOrUri) || isFileURI(fileOrUri)) {
+    fileOrUri = decodeURI(fileOrUri);
+  }
+  const normalizedPath = fileOrUri.replace(/\\/g, '/');
+  const parts = normalizedPath.split('/');
+  const lastPart = parts.pop()!;
+  return lastPart.split('?')[0]!;
+};
+
+export const getBaseFilename = (filename: string): string => {
+  const normalizedPath = filename.replace(/\\/g, '/');
+  const baseName = normalizedPath.split('/').pop()?.split('.').slice(0, -1).join('.') || '';
+  return baseName;
+};
+
+// Helper functions for URI checking
+const isValidURL = (string: string): boolean => {
+  try {
+    new URL(string);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const isContentURI = (uri: string): boolean => {
+  return uri.startsWith('content://');
+};
+
+const isFileURI = (uri: string): boolean => {
+  return uri.startsWith('file://');
+};
+
 export type DocumentFile = File
 
 export const EXTS: Record<BookFormat, string> = {
@@ -181,18 +216,6 @@ export class DocumentLoader {
       throw new Error(`Failed to parse book: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
  

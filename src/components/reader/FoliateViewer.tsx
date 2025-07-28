@@ -6,9 +6,13 @@ import { useReaderStore } from '@/store/readerStore';
 import { useFoliateEvents } from '../../hooks/useFoliateEvents';
 import { useProgressSync } from '../../hooks/useProgressSync';
 import { useProgressAutoSave } from '../../hooks/useProgressAutoSave';
+import { usePagination } from '../../hooks/usePagination';
 import { getCompleteStyles, applyFixedlayoutStyles } from '@/utils/style';
 import { DEFAULT_VIEW_SETTINGS } from '@/utils/constants';
 import { useViewSettingsSync } from '@/utils/viewSettingsHelper';
+import { mountAdditionalFonts } from '@/utils/font';
+import { isCJKLang } from '@/utils/cjkDetection';
+import { getDirection } from '@/utils/book';
 
 declare global {
   interface Window {
@@ -30,7 +34,7 @@ const FoliateViewer: React.FC<{
   contentInsets: Insets;
 }> = ({ bookKey, bookDoc, config, contentInsets: insets }) => {
   const { getView, setView: setFoliateView, setProgress } = useReaderStore();
-  const { getViewSettings, setViewSettings, initializeViewSettings, applyViewStyles } = useReaderStore();
+  const { getViewSettings, setViewSettings, initializeViewSettings } = useReaderStore();
   const { initializeBookSettings } = useViewSettingsSync();
   const viewSettings = getViewSettings(bookKey);
 
@@ -46,6 +50,46 @@ const FoliateViewer: React.FC<{
 
   useProgressSync(bookKey);
   useProgressAutoSave(bookKey);
+
+  // 🎯 集成readest风格的分页处理
+  const { handlePageFlip, handleContinuousScroll } = usePagination(bookKey, viewRef, containerRef);
+
+  // 🎯 立即配置渲染器属性的函数
+  const configureRenderer = (view: FoliateView, settings: ViewSettings) => {
+    const animated = settings.animated!;
+    const maxColumnCount = settings.maxColumnCount!;
+    const maxInlineSize = settings.maxInlineSize || 720;
+    const maxBlockSize = settings.maxBlockSize || 1440;
+
+    if (animated) {
+      view.renderer.setAttribute('animated', '');
+    } else {
+      view.renderer.removeAttribute('animated');
+    }
+    view.renderer.setAttribute('max-column-count', maxColumnCount.toString());
+    view.renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
+    view.renderer.setAttribute('max-block-size', `${maxBlockSize}px`);
+    
+    // 🎯 应用边距和间距
+    applyMarginAndGap(view, settings);
+  };
+
+  // 🎯 应用边距和间距的函数
+  const applyMarginAndGap = (view: FoliateView, settings: ViewSettings) => {
+    const { renderer } = view;
+    renderer.setAttribute('margin-top', `${insets.top}px`);
+    renderer.setAttribute('margin-right', `${insets.right}px`);
+    renderer.setAttribute('margin-bottom', `${insets.bottom}px`);
+    renderer.setAttribute('margin-left', `${insets.left}px`);
+    
+    if (settings.gapPercent) {
+      renderer.setAttribute('gap', `${settings.gapPercent}%`);
+    }
+    
+    if (settings.scrolled) {
+      renderer.setAttribute('flow', 'scrolled');
+    }
+  };
 
   const progressRelocateHandler = (event: Event) => {
     const detail = (event as CustomEvent).detail;
@@ -88,21 +132,132 @@ const FoliateViewer: React.FC<{
     };
   };
 
-  // 🔥 关键修复：文档加载处理器
+  // 🔥 重构后的文档加载处理器 - 遵循readest风格
   const docLoadHandler = (event: Event) => {
     const detail = (event as CustomEvent).detail;
-    console.log('📄 文档加载完成:', detail.index);
+    console.log('doc index loaded:', detail.index);
     
-    if (detail.doc && viewSettings) {
-      // 基础处理：确保脚本执行权限
-      if (detail.isScript) {
-        detail.allowScript = viewSettings.allowScript ?? false;
+    if (detail.doc) {
+      // 🧭 方向检测和设置
+      const writingDir = viewRef.current?.renderer.setStyles && getDirection(detail.doc);
+      const currentViewSettings = getViewSettings(bookKey)!;
+      
+      currentViewSettings.vertical = writingDir?.vertical || currentViewSettings.writingMode.includes('vertical');
+      currentViewSettings.rtl = writingDir?.rtl || currentViewSettings.writingMode.includes('rtl');
+      setViewSettings(bookKey, { ...currentViewSettings });
+
+      // 🎨 关键：挂载额外字体 - 暂时使用bookDoc的语言信息
+      mountAdditionalFonts(detail.doc, isCJKLang(bookDoc.metadata?.language));
+
+      // 📱 预分页布局处理
+      if (bookDoc.rendition?.layout === 'pre-paginated') {
+        applyFixedlayoutStyles(detail.doc, currentViewSettings);
+      }
+
+      // 🖼️ 图片样式应用
+      applyImageStyle(detail.doc, currentViewSettings);
+
+      // 💻 脚本执行处理
+      if (currentViewSettings.allowScript) {
+        evalInlineScripts(detail.doc);
+      }
+
+      // 🎨 语法高亮
+      if (currentViewSettings.codeHighlighting) {
+        manageSyntaxHighlighting(detail.doc, currentViewSettings);
+      }
+
+      // 📄 添加事件监听器（如果尚未添加）
+      if (!detail.doc.isEventListenersAdded) {
+        detail.doc.isEventListenersAdded = true;
+        // 这里可以添加键盘、鼠标、触摸事件监听器
+        detail.doc.addEventListener('keydown', handleKeydown.bind(null, bookKey));
+        detail.doc.addEventListener('mousedown', handleMousedown.bind(null, bookKey));
+        detail.doc.addEventListener('mouseup', handleMouseup.bind(null, bookKey));
+        detail.doc.addEventListener('click', handleClick.bind(null, bookKey));
+        detail.doc.addEventListener('wheel', handleWheel.bind(null, bookKey));
+        detail.doc.addEventListener('touchstart', handleTouchStart.bind(null, bookKey));
+        detail.doc.addEventListener('touchmove', handleTouchMove.bind(null, bookKey));
+        detail.doc.addEventListener('touchend', handleTouchEnd.bind(null, bookKey));
+      }
+    }
+  };
+
+  // 🖼️ 图片样式应用函数
+  const applyImageStyle = (doc: Document, settings: ViewSettings) => {
+    // 应用图片相关的样式设置
+    const images = doc.querySelectorAll('img');
+    images.forEach(img => {
+      // 确保图片响应式
+      if (!img.style.maxWidth) {
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
       }
       
-      // 预分页布局的特殊处理
-      if (bookDoc.rendition?.layout === 'pre-paginated') {
-        applyFixedlayoutStyles(detail.doc, viewSettings);
+      // 处理暗色模式下的图片
+      if (settings.invertImgColorInDark && settings.theme === 'dark') {
+        img.style.filter = 'invert(1)';
       }
+    });
+  };
+
+  // 🎨 语法高亮管理函数
+  const manageSyntaxHighlighting = (doc: Document, settings: ViewSettings) => {
+    // 基础的语法高亮处理
+    const codeBlocks = doc.querySelectorAll('pre, code');
+    codeBlocks.forEach(block => {
+      block.classList.add('syntax-highlighted');
+    });
+  };
+
+  // 📄 事件处理函数（简化版）
+  const handleKeydown = (bookKey: string, event: KeyboardEvent) => {
+    // 键盘事件处理
+    console.log('Key down in iframe:', event.key);
+  };
+
+  const handleMousedown = (bookKey: string, event: MouseEvent) => {
+    // 鼠标按下事件处理
+  };
+
+  const handleMouseup = (bookKey: string, event: MouseEvent) => {
+    // 鼠标释放事件处理
+  };
+
+  const handleClick = (bookKey: string, event: MouseEvent) => {
+    // 点击事件处理
+  };
+
+  const handleWheel = (bookKey: string, event: WheelEvent) => {
+    // 滚轮事件处理
+  };
+
+  const handleTouchStart = (bookKey: string, event: TouchEvent) => {
+    // 触摸开始事件处理
+  };
+
+  const handleTouchMove = (bookKey: string, event: TouchEvent) => {
+    // 触摸移动事件处理
+  };
+
+  const handleTouchEnd = (bookKey: string, event: TouchEvent) => {
+    // 触摸结束事件处理
+  };
+
+  // 💻 内联脚本执行函数
+  const evalInlineScripts = (doc: Document) => {
+    if (doc.defaultView && doc.defaultView.frameElement) {
+      const iframe = doc.defaultView.frameElement as HTMLIFrameElement;
+      const scripts = doc.querySelectorAll('script:not([src])');
+      scripts.forEach((script, index) => {
+        const scriptContent = script.textContent || script.innerHTML;
+        try {
+          console.warn('Evaluating inline scripts in iframe');
+          iframe.contentWindow?.eval(scriptContent);
+        } catch (error) {
+          console.error(`Error executing iframe script ${index + 1}:`, error);
+        }
+      });
     }
   };
 
@@ -118,265 +273,179 @@ const FoliateViewer: React.FC<{
     onRendererRelocate: docRelocateHandler,
   });
 
-  const applyMarginAndGap = () => {
-    const currentSettings = getViewSettings(bookKey);
-    if (!viewRef.current || !viewRef.current.renderer || !currentSettings) return;
-
-    const { renderer } = viewRef.current;
-    const topMargin = insets.top;
-    const rightMargin = insets.right;
-    const bottomMargin = insets.bottom;
-    const leftMargin = insets.left;
-
-    renderer.setAttribute('margin-top', `${topMargin}px`);
-    renderer.setAttribute('margin-right', `${rightMargin}px`);
-    renderer.setAttribute('margin-bottom', `${bottomMargin}px`);
-    renderer.setAttribute('margin-left', `${leftMargin}px`);
-    
-    if (currentSettings.gapPercent) {
-      renderer.setAttribute('gap', `${currentSettings.gapPercent}%`);
-    }
-    
-    if (currentSettings.scrolled) {
-      renderer.setAttribute('flow', 'scrolled');
-    }
-  };
-
   useEffect(() => {
-    console.log('=== FoliateViewer useEffect triggered ===');
-    console.log('isViewCreated.current:', isViewCreated.current);
-    console.log('bookKey:', bookKey);
-    console.log('bookDoc:', bookDoc);
-    
-    if (isViewCreated.current) {
-      console.log('View already created, skipping initialization');
-      return;
-    }
-    
-    console.log('Starting view creation...');
+    if (isViewCreated.current) return;
     isViewCreated.current = true;
-    
-    // Initialize view settings if not exists
-    initializeBookSettings(bookKey, DEFAULT_VIEW_SETTINGS);
 
+    // 📚 readest风格的openBook函数
     const openBook = async () => {
-      try {
-        console.log('Opening book', bookKey);
-        
-        // 动态导入foliate-js
-        await import('foliate-js/view.js');
-        
-        // 创建foliate-view元素
-        const view = wrappedFoliateView(document.createElement('foliate-view') as FoliateView);
-        view.id = `foliate-view-${bookKey}`;
-        
-        // 将视图添加到 DOM
-        document.body.append(view);
-        containerRef.current?.appendChild(view);
+      console.log('Opening book', bookKey);
+      
+      // 🔗 动态导入 foliate-js/view.js
+      await import('foliate-js/view.js');
+      
+      // 🏗️ 创建 foliate-view 元素
+      const view = wrappedFoliateView(document.createElement('foliate-view') as FoliateView);
+      view.id = `foliate-view-${bookKey}`;
+      
+      // 📍 添加到 DOM (document.body + containerRef)
+      document.body.append(view);
+      containerRef.current?.appendChild(view);
 
-        // 设置视图设置
-        const currentViewSettings = getViewSettings(bookKey);
-        
-        // 如果没有视图设置，使用默认设置
-        if (!currentViewSettings) {
-          console.warn('No view settings found for book:', bookKey);
-          // 使用完整的默认设置，包含所有字体配置
-          setViewSettings(bookKey, DEFAULT_VIEW_SETTINGS);
+      // ⚙️ 设置书籍方向配置
+      const viewSettings = getViewSettings(bookKey) || DEFAULT_VIEW_SETTINGS;
+      const writingMode = viewSettings.writingMode;
+      if (writingMode && writingMode !== 'auto') {
+        if (writingMode.includes('vertical')) {
+          bookDoc.dir = writingMode.includes('rl') ? 'rtl' : 'ltr';
         }
-        
-        const finalViewSettings = getViewSettings(bookKey) || currentViewSettings!;
-        
-        // 确定文档方向
-        if (finalViewSettings.writingMode) {
-          const writingMode = finalViewSettings.writingMode;
-          if (writingMode !== 'auto') {
-            bookDoc.dir = writingMode === 'vertical-rl' ? 'rtl' : 'ltr';
-          }
-        }
-
-        console.log('About to open book with:', { bookDoc, finalViewSettings });
-
-        // 打开书籍 - 关键步骤
-        await view.open(bookDoc);
-        
-        console.log('Book opened successfully, setting up view...');
-        
-        // 设置引用 - 在 open 之后立即设置
-        viewRef.current = view;
-        setFoliateView(bookKey, view);
-        
-        // Apply styles after view is ready (debounced)
-        setTimeout(() => {
-          applyViewStyles(bookKey);
-        }, 200);
-
-        const { book } = view;
-
-        // 监听文档加载事件 - 在 open 之后设置
-        book.transformTarget?.addEventListener('load', (event: Event) => {
-          const { detail } = event as CustomEvent;
-          if (detail.isScript) {
-            detail.allowScript = finalViewSettings.allowScript ?? false;
-          }
-        });
-        
-        // 计算视图尺寸
-        const viewWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-        const viewHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-        const width = viewWidth - insets.left - insets.right;
-        const height = viewHeight - insets.top - insets.bottom;
-        
-        // 设置文档转换处理器
-        book.transformTarget?.addEventListener('data', getDocTransformHandler({ width, height }));
-        
-        // 等待一下再应用样式，确保视图已经准备好
-        setTimeout(() => {
-          try {
-            console.log('Applying styles...');
-            view.renderer.setStyles?.(getCompleteStyles(finalViewSettings));
-
-            // 配置视图参数
-            const animated = finalViewSettings.animated ?? true;
-            const maxColumnCount = finalViewSettings.maxColumnCount ?? 2;
-            const maxInlineSize = finalViewSettings.maxInlineSize ?? 720;
-            const maxBlockSize = finalViewSettings.maxBlockSize ?? 1440;
-            const gapPercent = finalViewSettings.gapPercent ?? 3.33;
-
-            // 设置渲染器属性
-            view.renderer.setAttribute('flow', finalViewSettings.scrolled ? 'scrolled' : 'paginated');
-            if (animated) {
-              view.renderer.setAttribute('animated', '');
-            } else {
-              view.renderer.removeAttribute('animated');
-            }
-            view.renderer.setAttribute('max-column-count', maxColumnCount.toString());
-            view.renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
-            view.renderer.setAttribute('max-block-size', `${maxBlockSize}px`);
-            view.renderer.setAttribute('gap', `${gapPercent}%`);
-
-            // 应用边距和间距
-            applyMarginAndGap();
-
-            console.log('Styles applied, initializing view...');
-
-            // 初始化视图（关键步骤！）- 在所有设置都完成后执行
-            const lastLocation = config.location;
-            console.log('Config location:', lastLocation);
-            
-            try {
-              if (lastLocation && typeof lastLocation === 'string') {
-                console.log('Initializing with last location:', lastLocation);
-                view.init({ lastLocation });
-                console.log('View initialized with last location');
-              } else {
-                console.log('Initializing to beginning (fraction 0)');
-                view.goToFraction(0);
-                console.log('View initialized to beginning');
-              }
-            } catch (initError) {
-              console.error('Error during view initialization:', initError);
-              // 如果初始化失败，尝试从头开始
-              try {
-                view.goToFraction(0);
-                console.log('Fallback: View initialized to beginning');
-              } catch (fallbackError) {
-                console.error('Error in fallback initialization:', fallbackError);
-              }
-            }
-
-            console.log('Book opened and configured successfully', bookKey);
-            console.log('=== FoliateViewer Ready ===');
-          } catch (styleError) {
-            console.error('Error applying styles:', styleError);
-          }
-        }, 100); // 给一点时间让视图准备好
-
-      } catch (error) {
-        console.error('Error opening book:', error);
-        isViewCreated.current = false; // 重置标志以便重试
       }
+
+      // 🔧 验证和修复书籍语言标签
+      if (bookDoc.metadata?.language === 'auto' || !bookDoc.metadata?.language) {
+        console.warn('⚠️ 修复无效的语言标签:', bookDoc.metadata?.language);
+        // 使用CJK检测结果或默认语言
+        const needsCJK = isCJKLang(bookDoc.metadata?.language);
+        bookDoc.metadata = {
+          ...bookDoc.metadata,
+          language: needsCJK ? 'zh-CN' : 'en'
+        };
+      }
+
+      // 📖 await view.open(bookDoc)
+      await view.open(bookDoc);
+      
+      // 🎯 立即设置引用和事件监听
+      viewRef.current = view;
+      
+      // 🔍 调试：记录视图设置过程
+      console.group('📖 FoliateViewer: 设置视图到store');
+      console.log('设置bookKey:', bookKey);
+      console.log('设置的view:', view);
+      console.log('view类型:', view.constructor.name);
+      
+      setFoliateView(bookKey, view);
+      
+      // 验证设置是否成功
+      setTimeout(() => {
+        const retrievedView = getView(bookKey);
+        console.log('验证设置结果:', {
+          设置成功: retrievedView === view,
+          retrievedView: retrievedView ? '存在' : 'null',
+          原始view: view ? '存在' : 'null'
+        });
+        console.groupEnd();
+      }, 10);
+
+      const { book } = view;
+
+      // 📐 配置视图尺寸和转换处理器
+      book.transformTarget?.addEventListener('load', (event: Event) => {
+        const { detail } = event as CustomEvent;
+        if (detail.isScript) {
+          detail.allowScript = viewSettings.allowScript ?? false;
+        }
+      });
+      
+      const viewWidth = window.innerWidth;
+      const viewHeight = window.innerHeight;
+      const width = viewWidth - insets.left - insets.right;
+      const height = viewHeight - insets.top - insets.bottom;
+      book.transformTarget?.addEventListener('data', getDocTransformHandler({ width, height }));
+
+      // 🎨 立即应用样式: view.renderer.setStyles(getStyles(viewSettings))
+      view.renderer.setStyles?.(getCompleteStyles(viewSettings));
+
+      // 🏷️ 立即配置渲染器属性 (animated, column-count, etc.)
+      configureRenderer(view, viewSettings);
+
+      // 📍 导航到位置 (lastLocation 或 fraction 0)
+      const lastLocation = config.location;
+      if (lastLocation) {
+        await view.init({ lastLocation });
+      } else {
+        await view.goToFraction(0);
+      }
+
+      console.log('✅ Book opened successfully with readest-style flow');
+      
+      // 🔍 最终验证：确认视图已正确设置
+      console.group('🔍 FoliateViewer: 最终验证');
+      console.log('bookKey:', bookKey);
+      console.log('view已设置到store:', !!getView(bookKey));
+      console.log('view类型:', view.constructor.name);
+      console.log('view.goTo方法可用:', typeof view.goTo === 'function');
+      console.groupEnd();
     };
 
-    openBook();
+    openBook().catch(error => {
+      console.error('Error opening book:', error);
+      isViewCreated.current = false; // 重置标志以便重试
+    });
 
+    // 🧹 清理函数
     return () => {
       if (viewRef.current) {
         try {
-          viewRef.current.close();
-          viewRef.current.remove();
+          // 清理事件监听器
+          viewRef.current.book?.transformTarget?.removeEventListener('load', () => {});
+          viewRef.current.book?.transformTarget?.removeEventListener('data', () => {});
+          
+          // 关闭并移除视图
+          viewRef.current.close?.();
+          viewRef.current.remove?.();
+          viewRef.current = null;
         } catch (error) {
           console.error('Error cleaning up view:', error);
         }
       }
-      
-      // Clear any pending style application timeouts
-      if ((globalThis as any).__styleApplyTimeout) {
-        clearTimeout((globalThis as any).__styleApplyTimeout);
-        delete (globalThis as any).__styleApplyTimeout;
-      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookKey, bookDoc]);
+  }, []);
 
-  // 当主题和颜色设置改变时更新样式 (采用readest方式)
+  // 🎯 添加分页事件监听
   useEffect(() => {
-    if (!viewRef.current || !viewRef.current.renderer || !viewSettings) {
-      console.log('📖 FoliateViewer: 跳过样式更新', {
-        hasView: !!viewRef.current,
-        hasRenderer: !!viewRef.current?.renderer,
-        hasSettings: !!viewSettings
-      });
-      return;
-    }
-    
-    console.log('🎨 FoliateViewer: 主题/颜色变化，重新应用样式');
-    const styles = getCompleteStyles(viewSettings);
-    viewRef.current.renderer.setStyles?.(styles);
-    console.log('✅ FoliateViewer: 主题样式已应用到iframe');
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    // 🔥 采用readest的精简依赖：只监听主题和颜色变化
-    viewSettings?.theme,
-    viewSettings?.overrideColor,
-    viewSettings?.invertImgColorInDark,
-  ]);
+    // 监听来自iframe的消息（点击、滚轮等）
+    window.addEventListener('message', handlePageFlip);
 
-  // 当insets改变时更新边距和间距 (debounced)
+    return () => {
+      window.removeEventListener('message', handlePageFlip);
+    };
+  }, [handlePageFlip]);
+
+  // 🎯 监听特定viewSettings变化 - 完全遵循readest模式
   useEffect(() => {
-    if (!viewRef.current || !viewRef.current.renderer || !viewSettings) return;
-    
-    const timeoutId = setTimeout(() => {
-      if (viewRef.current && viewRef.current.renderer && viewSettings) {
-        const { renderer } = viewRef.current;
-        renderer.setAttribute('margin-top', `${insets.top}px`);
-        renderer.setAttribute('margin-right', `${insets.right}px`);
-        renderer.setAttribute('margin-bottom', `${insets.bottom}px`);
-        renderer.setAttribute('margin-left', `${insets.left}px`);
-        
-        if (viewSettings.gapPercent) {
-          renderer.setAttribute('gap', `${viewSettings.gapPercent}%`);
-        }
+    if (viewRef.current && viewRef.current.renderer) {
+      const viewSettings = getViewSettings(bookKey)!;
+      viewRef.current.renderer.setStyles?.(getCompleteStyles(viewSettings));
+      
+      // 📄 预分页布局特殊处理
+      if (bookDoc.rendition?.layout === 'pre-paginated') {
+        const docs = viewRef.current.renderer.getContents();
+        docs.forEach(({ doc }) => applyFixedlayoutStyles(doc, viewSettings));
       }
-    }, 100);
-    
-    return () => clearTimeout(timeoutId);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    insets.top,
-    insets.right,
-    insets.bottom,
-    insets.left,
-    viewSettings?.doubleBorder,
-    viewSettings?.showHeader,
-    viewSettings?.showFooter,
-  ]);
+  }, [viewSettings?.theme, viewSettings?.overrideColor, viewSettings?.invertImgColorInDark]);
 
   return (
-    <div
-      ref={containerRef}
-      className='foliate-viewer h-[100%] w-[100%]'
-    />
+    <div 
+      ref={containerRef} 
+      className="foliate-viewer w-full h-full relative"
+      style={{ 
+        contain: 'layout style paint', // 🚀 性能优化：限制重排和重绘影响
+        willChange: 'transform' // 🚀 提示浏览器优化变换
+      }}
+      onClick={handlePageFlip} // 🎯 添加点击事件处理
+    >
+      {toastMessage && (
+        <div className="toast toast-top toast-center z-50">
+          <div className="alert alert-success">
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

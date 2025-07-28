@@ -102,13 +102,13 @@ export const CJK_SANS_SERIF_FONTS = [
 
 export const FALLBACK_FONTS = ['MiSans L3'];
 
-// 默认字体配置 - 使用本地字体
+// 默认字体配置 - 使用CDN字体
 export const DEFAULT_BOOK_FONT: BookFont = {
   serifFont: 'Bitter',
   sansSerifFont: 'Roboto',
   monospaceFont: 'Consolas',
   defaultFont: 'Serif',
-  defaultCJKFont: 'LXGW WenKai', // 使用本地字体
+  defaultCJKFont: 'LXGW WenKai', // 🔧 修复：使用正确的zeoseven字体名称
   defaultFontSize: 16,
   minimumFontSize: 8,
   fontWeight: 400,

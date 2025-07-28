@@ -15,9 +15,23 @@ interface Progress {
   sectionHref?: string;
 }
 
+interface ViewState {
+  key: string;
+  view: FoliateView | null;
+  isPrimary: boolean;
+  loading: boolean;
+  error: string | null;
+  progress: Progress | null;
+  ribbonVisible: boolean;
+  ttsEnabled: boolean;
+  gridInsets: any | null;
+  viewSettings: ViewSettings | null;
+}
+
 interface ReaderState {
   // 视图管理
   views: Record<string, FoliateView | null>;
+  viewStates: Record<string, ViewState>;
   
   // 视图设置
   viewSettings: Record<string, ViewSettings>;
@@ -52,12 +66,19 @@ interface ReaderState {
   addBookKey: (bookKey: string) => void;
   removeBookKey: (bookKey: string) => void;
   clearBookKeys: () => void;
+
+  // New methods to match readest
+  setBookKeys: (keys: string[]) => void;
+  getViewState: (key: string) => ViewState | null;
+  initViewState: (id: string, key: string, isPrimary?: boolean) => Promise<void>;
+  clearViewState: (key: string) => void;
 }
 
 export const useReaderStore = create<ReaderState>()(
   persist(
     (set, get) => ({
   views: {},
+  viewStates: {},
   viewSettings: {},
   progress: {},
   bookKeys: [],
@@ -67,6 +88,13 @@ export const useReaderStore = create<ReaderState>()(
       views: {
         ...state.views,
         [bookKey]: view,
+      },
+      viewStates: {
+        ...state.viewStates,
+        [bookKey]: {
+          ...state.viewStates[bookKey],
+          view,
+        },
       },
     }));
   },
@@ -256,14 +284,49 @@ export const useReaderStore = create<ReaderState>()(
     }));
   },
 
-      clearBookKeys: () => {
-      set({
-        bookKeys: [],
-        views: {},
-        viewSettings: {},
-        progress: {},
-      });
-    },
+  clearBookKeys: () => {
+    set({
+      bookKeys: [],
+      views: {},
+      viewSettings: {},
+      progress: {},
+    });
+  },
+
+  // New methods to match readest
+  setBookKeys: (keys: string[]) => set({ bookKeys: keys }),
+
+  getViewState: (key: string) => get().viewStates[key] || null,
+
+  initViewState: async (id: string, key: string, isPrimary = true) => {
+    // Create a basic view state structure
+    set((state) => ({
+      viewStates: {
+        ...state.viewStates,
+        [key]: {
+          key,
+          view: null,
+          isPrimary,
+          loading: false,
+          error: null,
+          progress: null,
+          ribbonVisible: false,
+          ttsEnabled: false,
+          gridInsets: null,
+          viewSettings: state.viewSettings[key] || null,
+        },
+      },
+    }));
+  },
+
+  clearViewState: (key: string) => {
+    set((state) => {
+      const viewStates = { ...state.viewStates };
+      delete viewStates[key];
+      return { viewStates };
+    });
+  },
+
   }),
   {
     name: 'reader-store',
