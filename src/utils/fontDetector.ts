@@ -381,9 +381,9 @@ if (typeof window !== 'undefined') {
     }
   };
   
-  console.log('字体调试工具已加载！使用方法:');
-  console.log('- window.fontDebug.checkFont("字体名") - 检测字体可用性');
-  console.log('- window.fontDebug.listLoadedFonts() - 列出已加载字体');
-  console.log('- window.fontDebug.testFontRendering("字体名") - 测试字体渲染');
-  console.log('- window.fontDebug.reloadLocalFonts() - 重新加载所有本地字体');
+  // console.log('字体调试工具已加载！使用方法:');
+  // console.log('- window.fontDebug.checkFont("字体名") - 检测字体可用性');
+  // console.log('- window.fontDebug.listLoadedFonts() - 列出已加载字体');
+  // console.log('- window.fontDebug.testFontRendering("字体名") - 测试字体渲染');
+  // console.log('- window.fontDebug.reloadLocalFonts() - 重新加载所有本地字体');
 } 

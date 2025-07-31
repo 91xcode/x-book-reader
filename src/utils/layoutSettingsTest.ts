@@ -138,8 +138,8 @@ export const validateReadestCompatibility = () => {
  */
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   // 延迟执行以确保所有模块都已加载
-  setTimeout(() => {
-    testLayoutSettingsSystem();
-    validateReadestCompatibility();
-  }, 1000);
+  // setTimeout(() => {
+  //   testLayoutSettingsSystem();
+  //   validateReadestCompatibility();
+  // }, 1000);
 } 
