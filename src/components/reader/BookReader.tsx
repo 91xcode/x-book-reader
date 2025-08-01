@@ -12,6 +12,7 @@ interface Insets {
 import FoliateViewer from './FoliateViewer';
 import HeaderBar from './HeaderBar';
 import FooterBar from './FooterBar';
+import TTSControl from './tts/TTSControl';
 
 interface BookReaderProps {
   book: Book;
@@ -33,8 +34,9 @@ const BookReader: React.FC<BookReaderProps> = ({
   onToggleSidebar,
 }) => {
   // 🎯 使用传入的bookKey，遵循readest的正确做法
-  const { getViewSettings } = useReaderStore();
+  const { getViewSettings, getView } = useReaderStore();
   const viewSettings = getViewSettings(bookKey);
+  const view = getView(bookKey);
 
   // 如果viewSettings还没有初始化，显示加载状态
   if (!viewSettings) {
@@ -92,6 +94,11 @@ const BookReader: React.FC<BookReaderProps> = ({
           contentInsets={contentInsets}
         />
       </div>
+
+      {/* TTS Control - 100%迁移自readest */}
+      <TTSControl
+        bookKey={bookKey}
+      />
 
       {/* Footer Bar */}
       <FooterBar

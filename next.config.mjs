@@ -14,6 +14,7 @@ const nextConfig = {
     'highlight.js',
     'marked',
     'foliate-js', // 添加foliate-js到transpile列表
+    '@lobehub/tts', // 添加lobe-tts支持
   ],
   experimental: {
     esmExternals: 'loose', // 允许ESM外部依赖

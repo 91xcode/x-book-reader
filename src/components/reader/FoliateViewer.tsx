@@ -164,6 +164,39 @@ const FoliateViewer: React.FC<{
     }
     
     try {
+      // 🔧 修复文档中的语言属性，防止TTS Segmenter错误
+      const fixLanguageAttributes = (doc: Document) => {
+        // 修复documentElement的lang属性
+        if (doc.documentElement.lang === 'auto' || !doc.documentElement.lang) {
+          const validLang = bookDoc.metadata?.language && bookDoc.metadata.language !== 'auto' 
+            ? bookDoc.metadata.language 
+            : 'zh-CN';
+          doc.documentElement.lang = validLang;
+          console.log('Fixed documentElement lang to:', validLang);
+        }
+        
+        // 修复所有带有lang="auto"的元素
+        const autoLangElements = doc.querySelectorAll('[lang="auto"]');
+        autoLangElements.forEach(el => {
+          const validLang = bookDoc.metadata?.language && bookDoc.metadata.language !== 'auto' 
+            ? bookDoc.metadata.language 
+            : 'zh-CN';
+          (el as HTMLElement).lang = validLang;
+        });
+        
+        // 修复所有带有xml:lang="auto"的元素
+        const autoXmlLangElements = doc.querySelectorAll('[xml\\:lang="auto"]');
+        autoXmlLangElements.forEach(el => {
+          const validLang = bookDoc.metadata?.language && bookDoc.metadata.language !== 'auto' 
+            ? bookDoc.metadata.language 
+            : 'zh-CN';
+          el.setAttributeNS('http://www.w3.org/XML/1998/namespace', 'lang', validLang);
+        });
+      };
+      
+      // 立即修复语言属性
+      fixLanguageAttributes(detail.doc);
+      
       // 🧭 方向检测和设置
       const writingDir = viewRef.current?.renderer?.setStyles && getDirection(detail.doc);
       const currentViewSettings = getViewSettings(bookKey)!;
@@ -382,6 +415,10 @@ const FoliateViewer: React.FC<{
       const view = wrappedFoliateView(document.createElement('foliate-view') as FoliateView);
       view.id = `foliate-view-${bookKey}`;
       
+      // 添加TTS所需的属性
+      view.setAttribute('data-foliate-view', '');
+      (view as any).view = view; // 为TTSControl提供view对象访问
+      
       // 添加到 DOM
       document.body.append(view);
       containerRef.current?.appendChild(view);
@@ -407,6 +444,17 @@ const FoliateViewer: React.FC<{
       // 打开书籍并等待完成
       await view.open(bookDoc);
       
+      // 确保view的语言设置也被正确更新（防止Segmenter错误）
+      if (view.language) {
+        const validLanguage = bookDoc.metadata?.language || 'zh-CN';
+        if (validLanguage !== 'auto') {
+          view.language.locale = validLanguage;
+        } else {
+          view.language.locale = 'zh-CN';
+        }
+        console.log('View language set to:', view.language);
+      }
+      
       // 确保view完全初始化后再进行后续操作
       viewRef.current = view;
       setFoliateView(bookKey, view);
@@ -415,6 +463,16 @@ const FoliateViewer: React.FC<{
 
       // 等待一小段时间确保所有内部初始化完成
       await new Promise(resolve => setTimeout(resolve, 50));
+
+      // 🎤 初始化TTS功能 - 延迟一点确保所有渲染完成
+      setTimeout(async () => {
+        try {
+          await view.initTTS();
+          console.log('✅ TTS initialized successfully for view');
+        } catch (error) {
+          console.warn('⚠️ TTS initialization failed:', error);
+        }
+      }, 500);
 
       // 📐 配置视图尺寸和转换处理器
       if (book.transformTarget) {

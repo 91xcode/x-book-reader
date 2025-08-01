@@ -31,7 +31,6 @@ const FooterBar: React.FC<FooterBarProps> = ({
   const { getView, getProgress, getViewSettings } = useReaderStore();
   const [hoveredBookKey, setHoveredBookKey] = useState<string | null>(null);
   const [actionTab, setActionTab] = useState('');
-  const [ttsEnabled, setTtsEnabled] = useState(false);
   
   const view = getView(bookKey);
   const progress = getProgress(bookKey);
@@ -79,8 +78,18 @@ const FooterBar: React.FC<FooterBarProps> = ({
     goForward();
   };
 
-  const handleSpeakText = async () => {
-    setTtsEnabled(!ttsEnabled);
+  const handleSpeakText = () => {
+    // 按照readest的模式：直接触发TTS事件
+    // 不传递range或selection信息，让TTSControl自己处理
+    if (view) {
+      const event = new CustomEvent('tts-speak', {
+        detail: { 
+          bookKey
+          // 移除useSelection，避免WrongDocumentError
+        }
+      });
+      document.dispatchEvent(event);
+    }
   };
 
   const handleSetActionTab = (tab: string) => {
@@ -106,6 +115,8 @@ const FooterBar: React.FC<FooterBarProps> = ({
 
   return (
     <>
+
+
       {/* 悬停检测层 */}
       <div
         className={clsx(
@@ -239,7 +250,7 @@ const FooterBar: React.FC<FooterBarProps> = ({
             <FontIcon className="w-4 h-4" />
           </button>
           <button
-            className={clsx("btn btn-ghost h-8 min-h-8 w-8 p-0", ttsEnabled && 'text-blue-500')}
+            className="btn btn-ghost h-8 min-h-8 w-8 p-0"
             onClick={() => handleSetActionTab('tts')}
             title="朗读"
           >
@@ -293,7 +304,7 @@ const FooterBar: React.FC<FooterBarProps> = ({
             }
           />
           <button
-            className={clsx("btn btn-ghost h-8 min-h-8 w-8 p-0", ttsEnabled && 'text-blue-500')}
+            className="btn btn-ghost h-8 min-h-8 w-8 p-0"
             onClick={handleSpeakText}
             title="朗读"
           >
