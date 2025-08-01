@@ -15,6 +15,7 @@ import MenuItem from '@/components/ui/MenuItem'
 import FileUpload from '@/components/FileUpload'
 import { getAppService } from '@/services/environment'
 import { BookServiceV2 } from '@/services/BookServiceV2'
+import { PreloadManager } from '@/services/PreloadManager'
 import { Book } from '@/types/book'
 import { LibraryViewModeType, LibrarySortByType, LibraryCoverFitType, BookFilter } from '@/types/settings'
 
@@ -24,6 +25,7 @@ export default function LibraryPage() {
   
   // 基础状态
   const [loading, setLoading] = useState(false)
+  const [libraryLoaded, setLibraryLoaded] = useState(false) // 🆕 添加库加载状态
   const [books, setBooks] = useState<Book[]>([])
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [isSelectAll, setIsSelectAll] = useState(false)
@@ -66,8 +68,27 @@ export default function LibraryPage() {
       const bookServiceV2 = BookServiceV2.getInstance()
       const loadedBooks = bookServiceV2.getBooks()
       setBooks(loadedBooks)
+      
+      // 🚀 多层次预加载：后台预检查书籍可用性
+      if (loadedBooks.length > 0) {
+        const preloadManager = PreloadManager.getInstance()
+        
+        // 异步后台预检查，不阻塞UI
+        setTimeout(() => {
+          preloadManager.backgroundCheckAvailability(loadedBooks).then(() => {
+            console.log('🔍 Library: 后台预检查完成')
+          }).catch(error => {
+            console.error('❌ Library: 后台预检查失败:', error)
+          })
+        }, 1000) // 延迟1秒开始，让UI先完成渲染
+      }
+      
+      // 🆕 标记库已加载完成
+      setLibraryLoaded(true)
     } catch (error) {
       console.error('加载书籍失败:', error)
+      // 即使出错也要标记为已加载，避免永远显示加载状态
+      setLibraryLoaded(true)
     } finally {
       setLoading(false)
     }
@@ -142,7 +163,7 @@ export default function LibraryPage() {
       return sortAscending ? sortResult : -sortResult
     })
 
-  const handleBookClick = (bookHash: string) => {
+  const handleBookClick = async (bookHash: string) => {
     if (isSelectMode) {
       setSelectedBooks(prev =>
         prev.includes(bookHash)
@@ -150,7 +171,131 @@ export default function LibraryPage() {
           : [...prev, bookHash]
       )
     } else {
-      router.push(`/reader?ids=${bookHash}`)
+      // 🚀 实现预处理机制和异步导航
+      try {
+        console.log('📖 Library: 用户点击书籍:', bookHash.substring(0, 8) + '...')
+        
+        // 1. 获取书籍信息
+        const bookServiceV2 = BookServiceV2.getInstance()
+        const book = bookServiceV2.getBookByHash(bookHash)
+        
+        if (!book) {
+          console.error('❌ Library: 书籍不存在')
+          return
+        }
+        
+        // 🔥 2. 检查BookDoc缓存状态（类似readest）
+        const { useBookDataStore } = await import('@/store/bookDataStore')
+        const bookDataStore = useBookDataStore.getState()
+        const bookData = bookDataStore.getBookData(bookHash)
+        
+        const hasBookDoc = !!bookData?.bookDoc
+        const hasBook = !!bookData?.book
+        
+        console.log('📊 Library: 书籍缓存状态', {
+          hasBook,
+          hasBookDoc,
+          hasFile: !!bookData?.file,
+          title: bookData?.book?.title
+        })
+        
+        let available = true // 默认可用
+        
+        if (!hasBook) {
+          // 书籍基础信息都没有，需要基础检查
+          const preloadManager = PreloadManager.getInstance()
+          available = await preloadManager.preheatBook(bookHash)
+          
+          if (!available) {
+            console.error('❌ Library: 书籍文件不可用')
+            return
+          }
+        } else if (!hasBookDoc) {
+          // 有基础信息但没有BookDoc，快速预解析
+          console.log('⚡ Library: 快速预解析BookDoc...')
+          try {
+            await preloadBookDoc(bookHash)
+          } catch (error) {
+            console.error('❌ Library: 预解析BookDoc失败:', error)
+            // 继续执行，降级到正常流程
+          }
+        } else {
+          console.log('🚀 Library: 使用完整缓存，立即导航')
+        }
+        
+        // 3. 异步导航（类似readest的setTimeout(0)）
+        setTimeout(() => {
+          console.log('🚀 Library: 导航到reader页面')
+          router.push(`/reader?ids=${bookHash}`)
+        }, 0)
+        
+      } catch (error) {
+        console.error('❌ Library: 处理书籍点击失败:', error)
+        // 降级：直接导航
+        setTimeout(() => {
+          router.push(`/reader?ids=${bookHash}`)
+        }, 0)
+      }
+    }
+  }
+
+  // 🔥 书籍hover预热 - 鼠标悬停时预热书籍（类似readest）
+  const handleBookHover = async (bookHash: string) => {
+    try {
+      // 检查是否已经有BookDoc缓存
+      const { useBookDataStore } = await import('@/store/bookDataStore')
+      const bookDataStore = useBookDataStore.getState()
+      const bookData = bookDataStore.getBookData(bookHash)
+      
+      if (bookData?.bookDoc) {
+        console.debug('🔥 Library: 书籍已有BookDoc缓存，跳过预热')
+        return // 已经有完整缓存了
+      }
+      
+      // 🔑 关键优化：异步预解析BookDoc
+      setTimeout(() => {
+        preloadBookDoc(bookHash).catch(error => {
+          console.debug('🔥 Library: 预解析BookDoc失败 (不影响功能):', error)
+        })
+      }, 150) // 稍微延迟，避免快速移动鼠标时的频繁调用
+      
+    } catch (error) {
+      console.debug('🔥 Library: 预热书籍失败 (不影响功能):', error)
+    }
+  }
+
+  // 🚀 预解析BookDoc - 类似readest的initViewState逻辑
+  const preloadBookDoc = async (bookHash: string) => {
+    try {
+      console.log('📖 Library: 开始预解析BookDoc', bookHash.substring(0, 8) + '...')
+      const startTime = performance.now()
+      
+      const { useBookDataStore } = await import('@/store/bookDataStore')
+      const { useReaderStore } = await import('@/store/readerStore')
+      const { generateBookKey } = await import('@/utils/bookKey')
+      
+      const bookDataStore = useBookDataStore.getState()
+      const readerStore = useReaderStore.getState()
+      
+      // 再次检查缓存（防止重复解析）
+      const existingData = bookDataStore.getBookData(bookHash)
+      if (existingData?.bookDoc) {
+        console.log('✅ Library: BookDoc已缓存，跳过解析')
+        return
+      }
+      
+      // 🔑 关键：调用readerStore的initViewState（类似readest）
+      const bookKey = generateBookKey(bookHash)
+      await readerStore.initViewState(bookHash, bookKey, false) // false表示非主要视图
+      
+      const duration = performance.now() - startTime
+      console.log('✅ Library: BookDoc预解析完成', {
+        bookId: bookHash.substring(0, 8) + '...',
+        duration: `${duration.toFixed(2)}ms`
+      })
+      
+    } catch (error) {
+      console.error('❌ Library: BookDoc预解析失败:', error)
     }
   }
 
@@ -544,30 +689,46 @@ export default function LibraryPage() {
           defer
         >
           <div className="p-4">
-            {filteredAndSortedBooks.length === 0 ? (
+            {/* 🆕 加载状态指示器 */}
+            {loading && !libraryLoaded && (
               <div className="flex flex-col items-center justify-center h-full text-center min-h-[400px]">
                 <div className="text-base-content/60 mb-4">
                   <div className="w-16 h-16 mx-auto mb-4 bg-base-300 rounded-lg flex items-center justify-center">
-                    <PiPlus className="w-8 h-8" />
+                    <div className="loading loading-spinner loading-lg"></div>
                   </div>
-                  <h3 className="text-lg font-medium mb-2">
-                    {searchQuery ? '没有找到匹配的书籍' : '没有找到书籍'}
-                  </h3>
-                  <p className="text-sm">
-                    {searchQuery ? '尝试调整搜索关键词或清除过滤条件' : '导入一些书籍开始阅读'}
-                  </p>
+                  <h3 className="text-lg font-medium mb-2">正在加载书籍...</h3>
+                  <p className="text-sm">{environmentInfo}</p>
                 </div>
-                {!searchQuery && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleImportBooks}
-                  >
-                    <PiPlus className="w-4 h-4" />
-                    导入书籍
-                  </button>
-                )}
               </div>
-            ) : (
+            )}
+
+            {/* 🆕 只有在库已加载后才显示内容或空状态 */}
+            {libraryLoaded && (
+              <>
+                {filteredAndSortedBooks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center min-h-[400px]">
+                    <div className="text-base-content/60 mb-4">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-base-300 rounded-lg flex items-center justify-center">
+                        <PiPlus className="w-8 h-8" />
+                      </div>
+                      <h3 className="text-lg font-medium mb-2">
+                        {searchQuery ? '没有找到匹配的书籍' : '没有找到书籍'}
+                      </h3>
+                      <p className="text-sm">
+                        {searchQuery ? '尝试调整搜索关键词或清除过滤条件' : '导入一些书籍开始阅读'}
+                      </p>
+                    </div>
+                    {!searchQuery && (
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleImportBooks}
+                      >
+                        <PiPlus className="w-4 h-4" />
+                        导入书籍
+                      </button>
+                    )}
+                  </div>
+                ) : (
               <div className={clsx({
                 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4': viewMode === 'grid',
                 'space-y-2': viewMode === 'list'
@@ -584,6 +745,7 @@ export default function LibraryPage() {
                       }
                     )}
                     onClick={() => handleBookClick(book.hash)}
+                    onMouseEnter={() => handleBookHover(book.hash)}
                   >
                     {viewMode === 'grid' ? (
                       <div className="space-y-2">
@@ -714,7 +876,9 @@ export default function LibraryPage() {
                     )}
                   </div>
                 ))}
-              </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </OverlayScrollbarsComponent>

@@ -263,6 +263,160 @@ export class BookServiceV2 {
   }
 
   /**
+   * 检查书籍是否可用 - 类似readest的isBookAvailable
+   */
+  async isBookAvailable(book: Book): Promise<boolean> {
+    if (!this.isClient) return false;
+    
+    try {
+      const appService = await getAppService();
+      const bookFile = await appService.getBookFile(book.hash);
+      return !!bookFile;
+    } catch (error) {
+      console.error('❌ BookService: 检查书籍可用性失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 预处理书籍，确保其可用 - 类似readest的makeBookAvailable
+   */
+  async makeBookAvailable(
+    book: Book,
+    options: {
+      onLoadingStart?: () => void;
+      onLoadingEnd?: () => void;
+      loadingDelay?: number;
+      useCache?: boolean;
+    } = {}
+  ): Promise<boolean> {
+    if (!this.isClient) return false;
+    
+    const { onLoadingStart, onLoadingEnd, loadingDelay = 200, useCache = true } = options;
+    const startTime = performance.now();
+    
+    try {
+      console.log('🔧 BookService: 预处理书籍:', book.title);
+      
+      // 🆕 1. 检查缓存的可用性状态
+      if (useCache) {
+        const { useBookDataStore } = await import('@/store/bookDataStore');
+        const bookDataStore = useBookDataStore.getState();
+        
+        if (!bookDataStore.isAvailabilityStatusExpired(book.hash)) {
+          const cachedStatus = bookDataStore.getAvailabilityStatus(book.hash);
+          if (cachedStatus?.available) {
+            console.log('✅ BookService: 使用缓存的可用性状态');
+            return true;
+          }
+        }
+      }
+      
+      // 2. 检查书籍是否实际可用
+      const isAvailable = await this.isBookAvailable(book);
+      const endTime = performance.now();
+      const checkDuration = endTime - startTime;
+      
+      // 🆕 3. 缓存可用性状态
+      if (useCache) {
+        const { useBookDataStore } = await import('@/store/bookDataStore');
+        const bookDataStore = useBookDataStore.getState();
+        
+        bookDataStore.setAvailabilityStatus(book.hash, {
+          available: isAvailable,
+          fileExists: isAvailable,
+          lastChecked: Date.now(),
+          checkDuration
+        });
+      }
+      
+      if (isAvailable) {
+        console.log('✅ BookService: 书籍已可用', { duration: `${checkDuration.toFixed(2)}ms` });
+        return true;
+      }
+      
+      // 4. 书籍不可用，需要进行处理
+      console.warn('⚠️ BookService: 书籍文件不可用，需要重新处理');
+      
+      // 5. 延迟显示加载状态，避免闪烁
+      const loadingTimeout = setTimeout(() => {
+        onLoadingStart?.();
+      }, loadingDelay);
+      
+      try {
+        // 6. 这里可以添加重新下载、修复等逻辑
+        // 目前先返回false，因为我们主要依赖本地文件系统
+        return false;
+      } finally {
+        // 7. 清理加载状态
+        if (loadingTimeout) clearTimeout(loadingTimeout);
+        onLoadingEnd?.();
+      }
+      
+    } catch (error) {
+      console.error('❌ BookService: 预处理书籍失败:', error);
+      
+      // 缓存失败状态
+      if (useCache) {
+        try {
+          const { useBookDataStore } = await import('@/store/bookDataStore');
+          const bookDataStore = useBookDataStore.getState();
+          
+          bookDataStore.setAvailabilityStatus(book.hash, {
+            available: false,
+            fileExists: false,
+            lastChecked: Date.now(),
+            checkDuration: performance.now() - startTime
+          });
+        } catch {
+          // 忽略缓存错误
+        }
+      }
+      
+      return false;
+    }
+  }
+
+  /**
+   * 预验证书籍数据和文件 - 新增的预处理方法
+   */
+  async prevalidateBook(book: Book): Promise<{
+    available: boolean;
+    fileExists: boolean;
+    needsReprocessing: boolean;
+    lastChecked: number;
+  }> {
+    if (!this.isClient) {
+      return {
+        available: false,
+        fileExists: false,
+        needsReprocessing: false,
+        lastChecked: Date.now()
+      };
+    }
+    
+    try {
+      const fileExists = await this.isBookAvailable(book);
+      const available = fileExists; // 可以添加更多检查条件
+      
+      return {
+        available,
+        fileExists,
+        needsReprocessing: !available,
+        lastChecked: Date.now()
+      };
+    } catch (error) {
+      console.error('❌ BookService: 预验证书籍失败:', error);
+      return {
+        available: false,
+        fileExists: false,
+        needsReprocessing: true,
+        lastChecked: Date.now()
+      };
+    }
+  }
+
+  /**
    * 获取存储使用情况
    */
   async getStorageUsage(): Promise<{

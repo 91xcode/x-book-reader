@@ -1,18 +1,14 @@
 'use client'
 
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Book } from '@/types/book'
-import { BookServiceV2 } from '@/services/BookServiceV2'
-import { DocumentLoader } from '@/libs/document'
 import { generateBookKey } from '@/utils/bookKey'
 import Spinner from '@/components/ui/Spinner'
-import BookReader from '@/components/reader/BookReader'
-import SideBar from '@/components/reader/sidebar/SideBar'
-import SettingsDialog from '@/components/reader/settings/SettingsDialog'
+import ReaderContent from './components/ReaderContent'
+import ErrorBoundary from './components/ErrorBoundary'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useReaderStore } from '@/store/readerStore'
-import { BookDoc } from '@/types/book'
+import { useBookDataStore } from '@/store/bookDataStore'
 
 /**
  * 🎯 Reader页面 - bookKey统一管理中心
@@ -28,19 +24,19 @@ export default function ReaderPage() {
   const searchParams = useSearchParams()
   const bookId = searchParams?.get('ids') || ''
   
-  const { initializeViewSettings } = useReaderStore()
+  const { initViewState, getViewState, setBookKeys } = useReaderStore()
+  const { getBookData } = useBookDataStore()
   const { fontLayoutSettingsDialogOpen, setFontLayoutSettingsDialogOpen } = useSettingsStore()
   
-  const [book, setBook] = useState<Book | null>(null)
-  const [bookDoc, setBookDoc] = useState<BookDoc | null>(null)
   const [bookKey, setBookKey] = useState<string>('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [isSidebarVisible, setIsSidebarVisible] = useState(true)
+  // 🎯 智能加载指示器：延迟显示避免闪烁
+  const [showLoading, setShowLoading] = useState(false)
   
   // 🔑 bookKey稳定性保证：使用ref防止重复生成
   const bookKeyRef = useRef<string>('')
   const hasInitialized = useRef<boolean>(false)
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleBackToLibrary = () => {
     window.location.href = '/library'
@@ -55,10 +51,9 @@ export default function ReaderPage() {
   }
 
   useEffect(() => {
-    const loadBook = async () => {
+    const initializeReader = async () => {
       if (!bookId) {
-        setError('未提供书籍ID')
-        setLoading(false)
+        console.error('未提供书籍ID')
         return
       }
 
@@ -70,72 +65,98 @@ export default function ReaderPage() {
       hasInitialized.current = true
 
       try {
-        setLoading(true)
-        setError(null)
+        // 🎯 智能加载指示器：延迟300ms显示loading，避免快速加载时闪烁
+        loadingTimeoutRef.current = setTimeout(() => {
+          setShowLoading(true)
+        }, 300)
 
-        const bookServiceV2 = BookServiceV2.getInstance()
-
-        const foundBook = bookServiceV2.getBookByHash(bookId)
-        if (!foundBook) {
-          setError('未找到书籍')
-          setLoading(false)
-          return
+        // 🔧 生成稳定的bookKey - 使用集中化生成器
+        if (!bookKeyRef.current) {
+          bookKeyRef.current = generateBookKey(bookId)
         }
-        setBook(foundBook)
-
-        const bookFile = await bookServiceV2.getBookFile(foundBook.hash)
-        if (!bookFile) {
-          setError('无法加载书籍文件')
-          setLoading(false)
-          return
-        }
-
-        // Use DocumentLoader to parse the book
-        const loader = new DocumentLoader(bookFile)
-        const parsedDocument = await loader.open()
         
-        if (parsedDocument && parsedDocument.book) {
-          setBookDoc(parsedDocument.book)
-          
-          // 🔧 生成稳定的bookKey - 使用集中化生成器
-          if (!bookKeyRef.current) {
-            bookKeyRef.current = generateBookKey(foundBook.hash)
-          }
-          
-          setBookKey(bookKeyRef.current)
-          await initializeViewSettings(bookKeyRef.current)
-        } else {
-          setError('无法解析书籍内容')
+        setBookKey(bookKeyRef.current)
+        setBookKeys([bookKeyRef.current])
+        
+        // 🚀 使用store的initViewState方法处理所有复杂逻辑
+        await initViewState(bookId, bookKeyRef.current, true)
+        
+        console.log('✅ Reader页面初始化完成', { bookKey: bookKeyRef.current })
+        
+        // 清除loading定时器
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current)
+          loadingTimeoutRef.current = null
         }
+        setShowLoading(false)
+        
       } catch (error) {
-        console.error('加载书籍失败:', error)
-        setError('加载书籍失败')
+        console.error('❌ Reader页面初始化失败:', error)
         hasInitialized.current = false // 重置以允许重试
-      } finally {
-        setLoading(false)
+        
+        // 清除loading定时器
+        if (loadingTimeoutRef.current) {
+          clearTimeout(loadingTimeoutRef.current)
+          loadingTimeoutRef.current = null
+        }
+        setShowLoading(false)
       }
     }
 
-    loadBook()
-  }, [bookId, initializeViewSettings])
+    initializeReader()
 
-  if (loading) {
+    // 清理函数
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current)
+        loadingTimeoutRef.current = null
+      }
+    }
+  }, [bookId, initViewState, setBookKeys])
+
+  // 获取当前的视图状态和书籍数据
+  const viewState = getViewState(bookKey)
+  const bookData = getBookData(bookKey)
+
+  // 🎯 智能加载指示器：只有在延迟后才显示loading
+  if (!bookKey || (viewState?.loading && showLoading)) {
     return (
       <div className="h-screen flex items-center justify-center bg-base-100">
-        <Spinner />
+        <div className="flex flex-col items-center space-y-4">
+          <Spinner loading={true} />
+          <div className="text-sm text-base-content/70">
+            {!bookKey ? '初始化中...' : '正在加载书籍...'}
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (error) {
+  if (viewState?.error) {
     return (
-      <div className="h-screen flex items-center justify-center bg-base-100">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">加载错误</h1>
-          <p className="text-base-content/60 mb-4">{error}</p>
-          <button
-            onClick={handleBackToLibrary}
+      <div
+        className="h-screen flex items-center justify-center bg-base-100"
+        aria-live="assertive"
+      >
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <div className="text-error text-lg font-medium">
+            {viewState.error}
+          </div>
+          <button 
             className="btn btn-primary"
+            onClick={() => {
+              hasInitialized.current = false
+              // 重新初始化
+              if (bookKey) {
+                initViewState(bookId, bookKey, true)
+              }
+            }}
+          >
+            重试
+          </button>
+          <button 
+            className="btn btn-ghost"
+            onClick={handleBackToLibrary}
           >
             返回图书馆
           </button>
@@ -144,56 +165,40 @@ export default function ReaderPage() {
     )
   }
 
-  if (!book || !bookDoc) {
+  if (!bookData?.book || !bookData?.bookDoc) {
     return (
       <div className="h-screen flex items-center justify-center bg-base-100">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">书籍数据错误</h1>
-          <p className="text-base-content/60 mb-4">无法加载书籍数据</p>
-          <button
-            onClick={handleBackToLibrary}
-            className="btn btn-primary"
-          >
-            返回图书馆
-          </button>
+        <div className="flex flex-col items-center space-y-4">
+          <Spinner loading={true} />
+          <div className="text-sm text-base-content/70">
+            准备中...
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="reader-content flex h-screen bg-base-100">
-      {/* SideBar - 使用新的组件 */}
-      <SideBar 
-        isVisible={isSidebarVisible}
-        onGoToLibrary={handleBackToLibrary}
-        onClose={() => setIsSidebarVisible(false)}
-        book={book}
-        bookDoc={bookDoc}
-        bookKey={bookKey} // 🔧 传递完整的bookKey
-      />
-      
-      {/* BookReader - 使用新的组件 */}
-      <div className="flex-1">
-        <BookReader 
-          book={book}
-          bookDoc={bookDoc}
+    <ErrorBoundary>
+      <Suspense fallback={
+        <div className="h-screen flex items-center justify-center bg-base-100">
+          <div className="flex flex-col items-center space-y-4">
+            <Spinner loading={true} />
+            <div className="text-sm text-base-content/70">
+              正在启动阅读器...
+            </div>
+          </div>
+        </div>
+      }>
+        <ReaderContent
           bookKey={bookKey}
           onCloseBook={handleCloseBook}
           onOpenSettings={handleOpenSettings}
           isSidebarVisible={isSidebarVisible}
           onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+          onGoToLibrary={handleBackToLibrary}
         />
-      </div>
-
-      {/* Settings Dialog */}
-      {fontLayoutSettingsDialogOpen && book && bookKey && (
-        <SettingsDialog
-          bookKey={bookKey}
-          isOpen={fontLayoutSettingsDialogOpen}
-          onClose={() => setFontLayoutSettingsDialogOpen(false)}
-        />
-      )}
-    </div>
+      </Suspense>
+    </ErrorBoundary>
   )
 } 

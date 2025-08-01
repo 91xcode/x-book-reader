@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { FoliateView } from '@/types/view';
-import { ViewSettings, TOCItem, Location } from '@/types/book';
+import { ViewSettings, TOCItem, Location, Book, BookDoc } from '@/types/book';
 import { DEFAULT_VIEW_SETTINGS } from '@/utils/constants';
 import { getCompleteStyles } from '@/utils/style';
+import { useBookDataStore } from './bookDataStore';
+import { BookServiceV2 } from '@/services/BookServiceV2';
+import { DocumentLoader } from '@/libs/document';
 
 interface Progress {
   cfi?: string;
@@ -299,7 +302,10 @@ export const useReaderStore = create<ReaderState>()(
   getViewState: (key: string) => get().viewStates[key] || null,
 
   initViewState: async (id: string, key: string, isPrimary = true) => {
-    // Create a basic view state structure
+    const startTime = performance.now();
+    console.log('🚀 ReaderStore: 初始化ViewState', { id, key, isPrimary });
+    
+    // 设置初始加载状态
     set((state) => ({
       viewStates: {
         ...state.viewStates,
@@ -307,16 +313,114 @@ export const useReaderStore = create<ReaderState>()(
           key,
           view: null,
           isPrimary,
-          loading: false,
+          loading: true,
           error: null,
           progress: null,
           ribbonVisible: false,
           ttsEnabled: false,
           gridInsets: null,
-          viewSettings: state.viewSettings[key] || null,
+          viewSettings: null,
         },
       },
     }));
+
+    try {
+      const bookDataStore = useBookDataStore.getState();
+      const bookService = BookServiceV2.getInstance();
+      
+      // 检查缓存中是否已有数据
+      let bookData = bookDataStore.getBookData(id);
+      
+      if (!bookData?.bookDoc) {
+        console.log('📚 缓存中没有书籍数据，开始加载...');
+        
+        // 从bookService获取书籍元数据
+        const book = bookService.getBookByHash(id);
+        if (!book) {
+          throw new Error('Book not found');
+        }
+        
+        // 获取书籍文件
+        const bookFile = await bookService.getBookFile(book.hash);
+        if (!bookFile) {
+          throw new Error('无法加载书籍文件');
+        }
+        
+        // 检查缓存是否有效
+        if (bookData && bookDataStore.isCacheValid(id, bookFile)) {
+          console.log('✅ 使用有效缓存');
+        } else {
+          console.log('📖 解析书籍文档...');
+          // 解析书籍文档
+          const loader = new DocumentLoader(bookFile);
+          const parsedDocument = await loader.open();
+          
+          if (!parsedDocument?.book) {
+            throw new Error('无法解析书籍内容');
+          }
+          
+          // 缓存解析后的数据
+          bookDataStore.setBookData(id, {
+            id,
+            book,
+            file: bookFile,
+            config: null, // 配置将在需要时设置
+            bookDoc: parsedDocument.book,
+            fileLastModified: bookFile.lastModified,
+          });
+          
+          bookData = bookDataStore.getBookData(id);
+        }
+      } else {
+        console.log('✅ 使用缓存的书籍数据');
+      }
+      
+      if (!bookData?.bookDoc) {
+        throw new Error('Failed to load book data');
+      }
+      
+      // 初始化视图设置
+      const currentSettings = get().viewSettings[key];
+      if (!currentSettings) {
+        get().initializeViewSettings(key);
+      }
+      
+      // 更新ViewState为成功状态
+      set((state) => ({
+        viewStates: {
+          ...state.viewStates,
+          [key]: {
+            ...state.viewStates[key]!,
+            loading: false,
+            error: null,
+            viewSettings: state.viewSettings[key],
+          },
+        },
+      }));
+      
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      console.log('✅ ViewState初始化完成', { 
+        key, 
+        hasBookDoc: !!bookData.bookDoc,
+        duration: `${duration.toFixed(2)}ms`,
+        fromCache: !!bookData.bookDoc
+      });
+      
+    } catch (error) {
+      console.error('❌ ViewState初始化失败:', error);
+      
+      set((state) => ({
+        viewStates: {
+          ...state.viewStates,
+          [key]: {
+            ...state.viewStates[key]!,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to load book.',
+          },
+        },
+      }));
+    }
   },
 
   clearViewState: (key: string) => {

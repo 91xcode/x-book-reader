@@ -75,5 +75,63 @@ export const wrappedFoliateView = (originalView: FoliateView): FoliateView => {
     };
     return originalAddAnnotation(annotation, remove);
   };
+
+  // 添加安全保护机制，防止document为null的错误
+  const originalGoToFraction = originalView.goToFraction?.bind(originalView);
+  if (originalGoToFraction) {
+    originalView.goToFraction = (fraction: number) => {
+      try {
+        if (!originalView.renderer || !originalView.book) {
+          console.warn('Renderer or book not ready, delaying goToFraction');
+          setTimeout(() => {
+            if (originalView.renderer && originalView.book) {
+              originalGoToFraction(fraction);
+            }
+          }, 100);
+          return;
+        }
+        originalGoToFraction(fraction);
+      } catch (error) {
+        console.error('Error in goToFraction:', error);
+        // 尝试延迟执行
+        setTimeout(() => {
+          try {
+            originalGoToFraction(fraction);
+          } catch (retryError) {
+            console.error('Retry goToFraction failed:', retryError);
+          }
+        }, 200);
+      }
+    };
+  }
+
+  const originalInit = originalView.init?.bind(originalView);
+  if (originalInit) {
+    originalView.init = (options: { lastLocation: string }) => {
+      try {
+        if (!originalView.renderer || !originalView.book) {
+          console.warn('Renderer or book not ready, delaying init');
+          setTimeout(() => {
+            if (originalView.renderer && originalView.book) {
+              originalInit(options);
+            }
+          }, 100);
+          return;
+        }
+        originalInit(options);
+      } catch (error) {
+        console.error('Error in init:', error);
+        // 尝试延迟执行
+        setTimeout(() => {
+          try {
+            originalInit(options);
+          } catch (retryError) {
+            console.error('Retry init failed:', retryError);
+          }
+        }, 200);
+      }
+    };
+  }
+
   return originalView;
 }; 

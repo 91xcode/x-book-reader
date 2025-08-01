@@ -54,40 +54,59 @@ const FoliateViewer: React.FC<{
   // 🎯 集成readest风格的分页处理
   const { handlePageFlip, handleContinuousScroll } = usePagination(bookKey, viewRef, containerRef);
 
-  // 🎯 立即配置渲染器属性的函数
+  // 🎯 安全配置渲染器属性的函数
   const configureRenderer = (view: FoliateView, settings: ViewSettings) => {
+    // 确保renderer存在且view已完全初始化
+    if (!view.renderer || !view.book) {
+      console.warn('Renderer or book not ready, skipping configuration');
+      return;
+    }
+
     const animated = settings.animated!;
     const maxColumnCount = settings.maxColumnCount!;
     const maxInlineSize = settings.maxInlineSize || 720;
     const maxBlockSize = settings.maxBlockSize || 1440;
 
-    if (animated) {
-      view.renderer.setAttribute('animated', '');
-    } else {
-      view.renderer.removeAttribute('animated');
+    try {
+      if (animated) {
+        view.renderer.setAttribute('animated', '');
+      } else {
+        view.renderer.removeAttribute('animated');
+      }
+      view.renderer.setAttribute('max-column-count', maxColumnCount.toString());
+      view.renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
+      view.renderer.setAttribute('max-block-size', `${maxBlockSize}px`);
+      
+      // 🎯 应用边距和间距
+      applyMarginAndGap(view, settings);
+    } catch (error) {
+      console.error('Error configuring renderer:', error);
     }
-    view.renderer.setAttribute('max-column-count', maxColumnCount.toString());
-    view.renderer.setAttribute('max-inline-size', `${maxInlineSize}px`);
-    view.renderer.setAttribute('max-block-size', `${maxBlockSize}px`);
-    
-    // 🎯 应用边距和间距
-    applyMarginAndGap(view, settings);
   };
 
-  // 🎯 应用边距和间距的函数
+  // 🎯 安全应用边距和间距的函数
   const applyMarginAndGap = (view: FoliateView, settings: ViewSettings) => {
     const { renderer } = view;
-    renderer.setAttribute('margin-top', `${insets.top}px`);
-    renderer.setAttribute('margin-right', `${insets.right}px`);
-    renderer.setAttribute('margin-bottom', `${insets.bottom}px`);
-    renderer.setAttribute('margin-left', `${insets.left}px`);
-    
-    if (settings.gapPercent) {
-      renderer.setAttribute('gap', `${settings.gapPercent}%`);
+    if (!renderer || !renderer.setAttribute) {
+      console.warn('Renderer not available for margin/gap configuration');
+      return;
     }
-    
-    if (settings.scrolled) {
-      renderer.setAttribute('flow', 'scrolled');
+
+    try {
+      renderer.setAttribute('margin-top', `${insets.top}px`);
+      renderer.setAttribute('margin-right', `${insets.right}px`);
+      renderer.setAttribute('margin-bottom', `${insets.bottom}px`);
+      renderer.setAttribute('margin-left', `${insets.left}px`);
+      
+      if (settings.gapPercent) {
+        renderer.setAttribute('gap', `${settings.gapPercent}%`);
+      }
+      
+      if (settings.scrolled) {
+        renderer.setAttribute('flow', 'scrolled');
+      }
+    } catch (error) {
+      console.error('Error applying margin and gap:', error);
     }
   };
 
@@ -277,22 +296,20 @@ const FoliateViewer: React.FC<{
     if (isViewCreated.current) return;
     isViewCreated.current = true;
 
-    // 📚 readest风格的openBook函数
+    // 🚀 简化的openBook函数
     const openBook = async () => {
-      console.log('Opening book', bookKey);
-      
-      // 🔗 动态导入 foliate-js/view.js
+      // 动态导入 foliate-js/view.js
       await import('foliate-js/view.js');
       
-      // 🏗️ 创建 foliate-view 元素
+      // 创建 foliate-view 元素
       const view = wrappedFoliateView(document.createElement('foliate-view') as FoliateView);
       view.id = `foliate-view-${bookKey}`;
       
-      // 📍 添加到 DOM (document.body + containerRef)
+      // 添加到 DOM
       document.body.append(view);
       containerRef.current?.appendChild(view);
 
-      // ⚙️ 设置书籍方向配置
+      // 设置书籍方向配置
       const viewSettings = getViewSettings(bookKey) || DEFAULT_VIEW_SETTINGS;
       const writingMode = viewSettings.writingMode;
       if (writingMode && writingMode !== 'auto') {
@@ -301,10 +318,8 @@ const FoliateViewer: React.FC<{
         }
       }
 
-      // 🔧 验证和修复书籍语言标签
+      // 修复书籍语言标签
       if (bookDoc.metadata?.language === 'auto' || !bookDoc.metadata?.language) {
-        console.warn('⚠️ 修复无效的语言标签:', bookDoc.metadata?.language);
-        // 使用CJK检测结果或默认语言
         const needsCJK = isCJKLang(bookDoc.metadata?.language);
         bookDoc.metadata = {
           ...bookDoc.metadata,
@@ -312,70 +327,61 @@ const FoliateViewer: React.FC<{
         };
       }
 
-      // 📖 await view.open(bookDoc)
+      // 打开书籍并等待完成
       await view.open(bookDoc);
       
-      // 🎯 立即设置引用和事件监听
+      // 确保view完全初始化后再进行后续操作
       viewRef.current = view;
-      
-      // 🔍 调试：记录视图设置过程
-      console.group('📖 FoliateViewer: 设置视图到store');
-      console.log('设置bookKey:', bookKey);
-      console.log('设置的view:', view);
-      console.log('view类型:', view.constructor.name);
-      
       setFoliateView(bookKey, view);
-      
-      // 验证设置是否成功
-      setTimeout(() => {
-        const retrievedView = getView(bookKey);
-        console.log('验证设置结果:', {
-          设置成功: retrievedView === view,
-          retrievedView: retrievedView ? '存在' : 'null',
-          原始view: view ? '存在' : 'null'
-        });
-        console.groupEnd();
-      }, 10);
 
       const { book } = view;
 
+      // 等待一小段时间确保所有内部初始化完成
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // 📐 配置视图尺寸和转换处理器
-      book.transformTarget?.addEventListener('load', (event: Event) => {
-        const { detail } = event as CustomEvent;
-        if (detail.isScript) {
-          detail.allowScript = viewSettings.allowScript ?? false;
-        }
-      });
-      
-      const viewWidth = window.innerWidth;
-      const viewHeight = window.innerHeight;
-      const width = viewWidth - insets.left - insets.right;
-      const height = viewHeight - insets.top - insets.bottom;
-      book.transformTarget?.addEventListener('data', getDocTransformHandler({ width, height }));
+      if (book.transformTarget) {
+        book.transformTarget.addEventListener('load', (event: Event) => {
+          const { detail } = event as CustomEvent;
+          if (detail.isScript) {
+            detail.allowScript = viewSettings.allowScript ?? false;
+          }
+        });
+        
+        const viewWidth = window.innerWidth;
+        const viewHeight = window.innerHeight;
+        const width = viewWidth - insets.left - insets.right;
+        const height = viewHeight - insets.top - insets.bottom;
+        book.transformTarget.addEventListener('data', getDocTransformHandler({ width, height }));
+      }
 
-      // 🎨 立即应用样式: view.renderer.setStyles(getStyles(viewSettings))
-      view.renderer.setStyles?.(getCompleteStyles(viewSettings));
+      // 🎨 应用样式前检查renderer是否准备好
+      if (view.renderer?.setStyles) {
+        view.renderer.setStyles(getCompleteStyles(viewSettings));
+      }
 
-      // 🏷️ 立即配置渲染器属性 (animated, column-count, etc.)
+      // 🏷️ 安全配置渲染器属性
       configureRenderer(view, viewSettings);
 
       // 📍 导航到位置 (lastLocation 或 fraction 0)
       const lastLocation = config.location;
-      if (lastLocation) {
-        await view.init({ lastLocation });
-      } else {
-        await view.goToFraction(0);
+      try {
+        if (lastLocation) {
+          await view.init({ lastLocation });
+        } else {
+          await view.goToFraction(0);
+        }
+      } catch (error) {
+        console.warn('Navigation failed, falling back to start:', error);
+        // 如果导航失败，尝试简单的开始位置
+        try {
+          await view.goToFraction(0);
+        } catch (fallbackError) {
+          console.error('Fallback navigation also failed:', fallbackError);
+        }
       }
 
-      console.log('✅ Book opened successfully with readest-style flow');
-      
-      // 🔍 最终验证：确认视图已正确设置
-      console.group('🔍 FoliateViewer: 最终验证');
-      console.log('bookKey:', bookKey);
-      console.log('view已设置到store:', !!getView(bookKey));
-      console.log('view类型:', view.constructor.name);
-      console.log('view.goTo方法可用:', typeof view.goTo === 'function');
-      console.groupEnd();
+
     };
 
     openBook().catch(error => {
@@ -413,16 +419,35 @@ const FoliateViewer: React.FC<{
     };
   }, [handlePageFlip]);
 
-  // 🎯 监听特定viewSettings变化 - 完全遵循readest模式
+  // 🎯 监听特定viewSettings变化 - 完全遵循readest模式 + 错误处理
   useEffect(() => {
-    if (viewRef.current && viewRef.current.renderer) {
-      const viewSettings = getViewSettings(bookKey)!;
-      viewRef.current.renderer.setStyles?.(getCompleteStyles(viewSettings));
-      
-      // 📄 预分页布局特殊处理
-      if (bookDoc.rendition?.layout === 'pre-paginated') {
-        const docs = viewRef.current.renderer.getContents();
-        docs.forEach(({ doc }) => applyFixedlayoutStyles(doc, viewSettings));
+    if (viewRef.current && viewRef.current.renderer && viewRef.current.book) {
+      const viewSettings = getViewSettings(bookKey);
+      if (!viewSettings) return;
+
+      try {
+        // 安全应用样式
+        if (viewRef.current.renderer.setStyles) {
+          viewRef.current.renderer.setStyles(getCompleteStyles(viewSettings));
+        }
+        
+        // 📄 预分页布局特殊处理
+        if (bookDoc.rendition?.layout === 'pre-paginated') {
+          try {
+            const docs = viewRef.current.renderer.getContents?.();
+            if (docs && Array.isArray(docs)) {
+              docs.forEach(({ doc }) => {
+                if (doc && doc.documentElement) {
+                  applyFixedlayoutStyles(doc, viewSettings);
+                }
+              });
+            }
+          } catch (layoutError) {
+            console.warn('Error applying fixed layout styles:', layoutError);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating view settings:', error);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
