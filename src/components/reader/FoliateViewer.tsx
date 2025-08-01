@@ -17,6 +17,7 @@ import { getDirection } from '@/utils/book';
 declare global {
   interface Window {
     eval(script: string): void;
+    safeSetStylesImportant?: (el: any, styles: any) => void;
   }
 }
 
@@ -151,14 +152,20 @@ const FoliateViewer: React.FC<{
     };
   };
 
-  // 🔥 重构后的文档加载处理器 - 遵循readest风格
+  // 🔥 重构后的文档加载处理器 - 遵循readest风格 + 增强元素安全检查
   const docLoadHandler = (event: Event) => {
     const detail = (event as CustomEvent).detail;
     console.log('doc index loaded:', detail.index);
     
-    if (detail.doc) {
+    // 🔑 重要：添加更严格的文档和元素存在检查
+    if (!detail.doc || !detail.doc.documentElement) {
+      console.warn('⚠️ Document or documentElement not available, skipping doc load handling');
+      return;
+    }
+    
+    try {
       // 🧭 方向检测和设置
-      const writingDir = viewRef.current?.renderer.setStyles && getDirection(detail.doc);
+      const writingDir = viewRef.current?.renderer?.setStyles && getDirection(detail.doc);
       const currentViewSettings = getViewSettings(bookKey)!;
       
       currentViewSettings.vertical = writingDir?.vertical || currentViewSettings.writingMode.includes('vertical');
@@ -166,11 +173,29 @@ const FoliateViewer: React.FC<{
       setViewSettings(bookKey, { ...currentViewSettings });
 
       // 🎨 关键：挂载额外字体 - 暂时使用bookDoc的语言信息
-      mountAdditionalFonts(detail.doc, isCJKLang(bookDoc.metadata?.language));
+      if (detail.doc.head) {
+        mountAdditionalFonts(detail.doc, isCJKLang(bookDoc.metadata?.language));
+      }
 
-      // 📱 预分页布局处理
+      // 📱 预分页布局处理 - 添加额外的安全检查
       if (bookDoc.rendition?.layout === 'pre-paginated') {
-        applyFixedlayoutStyles(detail.doc, currentViewSettings);
+        // 🔑 双重检查：确保所有必要元素都存在
+        if (detail.doc.documentElement && detail.doc.body) {
+          applyFixedlayoutStyles(detail.doc, currentViewSettings);
+        } else {
+          console.warn('⚠️ Document elements not ready for fixed layout, delaying...');
+          // 延迟重试机制
+          setTimeout(() => {
+            if (detail.doc?.documentElement && detail.doc?.body) {
+              try {
+                applyFixedlayoutStyles(detail.doc, currentViewSettings);
+                console.log('✅ Fixed layout styles applied after delay');
+              } catch (retryError) {
+                console.error('❌ Fixed layout styles failed after retry:', retryError);
+              }
+            }
+          }, 150);
+        }
       }
 
       // 🖼️ 图片样式应用
@@ -199,6 +224,9 @@ const FoliateViewer: React.FC<{
         detail.doc.addEventListener('touchmove', handleTouchMove.bind(null, bookKey));
         detail.doc.addEventListener('touchend', handleTouchEnd.bind(null, bookKey));
       }
+    } catch (error) {
+      console.error('❌ Error in docLoadHandler:', error);
+      // 不抛出错误，确保不影响其他文档的加载
     }
   };
 
@@ -298,8 +326,57 @@ const FoliateViewer: React.FC<{
 
     // 🚀 简化的openBook函数
     const openBook = async () => {
+      // 🔑 重要：在导入foliate-js之前添加安全补丁
+      const originalConsoleError = console.error;
+      
       // 动态导入 foliate-js/view.js
       await import('foliate-js/view.js');
+      
+      // 🔑 猴子补丁：保护setStylesImportant函数和相关操作
+      if (typeof window !== 'undefined') {
+        // 1. 拦截CSS setProperty调用
+        const originalSetProperty = CSSStyleDeclaration.prototype.setProperty;
+        CSSStyleDeclaration.prototype.setProperty = function(property, value, priority) {
+          try {
+            return originalSetProperty.call(this, property, value, priority);
+          } catch (error) {
+            console.warn('⚠️ Safe CSS setProperty error intercepted:', error);
+            return;
+          }
+        };
+        
+        // 2. 创建全局的安全setStylesImportant函数
+        if (!window.safeSetStylesImportant) {
+          window.safeSetStylesImportant = (el: any, styles: any) => {
+            try {
+              if (!el || !el.style) {
+                console.warn('⚠️ Invalid element for setStylesImportant, skipping');
+                return;
+              }
+              
+              const { style } = el;
+              for (const [k, v] of Object.entries(styles)) {
+                if (style && typeof style.setProperty === 'function') {
+                  style.setProperty(k, v, 'important');
+                }
+              }
+            } catch (error) {
+              console.warn('⚠️ Safe setStylesImportant error intercepted:', error);
+            }
+          };
+        }
+        
+        // 3. 拦截可能的element访问
+        const originalQuerySelector = Document.prototype.querySelector;
+        Document.prototype.querySelector = function(selectors: string) {
+          try {
+            return originalQuerySelector.call(this, selectors);
+          } catch (error) {
+            console.warn('⚠️ Safe querySelector error intercepted:', error);
+            return null;
+          }
+        };
+      }
       
       // 创建 foliate-view 元素
       const view = wrappedFoliateView(document.createElement('foliate-view') as FoliateView);

@@ -1,13 +1,28 @@
 import clsx from 'clsx';
 import React, { useState, useEffect } from 'react';
 import { PiDotsThreeVerticalBold } from 'react-icons/pi';
-import { GiBookshelf } from 'react-icons/gi';
 import { FiSearch } from 'react-icons/fi';
 import { MdOutlineMenu, MdOutlinePushPin, MdPushPin } from 'react-icons/md';
 import { MdArrowBackIosNew } from 'react-icons/md';
 import { RiFontSize } from 'react-icons/ri';
 import { LuNotebookPen } from 'react-icons/lu';
 import { MdCheck } from 'react-icons/md';
+
+// 自定义侧边栏图标组件
+const SidebarToggleIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg 
+    stroke="currentColor" 
+    fill="currentColor" 
+    strokeWidth="0" 
+    viewBox="0 0 24 24" 
+    className={className}
+    height="16px" 
+    width="16px" 
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M6 21a3 3 0 0 1 -3 -3v-12a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3zm12 -16h-8v14h8a1 1 0 0 0 1 -1v-12a1 1 0 0 0 -1 -1"></path>
+  </svg>
+);
 
 import Dropdown from '@/components/ui/Dropdown';
 import { useReaderStore } from '@/store/readerStore';
@@ -144,11 +159,7 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
               onClick={onToggleSidebar}
               title="侧边栏"
             >
-              {isSidebarVisible ? (
-                <GiBookshelf className="w-4 h-4 text-base-content" />
-              ) : (
-                <GiBookshelf className="w-4 h-4 text-base-content" />
-              )}
+              <SidebarToggleIcon className="text-base-content" />
             </button>
           </div>
           
