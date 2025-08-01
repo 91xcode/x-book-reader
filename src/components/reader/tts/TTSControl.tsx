@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import clsx from 'clsx';
 import TTSIcon from './TTSIcon';
 import TTSPanel from './TTSPanel';
@@ -6,6 +6,7 @@ import Popup from '@/components/ui/Popup';
 import { TTSController, parseSSMLLang, TTSUtils, TTSMark, TTSVoicesGroup } from '@/services/tts';
 import { useResponsiveSize } from '@/hooks/useResponsiveSize';
 import { EdgeVoice } from '@/data/edgeVoices';
+import { throttle } from '@/utils/throttle';
 
 interface Position {
   top: number;
@@ -156,7 +157,27 @@ const TTSControl: React.FC<TTSControlProps> = ({ bookKey }) => {
     const handleHighlightMark = (e: Event) => {
       const range = (e as CustomEvent<Range>).detail;
       console.log('TTS highlight mark:', range);
-      // 这里可以添加高亮位置的保存逻辑
+      
+      // 确保高亮器被正确触发
+      if (range && ttsController) {
+        try {
+          // 获取view元素
+          const viewElement = document.querySelector('[data-foliate-view]');
+          if (viewElement && (viewElement as any).view) {
+            const view = (viewElement as any).view;
+            const contents = view.renderer.getContents();
+            if (contents && contents[0] && contents[0].overlayer) {
+              const { overlayer } = contents[0];
+              // 手动触发高亮
+              overlayer.remove('tts-highlight');
+              overlayer.add('tts-highlight', range, overlayer.constructor.highlight, { color: '#ffeb3b' });
+              console.log('✅ Manual highlight applied');
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error applying manual highlight:', error);
+        }
+      }
     };
 
     ttsController.addEventListener('tts-speak-mark', handleSpeakMark);
@@ -198,7 +219,7 @@ const TTSControl: React.FC<TTSControlProps> = ({ bookKey }) => {
 
       // 清理之前的控制器（完全遵循readest模式）
       if (ttsControllerRef.current) {
-        ttsControllerRef.current.stop();
+        await ttsControllerRef.current.stop();
         ttsControllerRef.current = null;
       }
 
@@ -284,12 +305,24 @@ const TTSControl: React.FC<TTSControlProps> = ({ bookKey }) => {
     }
   };
 
-  const handleSetRate = (rate: number) => {
-    const ttsController = ttsControllerRef.current;
-    if (ttsController) {
-      ttsController.setRate(rate);
-    }
-  };
+  // rate range: 0.5 - 3, 1.0 is normal speed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleSetRate = useCallback(
+    throttle(async (rate: number) => {
+      const ttsController = ttsControllerRef.current;
+      if (ttsController) {
+        if (isPlaying) {
+          // 使用readest模式：stop->setRate->start来确保语速变更生效
+          await ttsController.stop();
+          await ttsController.setRate(rate);
+          await ttsController.start();
+        } else {
+          await ttsController.setRate(rate);
+        }
+      }
+    }, 1000), // 增加throttle时间，避免频繁重启
+    [isPlaying],
+  );
 
   const handleGetVoices = async (lang: string): Promise<TTSVoicesGroup[]> => {
     const ttsController = ttsControllerRef.current;
@@ -299,12 +332,22 @@ const TTSControl: React.FC<TTSControlProps> = ({ bookKey }) => {
     return await ttsController.getVoices(lang);
   };
 
-  const handleSetVoice = (voice: string, lang: string) => {
-    const ttsController = ttsControllerRef.current;
-    if (ttsController) {
-      ttsController.setVoice(voice, lang);
-    }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleSetVoice = useCallback(
+    throttle(async (voice: string, lang: string) => {
+      const ttsController = ttsControllerRef.current;
+      if (ttsController) {
+        if (ttsController.state === 'playing') {
+          await ttsController.stop();
+          await ttsController.setVoice(voice, lang);
+          await ttsController.start();
+        } else {
+          await ttsController.setVoice(voice, lang);
+        }
+      }
+    }, 3000),
+    [],
+  );
 
   const handleGetVoiceId = (): string => {
     const ttsController = ttsControllerRef.current;

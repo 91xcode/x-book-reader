@@ -2,6 +2,40 @@ import { TTSClient, TTSMessageEvent, TTSVoice, TTSVoicesGroup, TTSGranularity, E
 import { EdgeSpeechTTS } from '@lobehub/tts';
 import { EDGE_VOICES, type EdgeVoice } from '@/data/edgeVoices';
 import { parseSSMLMarks, TTSUtils } from './utils';
+import crypto from 'crypto';
+
+// 简单的音频缓存实现
+class AudioCache {
+  private cache = new Map<string, ArrayBuffer>();
+  private maxSize = 200;
+
+  has(key: string): boolean {
+    return this.cache.has(key);
+  }
+
+  get(key: string): ArrayBuffer | undefined {
+    return this.cache.get(key);
+  }
+
+  set(key: string, data: ArrayBuffer): void {
+    if (this.cache.size >= this.maxSize) {
+      // 删除最旧的条目  
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) {
+        this.cache.delete(firstKey);
+      }
+    }
+    this.cache.set(key, data);
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
 
 export class EdgeTTSClient implements TTSClient {
   name = 'edge-tts';
@@ -20,6 +54,9 @@ export class EdgeTTSClient implements TTSClient {
   #isPlaying = false;
   #pausedAt = 0;
   #startedAt = 0;
+
+  // 音频缓存
+  private static audioCache = new AudioCache();
 
   constructor(controller?: any) {
     this.controller = controller;
@@ -66,16 +103,7 @@ export class EdgeTTSClient implements TTSClient {
   };
   
   async *speak(ssml: string, signal: AbortSignal, preload = false): AsyncIterable<TTSMessageEvent> {
-    console.log('🔊 LobeEdgeTTSClient.speak() called');
-    
-    // 首先停止任何正在播放的音频，防止重复播放
-    await this.stopInternal();
-    
-    console.log('🔊 SSML input:', ssml ? ssml.substring(0, 200) + '...' : 'null/undefined');
-    console.log('🔊 Preload mode:', preload);
-    
     const { marks } = parseSSMLMarks(ssml, this.#primaryLang);
-    console.log('🔊 Parsed marks count:', marks?.length || 0);
     
     if (!marks || marks.length === 0) {
       console.warn('⚠️ No marks found in SSML');
@@ -86,24 +114,13 @@ export class EdgeTTSClient implements TTSClient {
     if (preload) {
       // 预加载前2个mark，其余在后台加载（匹配readest逻辑）
       const maxImmediate = 2;
-      console.log('🔊 Preloading first', maxImmediate, 'marks');
       for (let i = 0; i < Math.min(maxImmediate, marks.length); i++) {
         const mark = marks[i]!;
         const { language: voiceLang } = mark;
         const voiceId = await this.getVoiceIdFromLang(voiceLang);
         this.#currentVoiceId = voiceId;
         try {
-          console.log(`🔊 Preloading mark ${i}:`, mark.text.substring(0, 20) + '...', 'with voice:', voiceId);
-          const response = await this.#edgeTTS.create({
-            input: mark.text,
-            options: {
-              voice: voiceId,
-              ...(this.#rate !== 1.0 && { rate: this.#rate.toString() }),
-              ...(this.#pitch !== 1.0 && { pitch: this.#pitch.toString() })
-            }
-          });
-          const blob = await response.blob(); // 预加载
-          console.log(`✅ Preloaded mark ${i}, blob size:`, blob.size);
+          await this.createCachedAudio(mark.text, voiceId, true); // 标记为预加载
         } catch (err) {
           console.warn('❌ Error preloading mark', i, err);
         }
@@ -115,17 +132,7 @@ export class EdgeTTSClient implements TTSClient {
             try {
               const { language: voiceLang } = mark;
               const voiceId = await this.getVoiceIdFromLang(voiceLang);
-              console.log(`🔊 Background preloading mark ${i}:`, mark.text.substring(0, 20) + '...');
-              const response = await this.#edgeTTS.create({
-                input: mark.text,
-                options: {
-                  voice: voiceId,
-                  ...(this.#rate !== 1.0 && { rate: this.#rate.toString() }),
-                  ...(this.#pitch !== 1.0 && { pitch: this.#pitch.toString() })
-                }
-              });
-              const blob = await response.blob();
-              console.log(`✅ Background preloaded mark ${i}, blob size:`, blob.size);
+              await this.createCachedAudio(mark.text, voiceId, true); // 标记为预加载
             } catch (err) {
               console.warn('Error preloading mark (bg)', i, err);
             }
@@ -133,12 +140,11 @@ export class EdgeTTSClient implements TTSClient {
         })();
       }
 
-      console.log('🔊 Preload finished, continuing to playback...');
       yield {
-        code: 'boundary',
-        message: 'Preload finished, starting playback',
+        code: 'end',
+        message: 'Preload finished',
       };
-      // 不要return，继续执行播放逻辑
+      return;
     } else {
       await this.stopInternal();
     }
@@ -156,18 +162,7 @@ export class EdgeTTSClient implements TTSClient {
         const voiceId = await this.getVoiceIdFromLang(voiceLang);
         this.#speakingLang = voiceLang;
         
-        // 使用类似lobe-tts-demo的简化方式，直接传递纯文本
-                  const response = await this.#edgeTTS.create({
-          input: mark.text.trim(), // 使用纯文本，不是SSML
-          options: {
-            voice: voiceId,
-            ...(this.#rate !== 1.0 && { rate: this.#rate.toString() }),
-            ...(this.#pitch !== 1.0 && { pitch: this.#pitch.toString() })
-          }
-        });
-        
-        const blob = await response.blob();
-        console.log('🔊 Audio blob size:', blob.size, 'bytes');
+        const blob = await this.createCachedAudio(mark.text.trim(), voiceId, false); // 实际播放
         
         if (blob.size === 0) {
           console.error('❌ Audio blob is empty!');
@@ -176,25 +171,14 @@ export class EdgeTTSClient implements TTSClient {
         }
         
         const url = URL.createObjectURL(blob);
-        console.log('🔊 Created audio URL:', url);
-        
-        // 确保停止之前的音频（如果有的话）
-        if (this.#audioElement) {
-          this.#audioElement.pause();
-          this.#audioElement.src = '';
-          this.#audioElement = null;
-        }
         
         this.#audioElement = new Audio(url);
         const audio = this.#audioElement;
         audio.setAttribute('x-webkit-airplay', 'deny');
         audio.preload = 'auto';
-        
-        console.log('🔊 Audio element created, ready to play');
 
         // 通知controller播放mark（匹配readest）
         this.controller?.dispatchSpeakMark?.(mark);
-
         yield {
           code: 'boundary',
           message: `Start chunk: ${mark.name}`,
@@ -242,9 +226,8 @@ export class EdgeTTSClient implements TTSClient {
             return;
           }
           this.#isPlaying = true;
-          console.log('🔊 Starting audio playback...');
           audio.play().then(() => {
-            console.log('✅ Audio playback started successfully');
+            // Audio started successfully
           }).catch((err) => {
             signal.removeEventListener('abort', abortHandler);
             cleanUp();
@@ -310,6 +293,54 @@ export class EdgeTTSClient implements TTSClient {
       this.#audioElement.src = '';
       this.#audioElement = null;
     }
+  }
+
+
+
+  private getCacheKey(text: string, voiceId: string): string {
+    const payload = {
+      text: text.trim(),
+      voice: voiceId,
+      rate: this.#rate,
+      pitch: this.#pitch,
+    };
+    return crypto.createHash('md5').update(JSON.stringify(payload)).digest('hex');
+  }
+
+  private async createCachedAudio(text: string, voiceId: string, isPreload: boolean = false): Promise<Blob> {
+    const cacheKey = this.getCacheKey(text, voiceId);
+    
+    // 检查缓存
+    if (EdgeTTSClient.audioCache.has(cacheKey)) {
+      if (!isPreload) { // 只在实际播放时显示缓存命中日志
+        console.log('🎯 使用缓存音频:', text.substring(0, 20) + '...');
+      }
+      const cachedData = EdgeTTSClient.audioCache.get(cacheKey)!;
+      return new Blob([cachedData], { type: 'audio/mpeg' });
+    }
+
+    // 生成新音频
+    const logPrefix = isPreload ? '📦 预加载音频:' : '🔊 生成新音频:';
+    console.log(logPrefix, text.substring(0, 20) + '...');
+    
+    const response = await this.#edgeTTS.create({
+      input: text,
+      options: {
+        voice: voiceId,
+        ...(this.#rate !== 1.0 && { rate: this.#rate.toString() }),
+        ...(this.#pitch !== 1.0 && { pitch: this.#pitch.toString() })
+      }
+    });
+    
+    const arrayBuffer = await response.arrayBuffer();
+    
+    // 缓存音频数据
+    EdgeTTSClient.audioCache.set(cacheKey, arrayBuffer);
+    if (!isPreload) { // 只在实际播放时显示缓存大小
+      console.log('💾 音频已缓存，缓存大小:', EdgeTTSClient.audioCache.size);
+    }
+    
+    return new Blob([arrayBuffer], { type: 'audio/mpeg' });
   }
 
   async setRate(rate: number): Promise<void> {

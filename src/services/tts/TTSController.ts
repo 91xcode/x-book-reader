@@ -1,6 +1,7 @@
 import { TTSClient, TTSVoice, TTSGranularity, TTSHighlightOptions, TTSMark, AppService, FoliateView } from '@/types/tts';
 import { parseSSMLMarks, parseSSMLLang, TTSUtils } from './utils';
 import { EdgeTTSClient } from './LobeTTSClient';
+import { Overlayer } from 'foliate-js/overlayer.js';
 
 // 添加node过滤器功能（基于readest）
 const createRejecttFilter = (options: {
@@ -84,55 +85,25 @@ export class TTSController extends EventTarget {
     this.ttsEdgeVoices = await this.ttsEdgeClient.getAllVoices();
   }
 
-  #getHighlighter(options: any) {
-    return {
-      highlight: (range: Range) => {
-        // 清除之前的高亮
-        this.#clearHighlight();
-        
-        // 创建新的高亮元素
-        const span = document.createElement('span');
-        span.setAttribute(HIGHLIGHT_KEY, '');
-        span.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
-        span.style.transition = 'background-color 0.2s ease';
-        
-        try {
-          range.surroundContents(span);
-          console.log('Text highlighted:', range.toString());
-        } catch (error) {
-          console.warn('Failed to highlight range:', error);
-          // 如果无法包围内容，尝试更简单的方式
-          try {
-            const contents = range.extractContents();
-            span.appendChild(contents);
-            range.insertNode(span);
-          } catch (fallbackError) {
-            console.error('Failed to highlight with fallback:', fallbackError);
-          }
-        }
-      },
-      
-      clearHighlight: () => {
-        this.#clearHighlight();
+  #getHighlighter(options: TTSHighlightOptions) {
+    return (range: Range) => {
+      const { overlayer } = this.view.renderer.getContents()[0] as { overlayer: Overlayer };
+      const { style, color } = options;
+      overlayer?.remove(HIGHLIGHT_KEY);
+      overlayer?.add(HIGHLIGHT_KEY, range, Overlayer[style], { color });
+      const rect = range.getBoundingClientRect();
+      const { start, size, viewSize, sideProp } = this.view.renderer;
+      const position = rect[sideProp === 'height' ? 'y' : 'x'] + 88;
+      const offset = this.view.book.dir === 'rtl' ? viewSize - position : position;
+      if (!this.view.renderer.scrolled || offset < start || offset > start + size) {
+        this.view.renderer.scrollToAnchor(range);
       }
     };
   }
 
-  #clearHighlight() {
-    // 移除所有现有的高亮元素
-    const highlightedElements = document.querySelectorAll(`[${HIGHLIGHT_KEY}]`);
-    highlightedElements.forEach(element => {
-      const parent = element.parentNode;
-      if (parent) {
-        // 将高亮元素的内容移动到父级
-        while (element.firstChild) {
-          parent.insertBefore(element.firstChild, element);
-        }
-        parent.removeChild(element);
-        // 合并相邻的文本节点
-        parent.normalize();
-      }
-    });
+  #clearHighlighter() {
+    const { overlayer } = (this.view.renderer.getContents()?.[0] || {}) as { overlayer?: Overlayer };
+    overlayer?.remove(HIGHLIGHT_KEY);
   }
 
   async initViewTTS() {
@@ -141,14 +112,14 @@ export class TTSController extends EventTarget {
     if (!supportedGranularities.includes(granularity)) {
       granularity = supportedGranularities[0]!;
     }
-    const highlightOptions: TTSHighlightOptions = { style: 'highlight', color: 'gray' };
+    const highlightOptions: TTSHighlightOptions = { style: 'highlight', color: '#ffeb3b' };
     await this.view.initTTS(
       granularity,
       createRejecttFilter({
         tags: ['rt', 'sup'],
         contents: [{ tag: 'a', content: /^\d+$/ }],
       }),
-      this.#getHighlighter(highlightOptions).highlight,
+      this.#getHighlighter(highlightOptions),
     );
   }
 
@@ -193,7 +164,6 @@ export class TTSController extends EventTarget {
 
     this.#currentSpeakPromise = new Promise(async (resolve, reject) => {
       try {
-        console.log('TTS speak');
         this.state = 'playing';
         ssml = this.#preprocessSSML(await ssml);
         await this.preloadSSML(ssml);
@@ -276,25 +246,37 @@ export class TTSController extends EventTarget {
     await this.ttsClient.resume();
   }
   async stop() {
-    this.state = 'stopped';
     if (this.#currentSpeakAbortController) {
       this.#currentSpeakAbortController.abort();
     }
-    await this.ttsClient.stop();
+    await this.ttsClient.stop().catch((e) => this.error(e));
+
+    if (this.#currentSpeakPromise) {
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Stop operation timed out')), 3000),
+      );
+      await Promise.race([this.#currentSpeakPromise.catch((e) => this.error(e)), timeout]).catch(
+        (e) => this.error(e),
+      );
+      this.#currentSpeakPromise = null;
+    }
+    this.state = 'stopped';
     // 停止时清除高亮
-    this.#clearHighlight();
+    this.#clearHighlighter();
   }
 
   async forward() {
     this.state = 'forward-paused';
     const ssml = this.view.tts?.next();
     this.#speak(ssml);
+    this.preloadNextSSML();
   }
 
   async backward() {
     this.state = 'backward-paused';
     const ssml = this.view.tts?.prev();
     this.#speak(ssml);
+    this.preloadNextSSML();
   }
 
   async setLang(lang: string) {
@@ -351,7 +333,7 @@ export class TTSController extends EventTarget {
 
   async shutdown() {
     await this.stop();
-    this.#clearHighlight();
+    this.#clearHighlighter();
     if (this.ttsEdgeClient.initialized) {
       await this.ttsEdgeClient.shutdown();
     }
