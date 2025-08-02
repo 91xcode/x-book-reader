@@ -28,8 +28,8 @@ const FooterBar: React.FC<FooterBarProps> = ({
   onToggleSidebar,
   onOpenSettings,
 }) => {
-  const { getView, getProgress, getViewSettings } = useReaderStore();
-  const [hoveredBookKey, setHoveredBookKey] = useState<string | null>(null);
+  const { getView, getProgress, getViewSettings, getHoveredBookKey, setHoveredBookKey } = useReaderStore();
+  const hoveredBookKey = getHoveredBookKey();
   const [actionTab, setActionTab] = useState('');
   
   const view = getView(bookKey);

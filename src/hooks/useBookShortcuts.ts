@@ -10,7 +10,7 @@ interface UseBookShortcutsProps {
 }
 
 const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) => {
-  const { getView, getViewSettings, setViewSettings } = useReaderStore();
+  const { getView, getViewSettings, setViewSettings, applyViewStyles } = useReaderStore();
   const viewSettings = getViewSettings(sideBarBookKey ?? '');
   const fontSize = viewSettings?.defaultFontSize ?? 16;
   const lineHeight = viewSettings?.lineHeight ?? 1.6;
@@ -36,6 +36,11 @@ const useBookShortcuts = ({ sideBarBookKey, bookKeys }: UseBookShortcutsProps) =
       
       // 更新store
       setViewSettings(sideBarBookKey, updatedSettings);
+      
+      // 🎯 关键修复：重新应用所有样式（包括动画）
+      setTimeout(() => {
+        applyViewStyles(sideBarBookKey);
+      }, 50);
       
       console.log(`🔄 快捷键切换滚动模式: ${updatedSettings.scrolled ? '滚动' : '分页'}`);
     }

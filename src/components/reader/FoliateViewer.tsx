@@ -305,7 +305,36 @@ const FoliateViewer: React.FC<{
   };
 
   const handleClick = (bookKey: string, event: MouseEvent) => {
-    // 点击事件处理
+    // 🎯 readest风格：转发点击事件到主窗口
+    console.log('📍 iframe点击事件:', {
+      bookKey,
+      screenX: event.screenX,
+      screenY: event.screenY,
+      target: event.target
+    });
+    
+    // 检查是否点击了特殊元素（链接、音频、视频等）
+    let element: HTMLElement | null = event.target as HTMLElement;
+    while (element) {
+      const tagName = element.tagName.toLowerCase();
+      if (['sup', 'a', 'audio', 'video'].includes(tagName)) {
+        console.log('🔗 点击了特殊元素，不触发翻页:', tagName);
+        return;
+      }
+      element = element.parentElement;
+    }
+    
+    // 转发点击事件到主窗口，usePagination会接收
+    window.postMessage({
+      type: 'iframe-single-click',
+      bookKey,
+      screenX: event.screenX,
+      screenY: event.screenY,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      offsetX: event.offsetX,
+      offsetY: event.offsetY,
+    }, '*');
   };
 
   const handleWheel = (bookKey: string, event: WheelEvent) => {

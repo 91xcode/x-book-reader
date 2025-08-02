@@ -44,8 +44,8 @@ const HeaderBar: React.FC<HeaderBarProps> = ({
   onCloseBook,
   onOpenSettings,
 }) => {
-  const { getView, getViewSettings, setViewSettings } = useReaderStore();
-  const [hoveredBookKey, setHoveredBookKey] = useState<string | null>(null);
+  const { getView, getViewSettings, setViewSettings, getHoveredBookKey, setHoveredBookKey } = useReaderStore();
+  const hoveredBookKey = getHoveredBookKey();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [translationEnabled, setTranslationEnabled] = useState(false);

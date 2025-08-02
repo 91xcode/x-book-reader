@@ -13,7 +13,7 @@ interface ControlPanelProps {
 
 const ControlPanel: React.FC<ControlPanelProps> = ({ bookKey, onRegisterReset }) => {
   const _ = useTranslation()._;
-  const { getView, getViewSettings } = useReaderStore();
+  const { getView, getViewSettings, applyViewStyles } = useReaderStore();
   const { saveViewSettings } = useViewSettingsSync();
   const viewSettings = getViewSettings(bookKey);
 
@@ -109,11 +109,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ bookKey, onRegisterReset })
 
   useEffect(() => {
     if (!viewSettings) return;
+    
+    // 🎯 readest风格：保存设置并重新应用样式
     saveViewSettings(bookKey, 'animated', animated, false, false);
-    if (animated) {
-      getView(bookKey)?.renderer.setAttribute('animated', '');
-    } else {
-      getView(bookKey)?.renderer.removeAttribute('animated');
+    
+    // 确保renderer存在时立即应用动画属性
+    const view = getView(bookKey);
+    if (view?.renderer) {
+      if (animated) {
+        view.renderer.setAttribute('animated', '');
+      } else {
+        view.renderer.removeAttribute('animated');
+      }
+      
+      // 🎯 关键修复：重新应用所有样式确保生效
+      setTimeout(() => {
+        applyViewStyles(bookKey);
+      }, 100);
+      
+      console.log(`🎬 动画设置已${animated ? '启用' : '禁用'}:`, bookKey);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [animated]);

@@ -16,7 +16,7 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
   setIsDropdownOpen 
 }) => {
   const _ = useTranslation()._;
-  const { getView, getViewSettings, setViewSettings } = useReaderStore();
+  const { getView, getViewSettings, setViewSettings, applyViewStyles } = useReaderStore();
   const viewSettings = getViewSettings(bookKey);
 
   const [isScrolledMode, setScrolledMode] = useState(viewSettings?.scrolled ?? false);
@@ -43,6 +43,11 @@ const ViewMenu: React.FC<ViewMenuProps> = ({
     
     // 更新store
     setViewSettings(bookKey, updatedSettings);
+    
+    // 🎯 关键修复：重新应用所有样式（包括动画）
+    setTimeout(() => {
+      applyViewStyles(bookKey);
+    }, 50);
     
     // 关闭下拉菜单
     setIsDropdownOpen?.(false);

@@ -42,12 +42,19 @@ interface ReaderState {
   // 进度管理
   progress: Record<string, Progress>;
   
+  // 工具栏状态 - readest风格
+  hoveredBookKey: string | null;
+  
   // 书籍键列表
   bookKeys: string[];
   
   // Actions
   setView: (bookKey: string, view: FoliateView | null) => void;
   getView: (bookKey: string) => FoliateView | null;
+  
+  // 工具栏状态管理 - readest风格
+  setHoveredBookKey: (bookKey: string | null) => void;
+  getHoveredBookKey: () => string | null;
   getViewsById: (bookId: string) => (FoliateView | null)[];
   
   setViewSettings: (bookKey: string, settings: ViewSettings) => void;
@@ -82,6 +89,9 @@ export const useReaderStore = create<ReaderState>()(
     (set, get) => ({
   views: {},
   viewStates: {},
+  
+  // 工具栏状态 - readest风格  
+  hoveredBookKey: null,
   viewSettings: {},
   progress: {},
   bookKeys: [],
@@ -104,6 +114,15 @@ export const useReaderStore = create<ReaderState>()(
 
   getView: (bookKey: string) => {
     return get().views[bookKey] || null;
+  },
+
+  // 🎯 工具栏状态管理 - readest风格
+  setHoveredBookKey: (bookKey: string | null) => {
+    set({ hoveredBookKey: bookKey });
+  },
+
+  getHoveredBookKey: () => {
+    return get().hoveredBookKey;
   },
 
   getViewsById: (bookId: string) => {
@@ -227,8 +246,12 @@ export const useReaderStore = create<ReaderState>()(
           renderer.setAttribute('writing-mode', settings.writingMode);
         }
         
-        // Apply animation
-        renderer.setAttribute('animated', settings.animated.toString());
+        // 🎯 Apply animation - readest风格
+        if (settings.animated) {
+          renderer.setAttribute('animated', '');
+        } else {
+          renderer.removeAttribute('animated');
+        }
       }
     } catch (error) {
       console.error('Failed to apply view styles:', error);

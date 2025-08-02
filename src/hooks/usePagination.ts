@@ -10,7 +10,17 @@ export const viewPagination = (
   viewSettings: ViewSettings | null | undefined,
   side: 'left' | 'right',
 ) => {
-  if (!view || !viewSettings) return;
+  console.log('🔄 viewPagination调用:', {
+    view: view ? '✅ 存在' : '❌ null',
+    viewSettings: viewSettings ? '✅ 存在' : '❌ null',
+    side,
+    animated: viewSettings?.animated
+  });
+  
+  if (!view || !viewSettings) {
+    console.warn('❌ viewPagination: view或viewSettings为空');
+    return;
+  }
   const renderer = view.renderer;
   
   if (renderer.scrolled) {
@@ -20,8 +30,10 @@ export const viewPagination = (
     
     // 🎯 使用readest的距离计算逻辑
     const distance = calculateScrollDistance(renderer, viewSettings);
+    console.log('📜 滚动模式翻页:', { side, distance });
     return side === 'left' ? view.prev(distance) : view.next(distance);
   } else {
+    console.log('📖 分页模式翻页:', { side, animated: viewSettings.animated });
     return side === 'left' ? view.goLeft() : view.goRight();
   }
 };
@@ -31,7 +43,7 @@ export const usePagination = (
   viewRef?: React.MutableRefObject<FoliateView | null>,
   containerRef?: React.RefObject<HTMLDivElement>,
 ) => {
-  const { getViewSettings, getView } = useReaderStore();
+  const { getViewSettings, getView, setHoveredBookKey, getHoveredBookKey } = useReaderStore();
 
   // Get view either from ref or store
   const getCurrentView = () => viewRef?.current || getView(bookKey);
@@ -48,7 +60,18 @@ export const usePagination = (
           if (viewElement) {
             const { screenX } = msg.data;
             const viewRect = viewElement.getBoundingClientRect();
-            const windowStartX = window.screenX || 0;
+            
+            // 🎯 readest风格：平台适配的窗口位置计算
+            let windowStartX = 0;
+            try {
+              // 在某些平台上，window.screenX可能不可用
+              if (typeof window !== 'undefined' && typeof window.screenX === 'number') {
+                windowStartX = window.screenX;
+              }
+            } catch (error) {
+              console.warn('无法获取窗口位置，使用默认值:', error);
+            }
+            
             const viewStartX = windowStartX + viewRect.left;
             const viewCenterX = viewStartX + viewRect.width / 2;
             
@@ -59,21 +82,32 @@ export const usePagination = (
               viewSettings.disableClick! ||
               (screenX >= centerStartX && screenX <= centerEndX)
             ) {
-              // 切换header和footer的可见性
-              // TODO: 实现hoveredBookKey逻辑
+              // 🎯 readest风格：切换header和footer的可见性
+              const currentHovered = getHoveredBookKey();
+              setHoveredBookKey(currentHovered ? null : bookKey);
             } else {
+              // 🎯 readest风格：点击其他区域时隐藏工具栏
+              const currentHovered = getHoveredBookKey();
+              if (currentHovered) {
+                setHoveredBookKey(null);
+                return;
+              }
+              console.log('🖱️ 点击翻页区域:', {
+                screenX,
+                viewCenterX,
+                isRightSide: screenX >= viewCenterX,
+                swapClickArea: viewSettings.swapClickArea,
+                disableClick: viewSettings.disableClick
+              });
+              
               if (!viewSettings.disableClick! && screenX >= viewCenterX) {
-                if (viewSettings.swapClickArea) {
-                  viewPagination(getCurrentView(), viewSettings, 'left');
-                } else {
-                  viewPagination(getCurrentView(), viewSettings, 'right');
-                }
+                const direction = viewSettings.swapClickArea ? 'left' : 'right';
+                console.log('➡️ 点击右侧，方向:', direction);
+                viewPagination(getCurrentView(), viewSettings, direction);
               } else if (!viewSettings.disableClick! && screenX < viewCenterX) {
-                if (viewSettings.swapClickArea) {
-                  viewPagination(getCurrentView(), viewSettings, 'right');
-                } else {
-                  viewPagination(getCurrentView(), viewSettings, 'left');
-                }
+                const direction = viewSettings.swapClickArea ? 'right' : 'left';
+                console.log('⬅️ 点击左侧，方向:', direction);
+                viewPagination(getCurrentView(), viewSettings, direction);
               }
             }
           }
