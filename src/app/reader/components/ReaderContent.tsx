@@ -14,6 +14,7 @@ import BookReader from '@/components/reader/BookReader';
 import SettingsDialog from '@/components/reader/settings/SettingsDialog';
 import CacheMonitor from '@/components/debug/CacheMonitor';
 import { useSettingsStore } from '@/store/settingsStore';
+import useBookShortcuts from '@/hooks/useBookShortcuts';
 
 // 异步组件 - 用于Suspense包装
 const AsyncBookReader = React.lazy(() => 
@@ -44,6 +45,12 @@ const ReaderContent: React.FC<ReaderContentProps> = ({
   const { getViewState } = useReaderStore();
   const { getBookData } = useBookDataStore();
   const { fontLayoutSettingsDialogOpen, setFontLayoutSettingsDialogOpen } = useSettingsStore();
+  
+  // 🎯 集成键盘快捷键支持 - 与readest项目一致
+  useBookShortcuts({ 
+    sideBarBookKey: bookKey, 
+    bookKeys: [bookKey] 
+  });
   
   const viewState = getViewState(bookKey);
   const bookData = getBookData(bookKey);
