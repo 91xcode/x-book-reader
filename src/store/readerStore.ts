@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { FoliateView } from '@/types/view';
-import { ViewSettings, TOCItem, Location, Book, BookDoc } from '@/types/book';
+import { ViewSettings, TOCItem, Location, Book, BookDoc, PageInfo, TimeInfo } from '@/types/book';
 import { DEFAULT_VIEW_SETTINGS } from '@/utils/constants';
 import { getCompleteStyles } from '@/utils/style';
 import { useBookDataStore } from './bookDataStore';
@@ -11,11 +11,15 @@ import { DocumentLoader } from '@/libs/document';
 interface Progress {
   cfi?: string;
   tocItem?: TOCItem;
-  section?: any;
   location?: Location;
   time?: number;
   range?: Range;
   sectionHref?: string;
+  sectionLabel?: string;
+  sectionId?: number;
+  section?: PageInfo;
+  pageinfo?: PageInfo;
+  timeinfo?: TimeInfo;
 }
 
 interface ViewState {
@@ -66,7 +70,9 @@ interface ReaderState {
     bookKey: string,
     cfi?: string,
     tocItem?: TOCItem,
-    section?: any,
+    section?: PageInfo,
+    pageinfo?: PageInfo,
+    timeinfo?: TimeInfo,
     location?: Location,
     time?: number,
     range?: Range,
@@ -262,7 +268,9 @@ export const useReaderStore = create<ReaderState>()(
     bookKey: string,
     cfi?: string,
     tocItem?: TOCItem,
-    section?: any,
+    section?: PageInfo,
+    pageinfo?: PageInfo,
+    timeinfo?: TimeInfo,
     location?: Location,
     time?: number,
     range?: Range,
@@ -274,10 +282,14 @@ export const useReaderStore = create<ReaderState>()(
           cfi,
           tocItem,
           section,
+          pageinfo,
+          timeinfo,
           location,
           time: time || Date.now(),
           range,
           sectionHref: tocItem?.href,
+          sectionLabel: tocItem?.label,
+          sectionId: tocItem?.id,
         },
       },
     }));

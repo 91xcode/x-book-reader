@@ -13,6 +13,7 @@ import FoliateViewer from './FoliateViewer';
 import HeaderBar from './HeaderBar';
 import FooterBar from './FooterBar';
 import TTSControl from './tts/TTSControl';
+import ProgressInfo from './ProgressInfo';
 
 interface BookReaderProps {
   book: Book;
@@ -34,9 +35,10 @@ const BookReader: React.FC<BookReaderProps> = ({
   onToggleSidebar,
 }) => {
   // 🎯 使用传入的bookKey，遵循readest的正确做法
-  const { getViewSettings, getView } = useReaderStore();
+  const { getViewSettings, getView, getProgress } = useReaderStore();
   const viewSettings = getViewSettings(bookKey);
   const view = getView(bookKey);
+  const progress = getProgress(bookKey);
 
   // 如果viewSettings还没有初始化，显示加载状态
   if (!viewSettings) {
@@ -99,6 +101,20 @@ const BookReader: React.FC<BookReaderProps> = ({
       <TTSControl
         bookKey={bookKey}
       />
+
+      {/* Progress Info - 页码信息显示 */}
+      {viewSettings?.showFooter && progress && (
+        <ProgressInfo
+          bookKey={bookKey}
+          bookFormat={book.format}
+          section={progress.section}
+          pageinfo={progress.pageinfo}
+          timeinfo={progress.timeinfo}
+          horizontalGap={viewSettings.gapPercent || 5}
+          contentInsets={contentInsets}
+          gridInsets={{ top: 0, right: 0, bottom: 0, left: 0 }}
+        />
+      )}
 
       {/* Footer Bar */}
       <FooterBar

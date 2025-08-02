@@ -175,6 +175,17 @@ export interface TOCItem {
   subitems?: TOCItem[];
 }
 
+export interface PageInfo {
+  current: number;
+  total: number;
+  next?: number;
+}
+
+export interface TimeInfo {
+  section: number;
+  total: number;
+}
+
 export interface Location {
   current: number;
   next?: number;

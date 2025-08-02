@@ -114,21 +114,13 @@ const FoliateViewer: React.FC<{
   const progressRelocateHandler = (event: Event) => {
     const detail = (event as CustomEvent).detail;
     
-    // Debounce progress updates to prevent excessive calls
-    const now = Date.now();
-    const lastUpdate = (progressRelocateHandler as any).lastUpdate || 0;
-    
-    if (now - lastUpdate < 100) { // Limit to once per 100ms
-      return;
-    }
-    
-    (progressRelocateHandler as any).lastUpdate = now;
-    
     setProgress(
       bookKey,
       detail.cfi,
       detail.tocItem,
       detail.section,
+      detail.section,
+      undefined,
       detail.location,
       detail.time,
       detail.range,
@@ -373,7 +365,8 @@ const FoliateViewer: React.FC<{
   const docRelocateHandler = (event: Event) => {
     const detail = (event as CustomEvent).detail;
     if (detail.reason !== 'scroll' && detail.reason !== 'page') return;
-    console.log('Document relocate:', detail);
+    
+    // 处理并行视图同步等其他逻辑
   };
 
   useFoliateEvents(viewRef.current, {

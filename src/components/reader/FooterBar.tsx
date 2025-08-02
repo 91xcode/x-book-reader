@@ -106,12 +106,22 @@ const FooterBar: React.FC<FooterBarProps> = ({
     }
   };
 
-  const progressInfo = progress?.section;
+  // 优先使用有数据的进度信息
+  const progressInfo = progress?.section || progress?.pageinfo;
   const progressValid = !!progressInfo;
   const progressFraction =
     progressValid && progressInfo?.total > 0
       ? (progressInfo!.current + 1) / progressInfo!.total || 0
       : 0;
+  
+  // 页码信息显示
+  const pageDisplayText = progressInfo
+    ? ['PDF', 'CBZ'].includes(bookFormat)
+      ? `${progressInfo.current + 1} / ${progressInfo.total}`
+      : `Loc. ${progressInfo.current + 1} / ${progressInfo.total}`
+    : '';
+
+
 
   return (
     <>
@@ -152,6 +162,16 @@ const FooterBar: React.FC<FooterBarProps> = ({
             bottom: isMobile ? '64px' : '64px',
           }}
         >
+          {/* 移动端页码信息显示 */}
+          <div className='flex w-full items-center justify-between px-4 text-sm'>
+            <span className='text-center min-w-[80px]'>
+              {pageDisplayText}
+            </span>
+            <span className='text-center text-xs text-base-content/70'>
+              {progressValid ? `${Math.round(progressFraction * 100)}%` : ''}
+            </span>
+          </div>
+          
           <div className='flex w-full items-center justify-between gap-x-6'>
             <input
               type='range'
@@ -290,7 +310,10 @@ const FooterBar: React.FC<FooterBarProps> = ({
           >
             <RiArrowGoForwardLine className="w-4 h-4" />
           </button>
-          <span className='mx-2 text-center text-sm'>
+          <span className='mx-2 text-center text-sm min-w-[80px]'>
+            {pageDisplayText}
+          </span>
+          <span className='mx-2 text-center text-xs text-base-content/70'>
             {progressValid ? `${Math.round(progressFraction * 100)}%` : ''}
           </span>
           <input
