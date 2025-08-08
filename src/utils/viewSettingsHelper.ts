@@ -21,6 +21,19 @@ export const useViewSettingsSync = () => {
     if (!currentSettings) return;
 
     const globalSettings = settings.globalViewSettings;
+    
+    // 🔧 检查是否真的需要更新
+    const needsUpdate = Object.keys(globalSettings || {}).some(key => {
+      const globalValue = (globalSettings as any)?.[key];
+      const currentValue = (currentSettings as any)?.[key];
+      return globalValue !== undefined && globalValue !== currentValue;
+    });
+    
+    if (!needsUpdate) {
+      console.debug('🔧 全局设置无变化，跳过应用');
+      return;
+    }
+
     const updatedSettings = {
       ...currentSettings,
       ...globalSettings,
@@ -31,26 +44,34 @@ export const useViewSettingsSync = () => {
     // 应用样式 - 使用getCompleteStyles
     const view = getView(bookKey);
     if (view?.renderer?.setStyles) {
-      console.log('🎨 应用全局设置到书籍:', bookKey, updatedSettings);
+      console.debug('🎨 应用全局设置到书籍:', bookKey.substring(0, 8) + '...', { 
+        changed: Object.keys(globalSettings || {}).length 
+      });
       view.renderer.setStyles(getCompleteStyles(updatedSettings));
     }
-  }, [getViewSettings, setViewSettings, getView, settings.globalViewSettings]);
+  }, [getViewSettings, setViewSettings, getView]);
 
   /**
    * 初始化书籍设置（如果启用全局设置，则使用全局设置）
    */
   const initializeBookSettings = useCallback((bookKey: string, defaultSettings?: Partial<ViewSettings>) => {
     const existingSettings = getViewSettings(bookKey);
-    if (existingSettings) return; // 已经初始化
+    if (existingSettings) {
+      console.debug('🔧 书籍设置已存在，跳过初始化:', bookKey.substring(0, 8) + '...');
+      return; // 已经初始化
+    }
 
     const settingsToUse = isFontLayoutSettingsGlobal && settings.globalViewSettings
       ? { ...defaultSettings, ...settings.globalViewSettings }
       : defaultSettings;
 
     if (settingsToUse) {
+      console.debug('🎯 初始化书籍设置:', bookKey.substring(0, 8) + '...', { 
+        useGlobal: isFontLayoutSettingsGlobal 
+      });
       setViewSettings(bookKey, settingsToUse as ViewSettings);
     }
-  }, [getViewSettings, setViewSettings, isFontLayoutSettingsGlobal, settings.globalViewSettings]);
+  }, [getViewSettings, setViewSettings]);
 
   // 🎯 模仿readest的saveViewSettings - 简洁高效版本
   const saveViewSettings = useCallback(async <K extends keyof ViewSettings>(

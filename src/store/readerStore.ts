@@ -139,6 +139,21 @@ export const useReaderStore = create<ReaderState>()(
   },
 
   setViewSettings: (bookKey: string, settings: ViewSettings) => {
+    const currentSettings = get().viewSettings[bookKey];
+    
+    // 🔧 防止无意义的更新：深度比较关键字段
+    const hasActualChanges = !currentSettings || 
+      currentSettings.defaultFontSize !== settings.defaultFontSize ||
+      currentSettings.overrideFont !== settings.overrideFont ||
+      currentSettings.scrolled !== settings.scrolled ||
+      currentSettings.writingMode !== settings.writingMode ||
+      JSON.stringify(currentSettings) !== JSON.stringify(settings);
+    
+    if (!hasActualChanges) {
+      console.debug('🔧 Store: 跳过无变化的viewSettings更新', { bookKey: bookKey.substring(0, 8) + '...' });
+      return;
+    }
+    
     set((state) => ({
       viewSettings: {
         ...state.viewSettings,
@@ -146,10 +161,12 @@ export const useReaderStore = create<ReaderState>()(
       },
     }));
     
-    console.log('📚 Store: 更新viewSettings', {
-      bookKey,
+    // 🔧 减少日志噪音：改为debug级别
+    console.debug('📚 Store: 更新viewSettings', {
+      bookKey: bookKey.substring(0, 8) + '...',
       fontSize: settings.defaultFontSize,
-      overrideFont: settings.overrideFont
+      overrideFont: settings.overrideFont,
+      scrolled: settings.scrolled
     });
   },
 

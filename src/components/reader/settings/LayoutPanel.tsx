@@ -21,10 +21,11 @@ const LayoutPanel: React.FC<LayoutPanelProps> = ({ bookKey, onRegisterReset }) =
   const { updateGlobalViewSettings } = useSettingsStore();
   const resetViewSettings = useResetViewSettings();
 
-  // 确保viewSettings已初始化
+  // 确保viewSettings已初始化 - 只依赖bookKey，避免函数依赖
   useEffect(() => {
+    const { initializeViewSettings } = useReaderStore.getState();
     initializeViewSettings(bookKey);
-  }, [bookKey, initializeViewSettings]);
+  }, [bookKey]);
 
   const viewSettings = getViewSettings(bookKey);
   const view = getView(bookKey);
