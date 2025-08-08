@@ -11,11 +11,25 @@ const DB_NAME = 'BookFileSystem';
 const DB_VERSION = 1;
 const STORE_NAME = 'files';
 
+// 🔧 数据库连接缓存，避免重复连接和日志
+let dbCache: IDBDatabase | null = null;
+let dbPromise: Promise<IDBDatabase> | null = null;
+
 /**
- * 打开IndexedDB数据库
+ * 打开IndexedDB数据库（带缓存）
  */
 async function openIndexedDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  // 如果已有缓存的连接，直接返回
+  if (dbCache && !dbCache.isClosed) {
+    return dbCache;
+  }
+  
+  // 如果正在连接中，返回相同的Promise
+  if (dbPromise) {
+    return dbPromise;
+  }
+  
+  dbPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = () => {
@@ -28,15 +42,26 @@ async function openIndexedDB(): Promise<IDBDatabase> {
     };
 
     request.onsuccess = () => {
+      dbCache = request.result;
       console.log('📊 IndexedDB: 数据库连接成功');
-      resolve(request.result);
+      
+      // 监听数据库关闭事件，清除缓存
+      dbCache.onclose = () => {
+        dbCache = null;
+        dbPromise = null;
+      };
+      
+      resolve(dbCache);
     };
     
     request.onerror = () => {
+      dbPromise = null;
       console.error('❌ IndexedDB: 数据库连接失败:', request.error);
       reject(request.error);
     };
   });
+  
+  return dbPromise;
 }
 
 /**
@@ -100,7 +125,7 @@ class WebFileSystem implements FileSystemInterface {
    * 从IndexedDB获取书籍文件
    */
   async getBookFile(hash: string): Promise<File | null> {
-    console.log('💾 IndexedDB: 获取文件', {
+    console.debug('💾 IndexedDB: 获取文件', {
       hash: hash.substring(0, 8) + '...'
     });
     
@@ -117,7 +142,7 @@ class WebFileSystem implements FileSystemInterface {
           const file = new File([content], metadata.fileName, { 
             type: metadata.fileType 
           });
-          console.log('✅ IndexedDB: 文件获取成功', {
+          console.debug('✅ IndexedDB: 文件获取成功', {
             fileName: file.name,
             size: file.size
           });

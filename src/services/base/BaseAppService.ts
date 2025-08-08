@@ -64,14 +64,14 @@ export abstract class BaseAppService {
    * 获取书籍文件
    */
   async getBookFile(hash: string): Promise<File | null> {
-    console.log(`📖 获取书籍文件 [${this.appPlatform}]:`, hash.substring(0, 8) + '...');
+    console.debug(`📖 获取书籍文件 [${this.appPlatform}]:`, hash.substring(0, 8) + '...');
     
     try {
       const file = await this.fs.getBookFile(hash);
       if (file) {
-        console.log(`✅ 书籍文件获取成功 [${this.appPlatform}]:`, file.name);
+        console.debug(`✅ 书籍文件获取成功 [${this.appPlatform}]:`, file.name);
       } else {
-        console.log(`📂 书籍文件不存在 [${this.appPlatform}]`);
+        console.debug(`📂 书籍文件不存在 [${this.appPlatform}]`);
       }
       return file;
     } catch (error) {

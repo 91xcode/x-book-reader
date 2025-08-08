@@ -13,9 +13,10 @@ import Dropdown from '@/components/ui/Dropdown'
 import Dialog from '@/components/ui/Dialog'
 import MenuItem from '@/components/ui/MenuItem'
 import FileUpload from '@/components/FileUpload'
+import NavigationLoading from '@/components/NavigationLoading'
 import { getAppService } from '@/services/environment'
 import { BookServiceV2 } from '@/services/BookServiceV2'
-import { PreloadManager } from '@/services/PreloadManager'
+import { AvailabilityChecker } from '@/services/AvailabilityChecker'
 import { Book } from '@/types/book'
 import { LibraryViewModeType, LibrarySortByType, LibraryCoverFitType, BookFilter } from '@/types/settings'
 
@@ -26,6 +27,7 @@ export default function LibraryPage() {
   // 基础状态
   const [loading, setLoading] = useState(false)
   const [libraryLoaded, setLibraryLoaded] = useState(false) // 🆕 添加库加载状态
+  const [navigationLoading, setNavigationLoading] = useState(false) // 🚀 导航loading状态
   const [books, setBooks] = useState<Book[]>([])
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [isSelectAll, setIsSelectAll] = useState(false)
@@ -53,6 +55,18 @@ export default function LibraryPage() {
     loadBooks()
   }, [])
 
+  // 🚀 监听路由变化，重置导航loading状态
+  useEffect(() => {
+    const handleRouteChange = () => {
+      setNavigationLoading(false)
+    }
+
+    // 当组件卸载时重置loading状态
+    return () => {
+      setNavigationLoading(false)
+    }
+  }, [])
+
   const loadBooks = async () => {
     try {
       setLoading(true)
@@ -69,16 +83,16 @@ export default function LibraryPage() {
       const loadedBooks = bookServiceV2.getBooks()
       setBooks(loadedBooks)
       
-      // 🚀 多层次预加载：后台预检查书籍可用性
+      // 🔍 后台检查书籍可用性（符合Readest延迟策略）
       if (loadedBooks.length > 0) {
-        const preloadManager = PreloadManager.getInstance()
+        const availabilityChecker = AvailabilityChecker.getInstance()
         
-        // 异步后台预检查，不阻塞UI
+        // 异步后台检查，不阻塞UI
         setTimeout(() => {
-          preloadManager.backgroundCheckAvailability(loadedBooks).then(() => {
-            console.log('🔍 Library: 后台预检查完成')
+          availabilityChecker.backgroundCheckAvailability(loadedBooks).then(() => {
+            console.log('🔍 Library: 后台可用性检查完成')
           }).catch(error => {
-            console.error('❌ Library: 后台预检查失败:', error)
+            console.error('❌ Library: 后台可用性检查失败:', error)
           })
         }, 1000) // 延迟1秒开始，让UI先完成渲染
       }
@@ -173,6 +187,8 @@ export default function LibraryPage() {
     } else {
       // 🔧 采用Readest策略：仅检查文件可用性，延迟解析BookDoc
       try {
+        // 🚀 显示导航loading
+        setNavigationLoading(true)
         console.log('📖 Library: 用户点击书籍:', bookHash.substring(0, 8) + '...')
         
         // 1. 获取书籍信息
@@ -181,6 +197,7 @@ export default function LibraryPage() {
         
         if (!book) {
           console.error('❌ Library: 书籍不存在')
+          setNavigationLoading(false)
           return
         }
         
@@ -189,6 +206,7 @@ export default function LibraryPage() {
         
         if (!available) {
           console.error('❌ Library: 书籍文件不可用')
+          setNavigationLoading(false)
           return
         }
         
@@ -196,6 +214,7 @@ export default function LibraryPage() {
         console.log('🚀 Library: 文件可用，立即导航到Reader页面')
         setTimeout(() => {
           router.push(`/reader?ids=${bookHash}`)
+          // loading状态会在页面切换时自然结束
         }, 0)
         
       } catch (error) {
@@ -203,6 +222,7 @@ export default function LibraryPage() {
         // 降级：直接导航
         setTimeout(() => {
           router.push(`/reader?ids=${bookHash}`)
+          // loading状态会在页面切换时自然结束
         }, 0)
       }
     }
@@ -211,7 +231,7 @@ export default function LibraryPage() {
   // 🔧 采用Readest策略：hover时不进行预处理，保持简单
   const handleBookHover = async (bookHash: string) => {
     // Readest策略：hover时不做任何预处理，延迟到真正打开时再处理
-    console.debug('🔥 Library: Readest策略 - hover时不预处理，保持简单')
+    // 移除重复的debug日志，减少控制台噪音
   }
 
 
@@ -844,6 +864,13 @@ export default function LibraryPage() {
           </div>
         </Dialog>
       </main>
+
+      {/* 🚀 导航Loading */}
+      <NavigationLoading 
+        isLoading={navigationLoading}
+        message="正在打开书籍..."
+        description="正在准备阅读器页面"
+      />
     </div>
   )
 } 

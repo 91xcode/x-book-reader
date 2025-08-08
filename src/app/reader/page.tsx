@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { generateBookKey } from '@/utils/bookKey'
 import Spinner from '@/components/ui/Spinner'
+import NavigationLoading from '@/components/NavigationLoading'
 import ReaderContent from './components/ReaderContent'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -32,6 +33,8 @@ export default function ReaderPage() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true)
   // 🎯 智能加载指示器：延迟显示避免闪烁
   const [showLoading, setShowLoading] = useState(false)
+  // 🚀 导航loading状态
+  const [navigationLoading, setNavigationLoading] = useState(false)
   
   // 🔑 bookKey稳定性保证：使用ref防止重复生成
   const bookKeyRef = useRef<string>('')
@@ -39,13 +42,21 @@ export default function ReaderPage() {
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleBackToLibrary = () => {
+    // 🚀 显示导航loading
+    setNavigationLoading(true)
     // 🚀 使用SPA路由导航，保持内存状态（类似Readest的navigateToLibrary）
-    router.push('/library')
+    setTimeout(() => {
+      router.push('/library')
+    }, 0)
   }
 
   const handleCloseBook = () => {
+    // 🚀 显示导航loading
+    setNavigationLoading(true)
     // 🚀 使用SPA路由导航，保持内存状态（类似Readest的navigateToLibrary）
-    router.push('/library')
+    setTimeout(() => {
+      router.push('/library')
+    }, 0)
   }
 
   const handleOpenSettings = () => {
@@ -120,6 +131,13 @@ export default function ReaderPage() {
     }
   }, [bookId, initViewState, setBookKeys])
 
+  // 🚀 监听路由变化，重置导航loading状态
+  useEffect(() => {
+    return () => {
+      setNavigationLoading(false)
+    }
+  }, [])
+
   // 获取当前的视图状态和书籍数据
   const viewState = getViewState(bookKey)
   const bookData = getBookData(bookKey)
@@ -127,84 +145,114 @@ export default function ReaderPage() {
   // 🎯 智能加载指示器：只有在延迟后才显示loading
   if (!bookKey || (viewState?.loading && showLoading)) {
     return (
-      <div className="h-screen flex items-center justify-center bg-base-100">
-        <div className="flex flex-col items-center space-y-4">
-          <Spinner loading={true} />
-          <div className="text-sm text-base-content/70">
-            {!bookKey ? '初始化中...' : '正在加载书籍...'}
+      <>
+        <div className="h-screen flex items-center justify-center bg-base-100">
+          <div className="flex flex-col items-center space-y-4">
+            <Spinner loading={true} />
+            <div className="text-sm text-base-content/70">
+              {!bookKey ? '初始化中...' : '正在加载书籍...'}
+            </div>
           </div>
         </div>
-      </div>
+        <NavigationLoading 
+          isLoading={navigationLoading}
+          message="正在返回图书馆..."
+          description="正在准备图书馆页面"
+        />
+      </>
     )
   }
 
   if (viewState?.error) {
     return (
-      <div
-        className="h-screen flex items-center justify-center bg-base-100"
-        aria-live="assertive"
-      >
-        <div className="flex flex-col items-center space-y-4 text-center">
-          <div className="text-error text-lg font-medium">
-            {viewState.error}
+      <>
+        <div
+          className="h-screen flex items-center justify-center bg-base-100"
+          aria-live="assertive"
+        >
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <div className="text-error text-lg font-medium">
+              {viewState.error}
+            </div>
+            <button 
+              className="btn btn-primary"
+              onClick={() => {
+                hasInitialized.current = false
+                // 重新初始化
+                if (bookKey) {
+                  initViewState(bookId, bookKey, true)
+                }
+              }}
+            >
+              重试
+            </button>
+            <button 
+              className="btn btn-ghost"
+              onClick={handleBackToLibrary}
+            >
+              返回图书馆
+            </button>
           </div>
-          <button 
-            className="btn btn-primary"
-            onClick={() => {
-              hasInitialized.current = false
-              // 重新初始化
-              if (bookKey) {
-                initViewState(bookId, bookKey, true)
-              }
-            }}
-          >
-            重试
-          </button>
-          <button 
-            className="btn btn-ghost"
-            onClick={handleBackToLibrary}
-          >
-            返回图书馆
-          </button>
         </div>
-      </div>
+        <NavigationLoading 
+          isLoading={navigationLoading}
+          message="正在返回图书馆..."
+          description="正在准备图书馆页面"
+        />
+      </>
     )
   }
 
   if (!bookData?.book || !bookData?.bookDoc) {
     return (
-      <div className="h-screen flex items-center justify-center bg-base-100">
-        <div className="flex flex-col items-center space-y-4">
-          <Spinner loading={true} />
-          <div className="text-sm text-base-content/70">
-            准备中...
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <ErrorBoundary>
-      <Suspense fallback={
+      <>
         <div className="h-screen flex items-center justify-center bg-base-100">
           <div className="flex flex-col items-center space-y-4">
             <Spinner loading={true} />
             <div className="text-sm text-base-content/70">
-              正在启动阅读器...
+              准备中...
             </div>
           </div>
         </div>
-      }>
-        <ReaderContent
-          bookKey={bookKey}
-          onCloseBook={handleCloseBook}
-          onOpenSettings={handleOpenSettings}
-          isSidebarVisible={isSidebarVisible}
-          onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
-          onGoToLibrary={handleBackToLibrary}
+        <NavigationLoading 
+          isLoading={navigationLoading}
+          message="正在返回图书馆..."
+          description="正在准备图书馆页面"
         />
-      </Suspense>
-    </ErrorBoundary>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <ErrorBoundary>
+        <Suspense fallback={
+          <div className="h-screen flex items-center justify-center bg-base-100">
+            <div className="flex flex-col items-center space-y-4">
+              <Spinner loading={true} />
+              <div className="text-sm text-base-content/70">
+                正在启动阅读器...
+              </div>
+            </div>
+          </div>
+        }>
+          <ReaderContent
+            bookKey={bookKey}
+            onCloseBook={handleCloseBook}
+            onOpenSettings={handleOpenSettings}
+            isSidebarVisible={isSidebarVisible}
+            onToggleSidebar={() => setIsSidebarVisible(!isSidebarVisible)}
+            onGoToLibrary={handleBackToLibrary}
+          />
+        </Suspense>
+      </ErrorBoundary>
+
+      {/* 🚀 导航Loading */}
+      <NavigationLoading 
+        isLoading={navigationLoading}
+        message="正在返回图书馆..."
+        description="正在准备图书馆页面"
+      />
+    </>
   )
 } 
