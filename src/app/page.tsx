@@ -29,7 +29,7 @@ export default function Home() {
           {/* 描述文字 */}
           <p className="text-lg text-slate-500 dark:text-slate-400" 
              style={{ fontFamily: 'Bitter, "Noto Serif SC", serif' }}>
-            基于 readest 项目的增强版本，集成先进的字体系统与 TTS 技术
+            集成先进的字体系统与 TTS 技术
           </p>
         </div>
 
@@ -133,19 +133,6 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* 底部版权信息 */}
-        <div className="mt-16 text-center">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            基于 
-            <a href="https://github.com/readest/readest" 
-               target="_blank" 
-               rel="noopener noreferrer"
-               className="mx-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-200">
-              readest
-            </a>
-            项目构建 · 集成先进字体与 TTS 技术
-          </p>
-        </div>
       </div>
     </main>
   )
