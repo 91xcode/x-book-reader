@@ -39,11 +39,13 @@ export default function ReaderPage() {
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleBackToLibrary = () => {
-    window.location.href = '/library'
+    // 🚀 使用SPA路由导航，保持内存状态（类似Readest的navigateToLibrary）
+    router.push('/library')
   }
 
   const handleCloseBook = () => {
-    window.location.href = '/library'
+    // 🚀 使用SPA路由导航，保持内存状态（类似Readest的navigateToLibrary）
+    router.push('/library')
   }
 
   const handleOpenSettings = () => {
@@ -65,10 +67,14 @@ export default function ReaderPage() {
       hasInitialized.current = true
 
       try {
-        // 🎯 智能加载指示器：延迟300ms显示loading，避免快速加载时闪烁
+        // 🎯 智能加载指示器：检查是否有缓存决定延迟时间
+        const bookData = getBookData(bookId)
+        const hasCache = !!bookData?.bookDoc
+        const delayTime = hasCache ? 100 : 300 // 有缓存时减少延迟
+        
         loadingTimeoutRef.current = setTimeout(() => {
           setShowLoading(true)
-        }, 300)
+        }, delayTime)
 
         // 🔧 生成稳定的bookKey - 使用集中化生成器
         if (!bookKeyRef.current) {
@@ -78,7 +84,7 @@ export default function ReaderPage() {
         setBookKey(bookKeyRef.current)
         setBookKeys([bookKeyRef.current])
         
-        // 🚀 使用store的initViewState方法处理所有复杂逻辑
+        // 🚀 采用Readest策略：在Reader页面初始化时解析BookDoc
         await initViewState(bookId, bookKeyRef.current, true)
         
         console.log('✅ Reader页面初始化完成', { bookKey: bookKeyRef.current })

@@ -367,7 +367,7 @@ export const useReaderStore = create<ReaderState>()(
       let bookData = bookDataStore.getBookData(id);
       
       if (!bookData?.bookDoc) {
-        console.log('📚 缓存中没有书籍数据，开始加载...');
+        console.log('📚 Readest策略：缓存中没有BookDoc，开始延迟解析...');
         
         // 从bookService获取书籍元数据
         const book = bookService.getBookByHash(id);
@@ -407,7 +407,7 @@ export const useReaderStore = create<ReaderState>()(
           bookData = bookDataStore.getBookData(id);
         }
       } else {
-        console.log('✅ 使用缓存的书籍数据');
+        console.log('🚀 使用缓存的书籍数据 - 快速加载模式 (SPA导航保持内存状态)');
       }
       
       if (!bookData?.bookDoc) {

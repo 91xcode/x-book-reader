@@ -171,7 +171,7 @@ export default function LibraryPage() {
           : [...prev, bookHash]
       )
     } else {
-      // 🚀 实现预处理机制和异步导航
+      // 🔧 采用Readest策略：仅检查文件可用性，延迟解析BookDoc
       try {
         console.log('📖 Library: 用户点击书籍:', bookHash.substring(0, 8) + '...')
         
@@ -184,48 +184,17 @@ export default function LibraryPage() {
           return
         }
         
-        // 🔥 2. 检查BookDoc缓存状态（类似readest）
-        const { useBookDataStore } = await import('@/store/bookDataStore')
-        const bookDataStore = useBookDataStore.getState()
-        const bookData = bookDataStore.getBookData(bookHash)
+        // 2. 🔧 仅检查文件可用性（类似readest的makeBookAvailable）
+        const available = await bookServiceV2.isBookAvailable(book)
         
-        const hasBookDoc = !!bookData?.bookDoc
-        const hasBook = !!bookData?.book
-        
-        console.log('📊 Library: 书籍缓存状态', {
-          hasBook,
-          hasBookDoc,
-          hasFile: !!bookData?.file,
-          title: bookData?.book?.title
-        })
-        
-        let available = true // 默认可用
-        
-        if (!hasBook) {
-          // 书籍基础信息都没有，需要基础检查
-          const preloadManager = PreloadManager.getInstance()
-          available = await preloadManager.preheatBook(bookHash)
-          
-          if (!available) {
-            console.error('❌ Library: 书籍文件不可用')
-            return
-          }
-        } else if (!hasBookDoc) {
-          // 有基础信息但没有BookDoc，快速预解析
-          console.log('⚡ Library: 快速预解析BookDoc...')
-          try {
-            await preloadBookDoc(bookHash)
-          } catch (error) {
-            console.error('❌ Library: 预解析BookDoc失败:', error)
-            // 继续执行，降级到正常流程
-          }
-        } else {
-          console.log('🚀 Library: 使用完整缓存，立即导航')
+        if (!available) {
+          console.error('❌ Library: 书籍文件不可用')
+          return
         }
         
-        // 3. 异步导航（类似readest的setTimeout(0)）
+        // 3. 立即导航到Reader页面（类似readest的setTimeout(0)）
+        console.log('🚀 Library: 文件可用，立即导航到Reader页面')
         setTimeout(() => {
-          console.log('🚀 Library: 导航到reader页面')
           router.push(`/reader?ids=${bookHash}`)
         }, 0)
         
@@ -239,65 +208,13 @@ export default function LibraryPage() {
     }
   }
 
-  // 🔥 书籍hover预热 - 鼠标悬停时预热书籍（类似readest）
+  // 🔧 采用Readest策略：hover时不进行预处理，保持简单
   const handleBookHover = async (bookHash: string) => {
-    try {
-      // 检查是否已经有BookDoc缓存
-      const { useBookDataStore } = await import('@/store/bookDataStore')
-      const bookDataStore = useBookDataStore.getState()
-      const bookData = bookDataStore.getBookData(bookHash)
-      
-      if (bookData?.bookDoc) {
-        console.debug('🔥 Library: 书籍已有BookDoc缓存，跳过预热')
-        return // 已经有完整缓存了
-      }
-      
-      // 🔑 关键优化：异步预解析BookDoc
-      setTimeout(() => {
-        preloadBookDoc(bookHash).catch(error => {
-          console.debug('🔥 Library: 预解析BookDoc失败 (不影响功能):', error)
-        })
-      }, 150) // 稍微延迟，避免快速移动鼠标时的频繁调用
-      
-    } catch (error) {
-      console.debug('🔥 Library: 预热书籍失败 (不影响功能):', error)
-    }
+    // Readest策略：hover时不做任何预处理，延迟到真正打开时再处理
+    console.debug('🔥 Library: Readest策略 - hover时不预处理，保持简单')
   }
 
-  // 🚀 预解析BookDoc - 类似readest的initViewState逻辑
-  const preloadBookDoc = async (bookHash: string) => {
-    try {
-      console.log('📖 Library: 开始预解析BookDoc', bookHash.substring(0, 8) + '...')
-      const startTime = performance.now()
-      
-      const { useBookDataStore } = await import('@/store/bookDataStore')
-      const { useReaderStore } = await import('@/store/readerStore')
-      const { generateBookKey } = await import('@/utils/bookKey')
-      
-      const bookDataStore = useBookDataStore.getState()
-      const readerStore = useReaderStore.getState()
-      
-      // 再次检查缓存（防止重复解析）
-      const existingData = bookDataStore.getBookData(bookHash)
-      if (existingData?.bookDoc) {
-        console.log('✅ Library: BookDoc已缓存，跳过解析')
-        return
-      }
-      
-      // 🔑 关键：调用readerStore的initViewState（类似readest）
-      const bookKey = generateBookKey(bookHash)
-      await readerStore.initViewState(bookHash, bookKey, false) // false表示非主要视图
-      
-      const duration = performance.now() - startTime
-      console.log('✅ Library: BookDoc预解析完成', {
-        bookId: bookHash.substring(0, 8) + '...',
-        duration: `${duration.toFixed(2)}ms`
-      })
-      
-    } catch (error) {
-      console.error('❌ Library: BookDoc预解析失败:', error)
-    }
-  }
+
 
   // 打开导入对话框
   const handleImportBooks = () => {
