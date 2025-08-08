@@ -52,16 +52,7 @@ interface BookDataState {
   /** 检查缓存是否有效 */
   isCacheValid: (id: string, file: File) => boolean
   
-  /** 清除所有缓存 */
-  clearAllCache: () => void
-  
-  /** 获取缓存统计信息 */
-  getCacheStats: () => {
-    totalBooks: number
-    cachedBooks: number
-    cacheSize: number
-    oldestCacheTime: number | null
-  }
+
 
   /** 🆕 书籍可用性状态管理 */
   /** 获取书籍可用性状态 */
@@ -168,27 +159,7 @@ export const useBookDataStore = create<BookDataState>()(
         return !isCacheExpired && !isFileModified && !!bookData.bookDoc
       },
 
-      clearAllCache: () => {
-        set({ booksData: {} })
-      },
 
-      getCacheStats: () => {
-        const state = get()
-        const entries = Object.values(state.booksData)
-        const cachedEntries = entries.filter(data => data.bookDoc)
-        
-        return {
-          totalBooks: entries.length,
-          cachedBooks: cachedEntries.length,
-          cacheSize: cachedEntries.reduce((size, data) => {
-            // 估算缓存大小 (简化计算)
-            return size + (data.bookDoc ? 1 : 0)
-          }, 0),
-          oldestCacheTime: entries.length > 0 
-            ? Math.min(...entries.map(data => data.cachedAt))
-            : null
-        }
-      },
 
       // 🆕 书籍可用性状态管理
       getAvailabilityStatus: (id: string) => {

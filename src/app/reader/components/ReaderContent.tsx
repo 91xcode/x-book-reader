@@ -12,7 +12,7 @@ import Spinner from '@/components/ui/Spinner';
 import SideBar from '@/components/reader/sidebar/SideBar';
 import BookReader from '@/components/reader/BookReader';
 import SettingsDialog from '@/components/reader/settings/SettingsDialog';
-import CacheMonitor from '@/components/debug/CacheMonitor';
+
 import { useSettingsStore } from '@/store/settingsStore';
 import useBookShortcuts from '@/hooks/useBookShortcuts';
 
@@ -138,8 +138,7 @@ const ReaderContent: React.FC<ReaderContentProps> = ({
         </Suspense>
       )}
 
-      {/* 开发环境下的缓存监控 */}
-      <CacheMonitor position="bottom-left" />
+
     </div>
   );
 };
