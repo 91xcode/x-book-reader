@@ -349,13 +349,16 @@ export default function LibraryPage() {
   const ImportMenu = () => (
     <>
       <li>
-        <button onClick={handleImportBooks}>
+        <button 
+          onClick={handleImportBooks}
+          className="hover:bg-base-300 text-base-content flex w-full items-center justify-start rounded-md p-1 py-[10px] gap-2"
+        >
           <PiPlus className="w-4 h-4" />
           从文件导入
         </button>
       </li>
       <li>
-        <button>
+        <button className="hover:bg-base-300 text-base-content flex w-full items-center justify-start rounded-md p-1 py-[10px] gap-2">
           <PiPlus className="w-4 h-4" />
           从URL导入
         </button>
@@ -451,14 +454,20 @@ export default function LibraryPage() {
   const SettingsMenu = () => (
     <>
       <li>
-        <button>偏好设置</button>
+        <button className="hover:bg-base-300 text-base-content flex w-full items-center justify-start rounded-md p-1 py-[10px]">
+          偏好设置
+        </button>
       </li>
       <li>
-        <button>关于</button>
+        <button className="hover:bg-base-300 text-base-content flex w-full items-center justify-start rounded-md p-1 py-[10px]">
+          关于
+        </button>
       </li>
-      <li><div className="divider"></div></li>
+      <hr className="border-base-200 my-1" />
       <li>
-        <button>导出图书馆</button>
+        <button className="hover:bg-base-300 text-base-content flex w-full items-center justify-start rounded-md p-1 py-[10px]">
+          导出图书馆
+        </button>
       </li>
     </>
   )

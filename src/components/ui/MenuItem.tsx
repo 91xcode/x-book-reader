@@ -96,7 +96,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
       </ul>
     )
   }
-  return menuButton
+  return <li>{menuButton}</li>
 }
 
 export default MenuItem 

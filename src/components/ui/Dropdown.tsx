@@ -56,9 +56,9 @@ const Dropdown: React.FC<DropdownProps> = ({
           {toggleButton}
         </div>
         {isOpen && (
-          <div onClick={closeDropdown}>
+          <ul className="dropdown-content menu p-2 shadow bg-base-100 rounded-box min-w-48 max-w-64 z-10">
             {children}
-          </div>
+          </ul>
         )}
       </div>
     </div>
